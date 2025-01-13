@@ -6,7 +6,7 @@ export async function searchProductImages(query: string, count: number = 3): Pro
     const response = await fetch(
       `https://api.unsplash.com/search/photos?query=${encodeURIComponent(
         query
-      )}&per_page=${count}&orientation=squarish`,
+      )}`,
       {
         headers: {
           Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`

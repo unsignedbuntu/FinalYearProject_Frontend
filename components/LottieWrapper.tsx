@@ -10,13 +10,13 @@ export default function LottieWrapper({ animationData }: { animationData: any })
       if (obj?.shapes?.[0]?.it) {
         obj.shapes[0].it.forEach((item: any) => {
           if (item?.ty === 'sh') {
-            if (item?.ks?.k?.i?.[0]?.['fill-rule']) {
-              item.ks.k.i[0]['fillRule'] = item.ks.k.i[0]['fill-rule']
-              delete item.ks.k.i[0]['fill-rule']
+            if (item?.ks?.k?.i?.[0]?.['fillRule']) {
+              item.ks.k.i[0]['fillRule'] = item.ks.k.i[0]['fillRule']
+              delete item.ks.k.i[0]['fillRule']
             }
-            if (item?.ks?.k?.i?.[0]?.['clip-rule']) {
-              item.ks.k.i[0]['clipRule'] = item.ks.k.i[0]['clip-rule']
-              delete item.ks.k.i[0]['clip-rule']
+            if (item?.ks?.k?.i?.[0]?.['clipRule']) {
+              item.ks.k.i[0]['clipRule'] = item.ks.k.i[0]['clipRule']
+              delete item.ks.k.i[0]['clipRule']
             }
           }
         })

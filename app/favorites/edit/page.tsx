@@ -1,8 +1,6 @@
 "use client"
 import { useState } from 'react'
 import Sidebar from '@/components/sidebar/Sidebar'
-import Header from '@/components/header/Header'
-import NavigationBar from '@/components/navigation/NavigationBar'
 import Checkbox from '@/components/icons/Checkbox'
 import Menu from '@/components/icons/Menu'
 import CartFavorites from '@/components/icons/CartFavorites'

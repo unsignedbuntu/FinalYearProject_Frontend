@@ -4,15 +4,16 @@ import Image from "next/image";
 import Link from "next/link";
 import Visible from "@/components/icons/Visible";
 import Unvisible from "@/components/icons/Unvisible";
-import Sign from "./public/icons/Sign.png"; 
-import MyLogo from "./public/MyLogo.png";  // MyLogo.png'nin doğru yolu
+import Sign from "@/components/icons/Sign.png"; 
 
 export default function SignInPage() {
+  
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   return (
+    
     <div className="min-h-screen relative">
      <Image
   src={Sign} // Update with the actual path in the public folder
@@ -24,15 +25,17 @@ export default function SignInPage() {
 
       <div className="absolute inset-0 flex flex-col items-center justify-center">
           {/* Logo Burada */}
-          <Image
-            src={MyLogo} // MyLogo burada kullanılıyor
+           <Link href="/">
+            <Image
+            src={"/MyLogo.png"} // MyLogo burada kullanılıyor
             alt="Logo"
             className="rounded-lg"
             width={100} // Logo genişliği
             height={100} // Logo yüksekliği
-          />
+            /> 
+            </Link>
   
-        <h1 className="text-[#00FF85] font-raleway text-2xl mb-8 text-center">
+        <h1 className="text-[#ffffff] font-raleway text-2xl mb-8 text-center">
           Welcome to Atalay's<br />
           Management Store
         </h1>

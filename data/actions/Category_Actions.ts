@@ -7,8 +7,7 @@ export async function getCategories() {
     const response = await fetch("https://localhost:7296/CustomerFeedback", {
       cache: 'no-store',
       next: { revalidate: 0 },
-      // SSL sertifika doğrulamasını devre dışı bırak
-    
+      
     });
     
     if (!response.ok) {
