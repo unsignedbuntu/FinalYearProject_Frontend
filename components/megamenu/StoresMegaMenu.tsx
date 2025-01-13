@@ -164,9 +164,9 @@ export default function StoresMegaMenu() {
             {/* Categories */}
             {activeStore && (
               <div className="flex-1 pl-8">
-                <div className="grid grid-cols-2 gap-8">
-                  {stores[activeStore as keyof typeof stores].categories.map((category, idx) => (
-                    <div key={idx} className="border-b border-gray-200 pb-4 last:border-0">
+               <div className="grid grid-cols-2 gap-8">
+                {stores[activeStore as keyof typeof stores].categories.map((category) => (
+                <div key={category.title} className="border-b border-gray-200 pb-4 last:border-0">
                       <h3 className="text-lg font-medium text-[#1D4ED8] mb-3 hover:text-blue-700 cursor-pointer flex items-center justify-between">
                         {category.title}
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">

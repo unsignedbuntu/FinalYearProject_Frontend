@@ -201,6 +201,7 @@ export default function HeroSlider() {
     return () => clearInterval(timer)
   }, [])
 
+  
   const goToSlide = (index: number) => {
     setCurrentSlide(index)
   }

@@ -3,23 +3,29 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_NO_WARNINGS=1 next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "dotenv": "^16.4.7",
+    "http-proxy-middleware": "^3.0.3",
+    "https-browserify": "^1.0.0",
     "lottie-react": "^2.4.0",
     "next": "15.1.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^7.1.1"
+    "react-router-dom": "^7.1.1",
+    "stream-http": "^3.2.0",
+    "uuid": "^11.0.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^7.0.3",
     "eslint": "^9",
     "eslint-config-next": "15.1.3",
     "postcss": "^8",

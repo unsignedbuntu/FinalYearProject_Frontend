@@ -102,7 +102,7 @@ export default function CartPage() {
     setProducts(products.map(product => {
       if (product.id === productId) {
         const newQuantity = product.quantity + change
-        if (newQuantity === 0) {
+        if (newQuantity == 0) {
           handleRemoveProduct(productId)
           return product
         }
@@ -132,7 +132,7 @@ export default function CartPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="font-raleway text-[64px] font-normal text-left">
-            My cart({products.length} product{products.length !== 1 ? 's' : ''})
+            My cart({products.length} product{products.length != 1 ? 's' : ''})
           </h1>
           
           <div className="flex items-center gap-2 cursor-pointer" 
@@ -215,7 +215,7 @@ export default function CartPage() {
 
               {/* Controls */}
               <div className="absolute right-6 top-[45px] flex items-center gap-4">
-                {product.quantity === 1 ? (
+                {product.quantity == 1 ? (
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleQuantityChange(product.id, 1)}
                             className="w-[30px] h-[30px] bg-white rounded-full flex items-center justify-center">
@@ -271,7 +271,7 @@ export default function CartPage() {
 
           <button 
             onClick={() => {
-              if (selectedProducts.length === 0) {
+              if (selectedProducts.length == 0) {
                 setShowCompleteShoppingMessage(true);
               } else {
                 router.push('/payment');
@@ -393,7 +393,7 @@ export default function CartPage() {
               <div className="flex items-center justify-center gap-4 mt-6 px-4">
                 <button 
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
+                  disabled={currentPage == 1}
                   className="text-sm text-[#5C5C5C] hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
@@ -403,7 +403,7 @@ export default function CartPage() {
                 </div>
                 <button 
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage == totalPages}
                   className="text-sm text-[#5C5C5C] hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
@@ -415,4 +415,4 @@ export default function CartPage() {
       )}
     </div>
   )
-} 
+}
