@@ -14,8 +14,8 @@ const months = [
   "July", "August", "September", "October", "November", "December"
 ]
 
-const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString())
-const years = Array.from({ length: 100 }, (_, i) => (2024 - i).toString())
+    const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString())
+    const years = Array.from({ length: 100 }, (_, i) => (2024 - i).toString())
 
 export default function UserInfoPage() {
   const [showTransactions, setShowTransactions] = useState(false)
@@ -235,18 +235,18 @@ export default function UserInfoPage() {
                     value={formData.day}
                     onChange={(e) => setFormData({...formData, day: e.target.value})}
                   >
-                    <option value="">Day</option>
+                   <option value="" disabled hidden>Day</option>
                     {days.map(day => (
-                      <option key={day} value={day}>{day}</option>
-                    ))}
-                  </select>
+                    <option key={day} value={day}>{day}</option>
+                     ))}
+                    </select>
 
                   <select 
                     className={`w-1/3 h-[40px] bg-white rounded-lg px-2 ${errors.birthDate ? 'border-2 border-red-500' : ''}`}
                     value={formData.month}
                     onChange={(e) => setFormData({...formData, month: e.target.value})}
                   >
-                    <option value="">Month</option>
+                    <option value="" disabled hidden>Month</option>
                     {months.map(month => (
                       <option key={month} value={month}>{month}</option>
                     ))}
@@ -257,7 +257,7 @@ export default function UserInfoPage() {
                     value={formData.year}
                     onChange={(e) => setFormData({...formData, year: e.target.value})}
                   >
-                    <option value="">Year</option>
+                    <option value="" disabled hidden>Year</option>
                     {years.map(year => (
                       <option key={year} value={year}>{year}</option>
                     ))}
