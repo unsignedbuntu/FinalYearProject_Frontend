@@ -116,7 +116,7 @@ export default function MyOrdersPage() {
                     className="rounded-lg"
                   />
                   <div>
-                    <p className="font-raleway text-[16px]">Order no: {order.id}</p>
+                    <div className="font-raleway text-[16px]">Order no: {order.id}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-[200px]">
@@ -128,8 +128,8 @@ export default function MyOrdersPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="text-gray-500">{order.date}</p>
-                      <p className="font-bold text-[#12B51D]">{order.price.toFixed(2)} TL</p>
+                      <div className="text-gray-500">{order.date}</div>
+                      <div className="font-bold text-[#12B51D]">{order.price.toFixed(2)} TL</div>
                     </div>
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

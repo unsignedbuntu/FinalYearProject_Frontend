@@ -41,11 +41,11 @@ export default function DeleteOverlay({ productCount, onClose, onConfirm }: Dele
 
             {/* Delete message */}
             <div className="absolute left-[85px] top-[69px]">
-              <p className="font-inter text-[32px] text-center">
+              <div className="font-inter text-[32px] text-center">
                 Are you sure you want to
                 <br />
                 delete {productCount} products?
-              </p>
+              </div>
             </div>
 
             {/* Action buttons */}

@@ -68,7 +68,7 @@ export default function Header() {
         <div className="flex items-center gap-7">
         
           <Link 
-            href="/signin"
+            href="/sign-up"
             onClick={toggleSignIn}
             className="relative w-[182px] h-[58px] bg-[#8CFF75] hover:bg-[#7ee569] rounded-lg transition-colors flex items-center group cursor-pointer"
           >

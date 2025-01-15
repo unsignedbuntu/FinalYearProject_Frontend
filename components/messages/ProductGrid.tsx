@@ -98,9 +98,9 @@ export default function ProductGrid({ products, showInStock }: ProductGridProps)
                   <CartFavorites />
                 </button>
               </div>
-              <p className="font-poppins text-[14px] font-bold text-[#40BFFF] mt-1">
+              <div className="font-poppins text-[14px] font-bold text-[#40BFFF] mt-1">
                 {product.price.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-              </p>
+              </div>
             </div>
           </div>
         ))}

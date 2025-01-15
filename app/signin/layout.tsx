@@ -4,10 +4,9 @@ export default function SignInLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="antialiased">
-        {children}
-      </body>
-    </html>
+    <div lang="en" className="min-h-screen relative">
+      {children}
+    </div>
   );
 }
+

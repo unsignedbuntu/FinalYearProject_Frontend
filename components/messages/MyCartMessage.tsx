@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
-import TickGreen from '../icons/TickGreen';
+import Information from '../icons/Information';
 import Image from 'next/image';
 import Close from '../icons/Close.png';
 
-interface DeleteSuccessMessageProps {
+interface MyCartMessageProps {
   onClose: () => void;
 }
 
-export default function DeleteSuccessMessage({ onClose }: DeleteSuccessMessageProps) {
+export default function MyCartMessage({ onClose }: MyCartMessageProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -18,19 +18,16 @@ export default function DeleteSuccessMessage({ onClose }: DeleteSuccessMessagePr
 
   return (
     <>
-      {/* Blur background */}
-      <div 
+      <div
         className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50"
         onClick={onClose}
       />
-      
-      {/* Message content */}
+
       <div
-        className="fixed top-8 right-8 w-[350px] h-[150px] bg-[#C5F3BA] rounded-[20px] z-50
+        className="fixed top-8 right-8 w-[350px] h-[150px] bg-[#73F1FF] rounded-[20px] z-50
                  animate-slide-in shadow-lg overflow-hidden"
       >
-        {/* Close button */}
-        <button 
+        <button
           onClick={onClose}
           className="absolute right-[14px] top-[14px] hover:opacity-80 transition-opacity
                    active:scale-95 transform duration-150"
@@ -38,23 +35,31 @@ export default function DeleteSuccessMessage({ onClose }: DeleteSuccessMessagePr
           <Image src={Close} alt="Close Icon" width={12} height={12} />
         </button>
 
-        {/* Success line */}
-        <div className="absolute left-0 top-0 w-[20px] h-full bg-[#5AD363]">
+        <div className="absolute left-0 top-0 w-[20px] h-full bg-[#56C8FA]">
           <div className="w-full h-full rounded-l-[20px]" />
         </div>
 
-        {/* Success icon */}
-        <div className="absolute left-[36px] top-[40px] animate-bounce-in">
-          <TickGreen />
+        <div className="absolute left-[24px] top-[36px] animate-bounce-in">
+          <Information />
         </div>
 
-        {/* Message text */}
-        <p className="absolute left-[80px] top-[40%] transform -translate-y-1/2 
+        <div
+          className="absolute left-[80px] top-[40%] transform -translate-y-1/2 
                    font-inter text-[16px] text-black leading-tight max-w-[230px]
-                   animate-fade-in">
-          The product has been deleted from your list.
-        </p>
+                   animate-fade-in"
+        >
+          The product has been removed from your cart.
+        </div>
+
+        <span
+          onClick={onClose}
+          className="absolute left-[80px] top-[78px] font-inter text-[40px] text-[#6C84FA] 
+                        hover:opacity-90 transition-opacity cursor-pointer"
+        >
+          Undo
+        </span>
       </div>
     </>
   );
-} 
+}
+

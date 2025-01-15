@@ -111,9 +111,9 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                 </span>
               </div>
 
-              <p className="text-gray-700 mb-6">
+              <div className="text-gray-700 mb-6">
                 {SAMPLE_PRODUCT.description}
-              </p>
+              </div>
 
               <div className="mb-6">
                 <h2 className="text-lg font-semibold mb-2">Colors</h2>

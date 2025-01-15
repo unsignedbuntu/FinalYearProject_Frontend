@@ -80,9 +80,9 @@ export default function SupportPage() {
       <section className="max-w-7xl mx-auto px-4 py-12">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">How Can We Help You?</h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
+          <div className="text-gray-600 max-w-2xl mx-auto">
             Our support team is here to assist you with any questions or concerns you may have.
-          </p>
+          </div>
         </div>
       </section>
 
@@ -101,10 +101,10 @@ export default function SupportPage() {
                   >
                     {item.question}
                   </h4>
-                  <p className={`text-sm text-gray-600 mt-1 transition-all
+                  <div className={`text-sm text-gray-600 mt-1 transition-all
                     ${activeItems.faq === index ? 'block' : 'hidden'}`}>
                     {item.content}
-                  </p>
+                    </div>
                 </li>
               ))}
             </ul>
@@ -122,10 +122,10 @@ export default function SupportPage() {
                   >
                     {item.title}
                   </h4>
-                  <p className={`text-sm text-gray-600 mt-1 transition-all
+                  <div className={`text-sm text-gray-600 mt-1 transition-all
                     ${activeItems.service === index ? 'block' : 'hidden'}`}>
                     {item.content}
-                  </p>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -143,10 +143,10 @@ export default function SupportPage() {
                   >
                     {item.title}
                   </h4>
-                  <p className={`text-sm text-gray-600 mt-1 transition-all
+                  <div className={`text-sm text-gray-600 mt-1 transition-all
                     ${activeItems.resource === index ? 'block' : 'hidden'}`}>
                     {item.content}
-                  </p>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -160,9 +160,9 @@ export default function SupportPage() {
           <div className="flex flex-col md:flex-row">
             <div className="md:w-1/2 p-8 bg-gradient-to-br from-blue-500 to-purple-600 text-white">
               <h2 className="text-3xl font-bold mb-6">Get in Touch</h2>
-              <p className="mb-6">
+              <div className="mb-6">
                 Can't find what you're looking for? Send us a message and we'll get back to you as soon as possible.
-              </p>
+              </div>
               <div className="space-y-4">
                 <div className="flex items-center">
                   <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

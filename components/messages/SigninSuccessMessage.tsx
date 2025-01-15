@@ -4,11 +4,11 @@ import TickGreen from '../icons/TickGreen'
 import Image from 'next/image'
 import Close from '../icons/Close.png'
 
-interface AddressSuccessMessageProps {
+interface SigninSuccessMessageProps {
   onClose: () => void;
 }
 
-export default function AddressSuccessMessage({ onClose }: AddressSuccessMessageProps) {
+export default function SigninSuccessMessage({ onClose }: SigninSuccessMessageProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -50,11 +50,11 @@ export default function AddressSuccessMessage({ onClose }: AddressSuccessMessage
         </div>
 
         {/* Message text */}
-        <p className="absolute left-[80px] top-[40%] transform -translate-y-1/2 
+        <div className="absolute left-[80px] top-[40%] transform -translate-y-1/2 
                    font-inter text-[16px] text-black leading-tight max-w-[230px]
                    animate-fade-in">
-          Your address has been successfully saved.
-        </p>
+            Login completed successfully.
+        </div>
       </div>
     </>
   );

@@ -39,9 +39,9 @@ export default function FavoriteLists() {
                   <h3 className="font-inter text-[16px] text-white">
                     {product.name}
                   </h3>
-                  <p className="font-inter text-[14px] text-[#40BFFF]">
+                  <div className="font-inter text-[14px] text-[#40BFFF]">
                     ${product.price}
-                  </p>
+                  </div>
                 </div>
               </div>
             ))}

@@ -2,7 +2,7 @@
 import { useState } from 'react'  
 import { useRouter } from 'next/navigation'  
 import Sidebar from '@/components/sidebar/Sidebar'  
-import AddressSuccessMessage from '@/components/address/AddressSuccessMessage'  
+import AddressSuccessMessage from '@/components/messages/AddressSuccessMessage'  
 
 const cities = [  
   "Adana", "Adıyaman", "Afyon", "Ağrı", "Amasya", "Ankara", "Antalya", "Artvin", "Aydın", "Balıkesir",  
@@ -79,7 +79,7 @@ export default function NewAddressPage() {
                          font-inter text-gray-600 placeholder-gray-500  
                          ${errors.name ? 'border-2 border-red-500' : ''}`}  
               />  
-              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}  
+              {errors.name && <div className="text-red-500 text-sm mt-1">{errors.name}</div>}  
             </div>  
 
             {/* Surname input */}  
@@ -92,7 +92,7 @@ export default function NewAddressPage() {
                          font-inter text-gray-600 placeholder-gray-500  
                          ${errors.surname ? 'border-2 border-red-500' : ''}`}  
               />  
-              {errors.surname && <p className="text-red-500 text-sm mt-1">{errors.surname}</p>}  
+              {errors.surname && <div className="text-red-500 text-sm mt-1">{errors.surname}</div>}  
             </div>  
 
             {/* Phone number input */}  
@@ -107,8 +107,8 @@ export default function NewAddressPage() {
                          font-inter text-gray-600 placeholder-gray-500  
                          ${errors.phone ? 'border-2 border-red-500' : ''}`}  
               />  
-              <p className="text-sm text-gray-500 mt-1">Please enter your phone number without the leading zero</p>  
-              {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}  
+              <div className="text-sm text-gray-500 mt-1">Please enter your phone number without the leading zero</div>  
+              {errors.phone && <div className="text-red-500 text-sm mt-1">{errors.phone}</div>}  
             </div>  
 
             {/* City selection */}  
@@ -156,7 +156,7 @@ export default function NewAddressPage() {
               <div className="text-sm text-gray-500 mt-1">  
                 Please ensure that you have entered all detailed information such as neighborhood, street, and building correctly so that your package can reach you.  
               </div>  
-              {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}  
+              {errors.address && <div className="text-red-500 text-sm mt-1">{errors.address}</div>}  
             </div>  
 
             {/* Address Title */}  
@@ -171,7 +171,7 @@ export default function NewAddressPage() {
                          font-inter text-gray-600 placeholder-gray-500  
                          ${errors.addressTitle ? 'border-2 border-red-500' : ''}`}  
               />  
-              {errors.addressTitle && <p className="text-red-500 text-sm mt-1">{errors.addressTitle}</p>}  
+              {errors.addressTitle && <div className="text-red-500 text-sm mt-1">{errors.addressTitle}</div>}  
             </div>  
 
             {/* Save button */}  

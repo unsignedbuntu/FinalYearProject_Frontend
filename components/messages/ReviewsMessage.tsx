@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
-import Information from '../icons/Information';
 import Image from 'next/image';
 import Close from '../icons/Close.png';
+import TickGreen from '../icons/TickGreen';
 
-interface CompleteShoppingProps {
+interface ReviewsMessageProps {
   onClose: () => void;
 }
 
-export default function CompleteShopping({ onClose }: CompleteShoppingProps) {
+export default function ReviewsMessage({ onClose }: ReviewsMessageProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -40,16 +40,16 @@ export default function CompleteShopping({ onClose }: CompleteShoppingProps) {
         </div>
 
         <div className="absolute left-[24px] top-[36px] animate-bounce-in">
-          <Information />
+          <TickGreen />
         </div>
 
-        <p
+        <div
           className="absolute left-[80px] top-[40%] transform -translate-y-1/2 
                    font-inter text-[16px] text-black leading-tight max-w-[230px]
                    animate-fade-in"
         >
-          To complete your shopping, you can select the products you want to purchase in your cart.
-        </p>
+          We received your submission
+        </div>
       </div>
     </>
   );

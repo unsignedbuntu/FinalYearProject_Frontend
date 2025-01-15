@@ -1,62 +1,70 @@
 "use client"
 import { useState } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import Sign from '@/components/icons/Sign.png'
 
 export default function ForgotPasswordPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [isSubmitted, setIsSubmitted] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    // Burada şifre sıfırlama e-postası gönderme işlemi yapılacak
     setIsSubmitted(true)
+  }
+
+  const handleReturnToSignIn = () => {
+    router.push('/signin')
   }
 
   return (
     <div className="min-h-screen relative">
-      {/* Background Image will be added here */}
+      <Image
+        src={Sign}
+        alt="Background"
+        fill
+        className="object-cover"
+        priority
+      />
       
-      {/* Content */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        {/* Logo */}
-        <div className="mb-4">
+        <button onClick={() => router.push('/')}>
           <Image 
-            src="/logo.png"
+            src="/MyLogo.png"
             alt="Logo"
-            width={80}
-            height={80}
-            className="rounded-lg"
+            width={100}
+            height={100}
+            className="rounded-lg mb-8"
           />
-        </div>
+        </button>
 
-        {/* Title */}
-        <h1 className="text-white font-raleway text-2xl mb-4">
+        <h1 className="text-white font-raleway text-4xl mb-4">
           Reset Your Password
         </h1>
 
-        {/* Description */}
-        <p className="text-white/70 text-center mb-8 max-w-md">
+        <div className="text-white/70 text-center mb-8 max-w-md px-4">
           Enter your email address and we'll send you instructions on how to reset your password.
-        </p>
+        </div>
 
         {isSubmitted ? (
-          <div className="text-center">
+          <div className="text-center px-4">
             <div className="text-[#00FF85] text-xl mb-4">
               ✓ Email Sent Successfully
             </div>
-            <p className="text-white/70 mb-4">
+            <div className="text-white/70 mb-4">
               Please check your email for password reset instructions.
-            </p>
-            <Link 
-              href="/sign-in"
+            </div>
+            <button 
+              onClick={handleReturnToSignIn}
               className="text-[#00FF85] hover:underline"
             >
               Return to Sign In
-            </Link>
+            </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="w-[300px] space-y-4">
-            {/* Email Input */}
+          <form onSubmit={handleSubmit} className="w-[300px] space-y-4 px-4">
             <div className="relative">
               <input
                 type="email"
@@ -64,26 +72,24 @@ export default function ForgotPasswordPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email Address"
                 required
-                className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50"
+                className="w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 focus:ring-[#B4D4FF]"
               />
             </div>
 
-            {/* Submit Button */}
             <button 
               type="submit"
-              className="w-full bg-[#00FF85] text-black font-medium py-2 rounded-lg hover:bg-[#00CC6A]"
+              className="w-full bg-[#B4D4FF] text-black font-medium py-2 rounded-lg hover:bg-[#86B6F6]"
             >
               Send Reset Instructions
             </button>
 
-            {/* Back to Sign In */}
             <div className="text-center">
-              <Link 
-                href="/sign-in"
-                className="text-[#00FF85] hover:underline"
+              <button 
+                onClick={handleReturnToSignIn}
+                className="text-[#FFFF00] hover:underline"
               >
                 Back to Sign In
-              </Link>
+              </button>
             </div>
           </form>
         )}

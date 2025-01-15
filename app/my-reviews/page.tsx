@@ -3,7 +3,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Sidebar from '@/components/sidebar/Sidebar'
 import Review from '@/components/icons/Review'
-import ReviewsMessage from '@/components/favorites/ReviewsMessage'
+import ReviewsMessage from '@/components/messages/ReviewsMessage'
 import Close from '@/components/icons/Close.png'
 
 interface Product {
@@ -143,12 +143,12 @@ export default function MyReviewsPage() {
                   />
                 </div>
                 <div className="h-[50px] bg-[#D9D9D9] rounded-b-lg p-2">
-                  <p className="font-raleway text-sm mb-1">
+                  <div className="font-raleway text-sm mb-1">
                     {product.name.length > 12 
                       ? product.name.slice(0, 12) + '..'
                       : product.name
                     }
-                  </p>
+                  </div>
                   <div className="flex items-center justify-between">
                     <div className="flex">
                       {[1, 2, 3, 4, 5].map((star) => (
@@ -230,8 +230,8 @@ export default function MyReviewsPage() {
                 />
                 <div>
                   <h3 className="font-raleway text-lg">{selectedProduct.name}</h3>
-                  <p className="text-sm text-gray-500">Size: {selectedProduct.size}</p>
-                  <p className="text-sm text-gray-500">Color: {selectedProduct.color}</p>
+                  <div className="text-sm text-gray-500">Size: {selectedProduct.size}</div>
+                  <div className="text-sm text-gray-500">Color: {selectedProduct.color}</div>
                 </div>
               </div>
               <button 

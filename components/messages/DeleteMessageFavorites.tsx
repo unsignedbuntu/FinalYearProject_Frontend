@@ -1,15 +1,13 @@
-"use client"
 import { useEffect } from 'react';
 import TickGreen from '../icons/TickGreen';
 import Image from 'next/image';
 import Close from '../icons/Close.png';
 
-interface SuccessMessageProps {
-  message: string;
+interface DeleteMessageFavoritesProps {
   onClose: () => void;
 }
 
-export default function SuccessMessage({ onClose }: SuccessMessageProps) {
+export default function DeleteMessageFavorites({ onClose }: DeleteMessageFavoritesProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -51,11 +49,11 @@ export default function SuccessMessage({ onClose }: SuccessMessageProps) {
         </div>
 
         {/* Message text */}
-        <p className="absolute left-[80px] top-[40%] transform -translate-y-1/2 
+        <div className="absolute left-[80px] top-[40%] transform -translate-y-1/2 
                    font-inter text-[16px] text-black leading-tight max-w-[230px]
                    animate-fade-in">
-          The list has been created and the product has been added to the list.
-        </p>
+          The product has been deleted from your favorites.
+        </div>
       </div>
     </>
   );

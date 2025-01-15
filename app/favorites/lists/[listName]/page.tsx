@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Sidebar from '@/components/sidebar/Sidebar'
-import ListSidebar from '@/components/favorites/ListSidebar'
+import ListSidebar from '@/components/messages/ListSidebar'
 
 interface Product {
   id: number;
@@ -51,9 +51,9 @@ export default function ListPage() {
                 <h3 className="font-inter text-[16px] text-white">
                   {product.name}
                 </h3>
-                <p className="font-inter text-[14px] text-[#40BFFF]">
+                <div className="font-inter text-[14px] text-[#40BFFF]">
                   ${product.price}
-                </p>
+                </div>
               </div>
             </div>
           ))}

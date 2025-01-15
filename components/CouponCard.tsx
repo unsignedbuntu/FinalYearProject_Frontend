@@ -25,9 +25,9 @@ const CouponCard: React.FC<CouponCardProps> = ({
           <span className="font-inter text-[24px] font-normal">TL discount</span>
         </div>
 
-        <p className="font-inter text-[16px] font-normal text-[#5C5C5C] opacity-40 mt-1">
+        <div className="font-inter text-[16px] font-normal text-[#5C5C5C] opacity-40 mt-1">
           Minimum limit : {minimumLimit} TL
-        </p>
+        </div>
 
         <div className="flex items-center gap-2 mt-2">
           <TicketHour width={12} height={20} />

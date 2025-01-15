@@ -7,7 +7,7 @@ import Visible from '@/components/icons/Visible'
 import Unvisible from '@/components/icons/Unvisible'
 import Exit from '@/components/icons/Exit'
 import UserInformation from '@/components/icons/UserInformation'
-import UserInformationMessage from '@/components/favorites/UserInformationMessage'
+import UserInformationMessage from '@/components/messages/UserInformationMessage'
 
 const months = [
   "January", "February", "March", "April", "May", "June",
@@ -170,7 +170,7 @@ export default function UserInfoPage() {
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                 />
                 {errors.name && (
-                  <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                  <div className="text-red-500 text-sm mt-1">{errors.name}</div>
                 )}
               </div>
 
@@ -184,7 +184,7 @@ export default function UserInfoPage() {
                   onChange={(e) => setFormData({...formData, surname: e.target.value})}
                 />
                 {errors.surname && (
-                  <p className="text-red-500 text-sm mt-1">{errors.surname}</p>
+                  <div className="text-red-500 text-sm mt-1">{errors.surname}</div>
                 )}
               </div>
 
@@ -198,7 +198,7 @@ export default function UserInfoPage() {
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                 />
                 {errors.email && (
-                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                  <div className="text-red-500 text-sm mt-1">{errors.email}</div>
                 )}
               </div>
 
@@ -213,7 +213,7 @@ export default function UserInfoPage() {
                       value={formData.phone}
                       onChange={(e) => setFormData({...formData, phone: e.target.value})}
                     />
-                    <p className="text-sm text-gray-500 mt-1">Please enter your phone number without the leading zero.</p>
+                      <div className="text-sm text-gray-500 mt-1">Please enter your phone number without the leading zero.</div>
                   </div>
                   <button
                     className="w-[120px] h-[40px] bg-[#FF9D00] bg-opacity-40 rounded-lg
@@ -264,7 +264,7 @@ export default function UserInfoPage() {
                   </select>
                 </div>
                 {errors.birthDate && (
-                  <p className="text-red-500 text-sm mt-1">{errors.birthDate}</p>
+                  <div className="text-red-500 text-sm mt-1">{errors.birthDate}</div>
                 )}
               </div>
 
@@ -302,7 +302,7 @@ export default function UserInfoPage() {
                   </button>
                 </div>
                 {errors.currentPassword && (
-                  <p className="text-red-500 text-sm mt-1">{errors.currentPassword}</p>
+                  <div className="text-red-500 text-sm mt-1">{errors.currentPassword}</div>
                 )}
               </div>
 
@@ -324,12 +324,12 @@ export default function UserInfoPage() {
                     {showPasswords.new ? <Visible /> : <Unvisible />}
                   </button>
                 </div>
-                <p className="font-raleway text-[11px] text-gray-600 mt-1">
+                <div className="font-raleway text-[11px] text-gray-600 mt-1">
                   Your password must be at least 10 characters. It must contain 1 uppercase letter, 
                   1 lowercase letter and a number.
-                </p>
+                </div>
                 {errors.newPassword && (
-                  <p className="text-red-500 text-sm mt-1">{errors.newPassword}</p>
+                  <div className="text-red-500 text-sm mt-1">{errors.newPassword}</div>
                 )}
               </div>
 

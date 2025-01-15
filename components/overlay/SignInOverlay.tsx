@@ -5,7 +5,7 @@ import Signup from "../icons/Signup";
 import UserInformation from "../icons/UserInformation";
 import MyReviews from "../icons/MyReviews";
 import Cart from "../icons/Cart";
-import Link from "next/link";
+import { useRouter } from 'next/navigation';
 
 interface SignInOverlayProps {
   isOpen: boolean;
@@ -14,12 +14,18 @@ interface SignInOverlayProps {
 
 export default function SignInOverlay({ isOpen, onClose }: SignInOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // Sadece overlay dışındaki alana tıklandığında kapanacak
   const handleClickOutside = (event: React.MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) {
       onClose();
     }
+  };
+
+  const handleSignUp = () => {
+    onClose();
+    router.push('/sign-up');
   };
 
   if (!isOpen) return null;
@@ -59,54 +65,66 @@ export default function SignInOverlay({ isOpen, onClose }: SignInOverlayProps) {
         <div className="relative bg-white bg-opacity-75 rounded-lg shadow-lg w-full h-full z-[9999]">
           <div className="p-4 space-y-4">
             {/* Sign In */}
-            <Link href="/signin" className={menuItemStyle}>
+            <button onClick={() => {
+              onClose();
+              router.push('/signin');
+            }} className={menuItemStyle}>
               <div className="flex items-center justify-center w-[72px] h-[45px]">
                 <Vector width={72} height={45} />
               </div>
               <span className="text-lg font-medium group-hover:text-[#9747FF]">
                 Sign In
               </span>
-            </Link>
+            </button>
 
             {/* Sign Up */}
-            <Link href="/signup" className={menuItemStyle}>
+            <button onClick={handleSignUp} className={menuItemStyle}>
               <div className="flex items-center justify-center w-[90px] h-[70px]">
                 <Signup width={90} height={70} />
               </div>
               <span className="text-lg font-medium group-hover:text-[#9747FF]">
                 Sign Up
               </span>
-            </Link>
+            </button>
 
             {/* User Information */}
-            <Link href="/user-info" className={menuItemStyle}>
+            <button onClick={() => {
+              onClose();
+              router.push('/user-info');
+            }} className={menuItemStyle}>
               <div className="flex items-center justify-center w-[65px] h-[52px]">
                 <UserInformation width={65} height={52} />
               </div>
               <span className="text-lg font-medium group-hover:text-[#9747FF]">
                 User Information
               </span>
-            </Link>
+            </button>
 
             {/* My Reviews */}
-            <Link href="/my-reviews" className={menuItemStyle}>
+            <button onClick={() => {
+              onClose();
+              router.push('/my-reviews');
+            }} className={menuItemStyle}>
               <div className="flex items-center justify-center w-[70px] h-[45px]">
                 <MyReviews width={70} height={45} />
               </div>
               <span className="text-lg font-medium group-hover:text-[#9747FF]">
                 My Reviews
               </span>
-            </Link>
+            </button>
 
             {/* My Orders */}
-            <Link href="/my-orders" className={menuItemStyle}>
+            <button onClick={() => {
+              onClose();
+              router.push('/my-orders');
+            }} className={menuItemStyle}>
               <div className="flex items-center justify-center w-[60px] h-[50px]">
                 <Cart width={60} height={50} />
               </div>
               <span className="text-lg font-medium group-hover:text-[#9747FF]">
                 My Orders
               </span>
-            </Link>
+            </button>
           </div>
         </div>
       </div>

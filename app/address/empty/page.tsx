@@ -18,10 +18,10 @@ export default function EmptyAddressPage() {
           </div>
 
         {/* Error message */}
-        <p className="absolute left-[80px] top-[36px] 
+        <div className="absolute left-[80px] top-[36px] 
                      font-inter text-[64px] text-[#FF0000]">
           Saved address not found
-        </p>
+        </div>
 
           {/* Add new address button */}
           <button

@@ -49,12 +49,12 @@ export default function DiscountCouponsPage() {
           <div className="absolute" style={{ top: '-51px', left: '617px' }}>
             <Information className="absolute" style={{ top: '14px' }} />
             <div className="ml-[70px]">
-             <p
+             <div
                 className="font-inter text-[48px] font-normal text-[#5365BF] leading-[56px]"
                 style={{ whiteSpace: 'normal', lineHeight: '1.2' }}
              >
                  You can use your coupons in your cart
-             </p>
+             </div>
             </div>
         
         </div>
@@ -71,12 +71,12 @@ export default function DiscountCouponsPage() {
           </div>
 
           {/* Discover Text */}
-          <p 
+          <div 
             className="font-inter text-[40px] font-normal absolute"
             style={{ top: '153px', left: '135px' }}
           >
             All coupons you can discover
-          </p>
+          </div>
 
           {/* Search Input */}
           <div 
@@ -107,9 +107,9 @@ export default function DiscountCouponsPage() {
               ))}
             </div>
           ) : (
-            <p className="absolute font-inter text-[24px] text-red-500" style={{ top: '317px', left: '134px' }}>
+            <div className="absolute font-inter text-[24px] text-red-500" style={{ top: '317px', left: '134px' }}>
               No coupons found for the specified provider
-            </p>
+              </div>
           )}
 
           {/* Pagination */}

@@ -117,7 +117,7 @@ export default function PaymentPage() {
                     onChange={handleInputChange}
                     className={`px-4 py-2 border rounded-lg w-full ${errors.firstName ? 'border-red-500' : 'border-gray-300'}`}
                   />
-                  {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>}
+                  {errors.firstName && <div className="text-red-500 text-sm mt-1">{errors.firstName}</div>}
                 </div>
                 <div>
                   <input
@@ -128,7 +128,7 @@ export default function PaymentPage() {
                     onChange={handleInputChange}
                     className={`px-4 py-2 border rounded-lg w-full ${errors.lastName ? 'border-red-500' : 'border-gray-300'}`}
                   />
-                  {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>}
+                  {errors.lastName && <div className="text-red-500 text-sm mt-1">{errors.lastName}</div>}
                 </div>
               </div>
               <div>
@@ -140,7 +140,7 @@ export default function PaymentPage() {
                   onChange={handleInputChange}
                   className={`w-full px-4 py-2 border rounded-lg ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
                 />
-                {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                {errors.email && <div className="text-red-500 text-sm mt-1">{errors.email}</div>}
               </div>
               <div>
                 <input
@@ -151,7 +151,7 @@ export default function PaymentPage() {
                   onChange={handleInputChange}
                   className={`w-full px-4 py-2 border rounded-lg ${errors.address ? 'border-red-500' : 'border-gray-300'}`}
                 />
-                {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+                {errors.address && <div className="text-red-500 text-sm mt-1">{errors.address}</div>}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -163,7 +163,7 @@ export default function PaymentPage() {
                     onChange={handleInputChange}
                     className={`px-4 py-2 border rounded-lg w-full ${errors.country ? 'border-red-500' : 'border-gray-300'}`}
                   />
-                  {errors.country && <p className="text-red-500 text-sm mt-1">{errors.country}</p>}
+                  {errors.country && <div className="text-red-500 text-sm mt-1">{errors.country}</div>}
                 </div>
                 <div>
                   <input
@@ -174,7 +174,7 @@ export default function PaymentPage() {
                     onChange={handleInputChange}
                     className={`px-4 py-2 border rounded-lg w-full ${errors.phone ? 'border-red-500' : 'border-gray-300'}`}
                   />
-                  {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+                    {errors.phone && <div className="text-red-500 text-sm mt-1">{errors.phone}</div>}
                 </div>
               </div>
             </div>
@@ -233,7 +233,7 @@ export default function PaymentPage() {
                   className={`w-full px-4 py-2 border rounded-lg ${errors.cvv ? 'border-red-500' : 'border-gray-300'}`}
                   maxLength={3}
                 />
-                {errors.cvv && <p className="text-red-500 text-sm">{errors.cvv}</p>}
+                {errors.cvv && <div className="text-red-500 text-sm">{errors.cvv}</div>}
 
                 <div className="flex items-center gap-2">
                   <input type="checkbox" id="saveCard" className="w-4 h-4" />

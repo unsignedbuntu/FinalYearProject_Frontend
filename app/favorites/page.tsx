@@ -2,15 +2,15 @@
 import { useState } from 'react'
 import Sidebar from '@/components/sidebar/Sidebar'
 import EmptyFavorites from '@/components/empty-states/EmptyFavorites'
-import FavoritesHeader from '@/components/favorites/FavoritesHeader'
+import FavoritesHeader from '@/components/messages/FavoritesHeader'
 import Arrowdown from '@/components/icons/Arrowdown'
-import SortOverlay from '@/components/favorites/SortOverlay'
-import ProductGrid from '@/components/favorites/ProductGrid'
-import MoveToListOverlay from '@/components/favorites/MoveToListOverlay'
+import SortOverlay from '@/components/messages/SortOverlay'
+import ProductGrid from '@/components/messages/ProductGrid'
+import MoveToListOverlay from '@/components/messages/MoveToListOverlay'
 import { useRouter } from 'next/navigation'
-import CartSuccessMessage from '@/components/favorites/CartSuccessMessage'
-import ListSelectionOverlay from '@/components/favorites/ListSelectionOverlay'
-import FavoriteLists from '@/components/favorites/FavoriteLists'
+import CartSuccessMessage from '@/components/messages/CartSuccessMessage'
+import ListSelectionOverlay from '@/components/messages/ListSelectionOverlay'
+import FavoriteLists from '@/components/messages/FavoriteLists'
 
 export default function FavoritesPage() {
  

@@ -24,12 +24,12 @@ export default function EmptyDiscountCouponsPage() {
           >
             You don't have a coupon
           </h1>
-          <p 
+          <div 
             className="text-[36px] font-inter font-normal absolute"
             style={{ top: '163px', left: '147px' }}
           >
             No coupon found for your account
-          </p>
+          </div>
         </div>
       </div>
     </div>

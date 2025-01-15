@@ -3,11 +3,11 @@ import Information from '../icons/Information';
 import Image from 'next/image';
 import Close from '../icons/Close.png';
 
-interface MyCartMessageProps {
+interface CompleteShoppingProps {
   onClose: () => void;
 }
 
-export default function MyCartMessage({ onClose }: MyCartMessageProps) {
+export default function CompleteShopping({ onClose }: CompleteShoppingProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -43,21 +43,13 @@ export default function MyCartMessage({ onClose }: MyCartMessageProps) {
           <Information />
         </div>
 
-        <p
+        <div
           className="absolute left-[80px] top-[40%] transform -translate-y-1/2 
                    font-inter text-[16px] text-black leading-tight max-w-[230px]
                    animate-fade-in"
         >
-          The product has been removed from your cart.
-        </p>
-
-        <span
-          onClick={onClose}
-          className="absolute left-[80px] top-[78px] font-inter text-[40px] text-[#6C84FA] 
-                        hover:opacity-90 transition-opacity cursor-pointer"
-        >
-          Undo
-        </span>
+          To complete your shopping, you can select the products you want to purchase in your cart.
+        </div>
       </div>
     </>
   );

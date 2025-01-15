@@ -65,9 +65,9 @@ export default function CreateNewListOverlay({ onBack, onCreateList, existingLis
             />
 
             {/* Notification text */}
-            <p className="absolute left-[7px] top-[185px] font-raleway font-normal text-[16px] w-[230px]">
+            <div className="absolute left-[7px] top-[185px] font-raleway font-normal text-[16px] w-[230px]">
               I would like to be notified when the price of the products in this list drops
-            </p>
+            </div>
 
             {/* Toggle button */}
             <button 

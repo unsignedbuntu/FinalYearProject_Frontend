@@ -4,7 +4,7 @@ import Sidebar from '@/components/sidebar/Sidebar'
 import Checkbox from '@/components/icons/Checkbox'
 import Menu from '@/components/icons/Menu'
 import CartFavorites from '@/components/icons/CartFavorites'
-import DeleteOverlay from '@/components/favorites/DeleteOverlay'
+import DeleteOverlay from '@/components/messages/DeleteOverlay'
 
 interface Product {
   id: number;

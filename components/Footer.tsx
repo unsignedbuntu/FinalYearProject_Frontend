@@ -20,7 +20,7 @@ export default function Footer() {
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="mb-6 md:mb-0">
               <h3 className="text-2xl font-bold text-white">Subscribe to our Newsletter</h3>
-              <p className="mt-2 text-gray-400">Get the latest news and updates</p>
+              <div className="mt-2 text-gray-400">Get the latest news and updates</div>
             </div>
             <form onSubmit={handleSubmit} className="flex w-full md:w-auto">
               <input
@@ -47,9 +47,9 @@ export default function Footer() {
           {/* Company Info */}
           <div>
             <Image src="/Logo.svg" alt="Logo" width={120} height={40} className="mb-4" />
-            <p className="text-gray-400 mb-4">
+            <div className="text-gray-400 mb-4">
               Your trusted partner in electronic commerce. We provide quality products and excellent service.
-            </p>
+            </div>
             <div className="flex space-x-4">
               <a href="#" className="text-gray-400 hover:text-white transition-colors">
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
@@ -91,25 +91,25 @@ export default function Footer() {
           <div>
             <h4 className="text-white text-lg font-semibold mb-4">Contact Info</h4>
             <div className="space-y-3">
-              <p className="flex items-center">
+              <div className="flex items-center">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                 </svg>
                 123 Street, City, Country
-              </p>
-              <p className="flex items-center">
+              </div>
+              <div className="flex items-center">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                 </svg>
                 info@example.com
-              </p>
-              <p className="flex items-center">
+              </div>
+              <div className="flex items-center">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
                 </svg>
                 +1 234 567 8900
-              </p>
+              </div>
             </div>
           </div>
         </div>
@@ -117,7 +117,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-gray-800 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-sm">© 2024 Your Company. All rights reserved.</p>
+            <div className="text-sm">© 2024 Your Company. All rights reserved.</div>
             <div className="flex items-center justify-center gap-4 mt-4 md:mt-0">
                 
               <Image 

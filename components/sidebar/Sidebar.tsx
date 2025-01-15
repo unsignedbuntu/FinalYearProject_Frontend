@@ -144,9 +144,9 @@ export default function Sidebar() {
           </span>
         </div>
         
-        <p className="font-raleway text-[16px] leading-tight mt-6">
+        <div className="font-raleway text-[16px] leading-tight mt-6">
           I'm always Here! I answer your questions immediately!
-        </p>
+        </div>
       </div>
     </div>
   )

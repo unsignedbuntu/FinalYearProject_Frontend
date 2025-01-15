@@ -1,13 +1,14 @@
-import { useEffect } from 'react';
-import TickGreen from '../icons/TickGreen';
-import Image from 'next/image';
-import Close from '../icons/Close.png';
+"use client"
+import { useEffect } from 'react'
+import TickGreen from '../icons/TickGreen'
+import Image from 'next/image'
+import Close from '../icons/Close.png'
 
-interface DeleteMessageFavoritesProps {
+interface AddressSuccessMessageProps {
   onClose: () => void;
 }
 
-export default function DeleteMessageFavorites({ onClose }: DeleteMessageFavoritesProps) {
+export default function AddressSuccessMessage({ onClose }: AddressSuccessMessageProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -49,12 +50,12 @@ export default function DeleteMessageFavorites({ onClose }: DeleteMessageFavorit
         </div>
 
         {/* Message text */}
-        <p className="absolute left-[80px] top-[40%] transform -translate-y-1/2 
+        <div className="absolute left-[80px] top-[40%] transform -translate-y-1/2 
                    font-inter text-[16px] text-black leading-tight max-w-[230px]
                    animate-fade-in">
-          The product has been deleted from your favorites.
-        </p>
+          Your address has been successfully saved.
+        </div>
       </div>
     </>
   );
-}
+} 

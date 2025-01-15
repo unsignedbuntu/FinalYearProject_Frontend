@@ -6,8 +6,8 @@ import Coupon from '@/components/icons/Coupon'
 import ArrowRight from '@/components/icons/ArrowRight'
 import Bin from '@/components/icons/Bin'
 import Image from 'next/image'
-import MyCartMessage from '@/components/favorites/MyCartMessage'
-import CompleteShopping from '@/components/favorites/CompleteShopping'
+import MyCartMessage from '@/components/messages/MyCartMessage'
+import CompleteShopping from '@/components/messages/CompleteShopping'
 import Ticket from '@/components/icons/Ticket'
 
 interface Product {
@@ -206,9 +206,9 @@ export default function CartPage() {
                   />
                   
                   <div className="flex flex-col max-w-[400px] ml-4">
-                    <p className="font-raleway text-[14px] leading-tight">
+                    <div className="font-raleway text-[14px] leading-tight">
                       {product.name}
-                    </p>
+                    </div>
                   </div>
                 </div>
               </div>

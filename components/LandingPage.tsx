@@ -76,7 +76,7 @@ const LandingPage = () => {
         {products.map(product => (
           <div key={product.ProductID} className="product">
             <h3>{product.ProductName}</h3>
-            <p>Fiyat: {product.Price} TL</p>
+            <div>Fiyat: {product.Price} TL</div>
             <button onClick={() => addToCart(product.ProductID)}>Sepete Ekle</button>
             <button onClick={() => addToFavorites(product.ProductID)}>Favorilere Ekle</button>
           </div>
@@ -87,7 +87,7 @@ const LandingPage = () => {
         <div className="overlay">
           <div className="overlay-content">
             <h2>Sign In/Sign Up</h2>
-            <p>Overlay içeriği buraya gelecek.</p>
+            <div>Overlay içeriği buraya gelecek.</div>
             <button onClick={toggleOverlay}>Kapat</button>
           </div>
         </div>
