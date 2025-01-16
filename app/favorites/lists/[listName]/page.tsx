@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Sidebar from '@/components/sidebar/Sidebar'
-import ListSidebar from '@/components/messages/ListSidebar'
+import ListSidebar from '@/app/favorites/ListSidebar'
 
 interface Product {
   id: number;

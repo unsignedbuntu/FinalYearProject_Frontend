@@ -1,5 +1,5 @@
 "use client"
-import FavoriteIcon from '../icons/FavoriteIcon'
+import FavoriteIcon from '../../components/icons/FavoriteIcon'
 import Link from 'next/link'
 
 export default function EmptyFavorites() {

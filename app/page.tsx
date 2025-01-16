@@ -1,12 +1,12 @@
 import HeroSlider from '@/components/HeroSlider'
 import BestSeller from '@/components/BestSeller'
 import Footer from '@/components/Footer'
-import { getCategories } from '@/data/actions/Category_Actions';
+import { getCategories } from '@/services/Category_Actions';
 
 export default async function Home() {
 
-  const categories = await getCategories();
-  console.log(categories);
+  //const categories = await getCategories();
+ 
 
   return (
     <>
@@ -15,11 +15,11 @@ export default async function Home() {
           <HeroSlider />
           <BestSeller />
             <div className="flex flex-col gap-4">
-              {categories.map((category: any, index: number) => (
+              {/* {categories.map((category: any, index: number) => (
             <div key={category.categoryID || category.categoryName || index}>
               {category.categoryName}
             </div>
-              ))}
+              ))} */}
                
           </div>
         </div>

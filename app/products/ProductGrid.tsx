@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import Image from 'next/image'
-import Menu from '../icons/Menu'
-import CartFavorites from '../icons/CartFavorites'
-import MenuOverlay from './MenuOverlay'
-import CartSuccessMessage from './CartSuccessMessage'
+import Menu from '@/components/icons/Menu'
+import CartFavorites from '@/components/icons/CartFavorites'
+import MenuOverlay from '@/components/overlay/MenuOverlay'
+import CartSuccessMessage from '@/components/messages/CartSuccessMessage'
 
 interface Product {
   id: number;
@@ -11,7 +11,6 @@ interface Product {
   price: number;
   image: string;
   inStock?: boolean;
-  rating: number;
 }
 
 interface ProductGridProps {

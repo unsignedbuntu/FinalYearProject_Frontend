@@ -3,6 +3,7 @@ import React from 'react'
 interface FavoriteIconProps {
   width?: number;
   height?: number;
+  className?: string;
 }
 
 export default function FavoriteIcon({ width = 24, height = 24 }: FavoriteIconProps) {

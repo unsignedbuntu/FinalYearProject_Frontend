@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Cancel from '../icons/Cancel'
-import DeleteMessageFavorites from './DeleteMessageFavorites'
+import DeleteMessageFavorites from '@/components/messages/DeleteMessageFavorites'
 
 interface DeleteOverlayProps {
   productCount: number;

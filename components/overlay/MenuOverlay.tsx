@@ -4,7 +4,7 @@ import Cancel from '../icons/Cancel'
 import ArrowRight from '../icons/ArrowRight'
 import Trash from '../icons/Trash'
 import MoveToListOverlay from './MoveToListOverlay'
-import DeleteSuccessMessage from './DeleteSuccessMessage'
+import DeleteSuccessMessage from '../messages/DeleteSuccessMessage'
 
 interface MenuOverlayProps {
   onClose: () => void;

@@ -76,8 +76,8 @@ export default function Sidebar() {
             </span>
           </div>
 
-          <Link href="/followed-stores">
-            <div className={`flex items-center gap-2 p-2 hover:bg-[#FFE8D6] rounded-md transition-colors -mx-4 pl-2 ${pathname === '/followed-stores' ? 'bg-[#00EEFF]' : ''}`}>
+          <Link href="/my-followed-stores">
+            <div className={`flex items-center gap-2 p-2 hover:bg-[#FFE8D6] rounded-md transition-colors -mx-4 pl-2 ${pathname === '/my-followed-stores' ? 'bg-[#00EEFF]' : ''}`}>
               <div className="w-[40px] flex justify-start">
                 <Stores width={37} height={37} />
               </div>
