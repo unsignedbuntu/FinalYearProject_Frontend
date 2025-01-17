@@ -174,7 +174,7 @@ export default function StoresMegaMenu() {
                 {/* Kategoriler ve Ürünler */}
                 {selectedStore && (
                   <div className="w-3/4 pl-6">
-                    <div className="grid grid-cols-3 gap-6">
+                    <div className="grid grid-cols-5 gap-6">
                       {categories
                         .filter(category => category.storeID === selectedStore.storeID)
                         .map((category, index, arr) => (

@@ -7,22 +7,24 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
-        // Optionally, specify a pathname pattern, e.g., '/photos/**' if needed
         pathname: '/**',
       },
     ],
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   // API ve SSL yapılandırması
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || process.env.URL}/:path*`,
+        destination: `${process.env.URL}/:path*`,
       },
     ];
   },
+
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     URL: process.env.URL,
   },
 };
