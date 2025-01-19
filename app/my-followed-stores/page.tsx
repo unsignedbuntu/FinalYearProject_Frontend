@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect } from 'react';
 import { getSuppliers } from '@/services/Category_Actions';
+import { generateImage,  generatePrompt } from '@/services/image-generation';
 import Image from 'next/image';
 
 interface Supplier {
@@ -16,11 +17,12 @@ export default function MyFollowedStores() {
     const [supplierImages, setSupplierImages] = useState<{[key: number]: string}>({});
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [customPrompts, setCustomPrompts] = useState<{[key: number]: string}>({});
+    const [isGenerating, setIsGenerating] = useState<{[key: number]: boolean}>({});
 
-    const generateStoreImage = async (supplierName: string, supplierID: number) => {
+    const generateStoreImage = async (supplierName: string, supplierID: number, customPrompt?: string) => {
         try {
-            const prompt = `${supplierName} store front design, modern and professional e-commerce style`;
-
+            setIsGenerating(prev => ({ ...prev, [supplierID]: true }));
 
             // Set placeholder while loading
             setSupplierImages(prev => ({
@@ -28,32 +30,31 @@ export default function MyFollowedStores() {
                 [supplierID]: DEFAULT_PLACEHOLDER
             }));
 
-            const response = await fetch('/api/generate-image', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ prompt })
+            const generatedPrompt = generatePrompt(
+                supplierName,
+                "modern storefront design with professional appearance"
+            );
+
+            const finalPrompt = customPrompt || generatedPrompt.prompt;
+
+            const result = await generateImage({
+                prompt: finalPrompt,
+                negative_prompt: generatedPrompt.negative_prompt,
+                width: 512,
+                height: 512,
+                steps: 30,
+                cfg_scale: 7,
+                sampler_name: "Euler a"
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to generate image');
-            }
-
-            const data = await response.json();
-
-            if (data && data.image) {
+            if (result.success && result.image) {
                 setSupplierImages(prev => ({
                     ...prev,
-                    [supplierID]: `data:image/jpeg;base64,${data.image}`
+                    [supplierID]: `data:image/jpeg;base64,${result.image}`
                 }));
             } else {
-                setSupplierImages(prev => ({
-                    ...prev,
-                    [supplierID]: DEFAULT_PLACEHOLDER
-                }));
-                  console.error('No image data received', data);
+                console.error('Generation failed:', result.error, result.details);
+                throw new Error(result.error || 'Failed to generate image');
             }
 
         } catch (error) {
@@ -62,9 +63,12 @@ export default function MyFollowedStores() {
                 ...prev,
                 [supplierID]: DEFAULT_PLACEHOLDER
             }));
+            // Kullanıcıya hata mesajını göster
+            setError(error instanceof Error ? error.message : 'Failed to generate image');
+        } finally {
+            setIsGenerating(prev => ({ ...prev, [supplierID]: false }));
         }
     };
-
 
     useEffect(() => {
         let mounted = true;
@@ -80,8 +84,8 @@ export default function MyFollowedStores() {
                 for (const supplier of data) {
                     if (!mounted) break;
                     await generateStoreImage(supplier.supplierName, supplier.supplierID);
-                     // Add a small delay between requests
-                   await new Promise(resolve => setTimeout(resolve, 500));
+                    // Add a small delay between requests
+                    await new Promise(resolve => setTimeout(resolve, 500));
                 }
 
             } catch (err) {
@@ -100,6 +104,21 @@ export default function MyFollowedStores() {
             mounted = false;
         };
     }, []);
+
+    const handlePromptChange = (supplierID: number, prompt: string) => {
+        setCustomPrompts(prev => ({
+            ...prev,
+            [supplierID]: prompt
+        }));
+    };
+
+    const handleRegenerateImage = async (supplier: Supplier) => {
+        await generateStoreImage(
+            supplier.supplierName,
+            supplier.supplierID,
+            customPrompts[supplier.supplierID]
+        );
+    };
 
     if (isLoading) {
         return (
@@ -138,17 +157,37 @@ export default function MyFollowedStores() {
                                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                 unoptimized
                             />
+                            {isGenerating[supplier.supplierID] && (
+                                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="p-6">
                             <h2 className="text-xl font-semibold mb-2">{supplier.supplierName}</h2>
                             <p className="text-gray-600 mb-4">{supplier.contactEmail}</p>
 
+                            {/* Custom Prompt Input */}
+                            <div className="mb-4">
+                                <textarea
+                                    value={customPrompts[supplier.supplierID] || ''}
+                                    onChange={(e) => handlePromptChange(supplier.supplierID, e.target.value)}
+                                    placeholder="Enter custom prompt for image generation..."
+                                    className="w-full p-2 border rounded-lg text-sm"
+                                    rows={2}
+                                />
+                            </div>
+
                             <div className="flex justify-between items-center">
                                 <button
-                                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-300"
+                                    onClick={() => handleRegenerateImage(supplier)}
+                                    disabled={isGenerating[supplier.supplierID]}
+                                    className={`bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-300 ${
+                                        isGenerating[supplier.supplierID] ? 'opacity-50 cursor-not-allowed' : ''
+                                    }`}
                                 >
-                                    View Details
+                                    {isGenerating[supplier.supplierID] ? 'Generating...' : 'Regenerate Image'}
                                 </button>
                                 <button
                                     className="text-red-500 hover:text-red-600 transition-colors duration-300"
