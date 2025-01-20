@@ -36,22 +36,26 @@ export default function MyFollowedStores() {
             );
 
             const finalPrompt = customPrompt || generatedPrompt.prompt;
+            console.log('Using prompt:', finalPrompt);
 
             const result = await generateImage({
                 prompt: finalPrompt,
                 negative_prompt: generatedPrompt.negative_prompt,
                 width: 512,
                 height: 512,
-                steps: 30,
+                steps: 15,
                 cfg_scale: 7,
-                sampler_name: "Euler a"
+                sampler_name: "DPM 2M a",
+
             });
 
             if (result.success && result.image) {
+                const imageUrl = `data:image/jpeg;base64,${result.image}`;
                 setSupplierImages(prev => ({
                     ...prev,
-                    [supplierID]: `data:image/jpeg;base64,${result.image}`
+                    [supplierID]: imageUrl
                 }));
+        
             } else {
                 console.error('Generation failed:', result.error, result.details);
                 throw new Error(result.error || 'Failed to generate image');
@@ -63,7 +67,6 @@ export default function MyFollowedStores() {
                 ...prev,
                 [supplierID]: DEFAULT_PLACEHOLDER
             }));
-            // Kullanıcıya hata mesajını göster
             setError(error instanceof Error ? error.message : 'Failed to generate image');
         } finally {
             setIsGenerating(prev => ({ ...prev, [supplierID]: false }));
@@ -80,14 +83,24 @@ export default function MyFollowedStores() {
 
                 setSuppliers(data);
 
-                // Generate images sequentially
-                for (const supplier of data) {
+                 for (const supplier of data){
+                     if (!mounted) 
+                        break; 
+                        console.log('Generating image for supplier:', supplier.supplierName);
+                         await generateStoreImage(supplier.supplierName, supplier.supplierID);
+                           await new Promise(resolve => setTimeout(resolve, 500));
+                     }
+
+                // Sadece ilk 5 tedarikçi için görüntü oluştur
+                /*const first5Suppliers = data.slice(0, 5);
+                for (const supplier of first5Suppliers) {
                     if (!mounted) break;
+                    console.log('Generating image for supplier:', supplier.supplierName);
                     await generateStoreImage(supplier.supplierName, supplier.supplierID);
-                    // Add a small delay between requests
+                    // Sunucuya yük bindirmemek için kısa bir bekleme ekle
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
-
+*/
             } catch (err) {
                 if (!mounted) return;
                 setError('Failed to load suppliers');

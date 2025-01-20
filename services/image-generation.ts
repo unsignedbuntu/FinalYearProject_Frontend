@@ -10,15 +10,22 @@ interface GenerationParams {
     sampler_name?: string;
 }
 
+interface GenerationResponse {
+    success: boolean;
+    image?: string;
+    error?: string;
+    details?: any;
+}
+
 export const generateImage = async ({
     prompt,
     negative_prompt = "",
     width = 512,
     height = 512,
-    steps = 20,
+    steps = 15,
     cfg_scale = 7,
-    sampler_name = "Euler a"
-}: GenerationParams) => {
+    sampler_name = "DPM++ 2M a"
+}: GenerationParams): Promise<GenerationResponse> => {
     try {
         console.log('Generating image with params:', {
             prompt,
