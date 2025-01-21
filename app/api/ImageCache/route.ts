@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
+import https from 'https';
 
 const AUTOMATIC1111_API_URL = 'http://127.0.0.1:7860';
 const API_URL = process.env.URL;
@@ -9,30 +10,37 @@ export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const pageID = searchParams.get('pageID');
-        console.log("PageID: ", pageID);
         const prompt = searchParams.get('prompt');
-        console.log("Prompt: ", prompt);
+        console.log("GET isteği - PageID:", pageID, "Prompt:", prompt);
 
         if (!pageID || !prompt) {
             return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
         }
 
-        // Get image from backend API
-        const response = await axios.get(`${API_URL}/api/ImageCache/${pageID}/${prompt}`);
-
-       if (response.status === 200 && response.data && response.data.cached) {
-            return NextResponse.json({
-                cached: true,
-                image: response.data.image
+        try {
+            // URL yapısını backend'in beklediği formata uygun hale getiriyoruz
+            const response = await axios.get(`${API_URL}/api/ImageCache/${pageID}/${prompt}`, {
+                httpsAgent: new https.Agent({ rejectUnauthorized: false })
             });
-        }
-       if(response.data && response.data.error)
-         return NextResponse.json({ error: response.data.error }, { status: response.status })
 
-        return NextResponse.json({ cached: false });
+            if (response.data && response.data.cached) {
+                console.log("Cache'den görsel bulundu");
+                return NextResponse.json({
+                    cached: true,
+                    image: response.data.image
+                });
+            }
+
+            console.log("Response:", response.data.image);
+            return NextResponse.json({ cached: false });
+
+        } catch (error) {
+            console.error("Backend API hatası:", error);
+            return NextResponse.json({ error: "Backend API error" }, { status: 500 });
+        }
 
     } catch (error: any) {
-        console.error('Error:', error);
+        console.error('Genel hata:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

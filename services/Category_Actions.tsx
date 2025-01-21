@@ -322,27 +322,29 @@ export const deleteSupplier = async (id: number) => {
   return response.json();
 };
 
-// ImageCache API endpoints
 export async function getImageFromCache(pageId: string, prompt: string) {
   try {
-    const result = await fetch(`${process.env.URL}/api/ImageCache?pageId=${pageId}&prompt=${prompt}`, { 
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      mode: 'cors',
-      cache: 'no-store'
+    const axiosInstance = axios.create({
+      httpsAgent: new https.Agent({  
+        rejectUnauthorized: false
+      })
     });
-    
-    if (!result.ok) {
-      throw new Error(`HTTP error! status: ${result.status}`);
+
+    // URL yapısını backend'in beklediği formata uygun hale getiriyoruz
+    const response = await axiosInstance.get(`${process.env.URL}/api/ImageCache/${pageId}/${prompt}`);
+
+    if (response.data && response.data.cached) {
+      return {
+        cached: true,
+        image: response.data.image
+      };
     }
-    const data = await result.json();
-    return data;
+
+    return { cached: false };
+
   } catch (error) {
     console.error('Error fetching image from cache:', error);
-    return [];
+    return { cached: false };
   }
 }
 
@@ -372,16 +374,17 @@ export const createCacheImage = async (pageID: string, prompt: string) => {
     });
 
     const response = await axiosInstance.post(`${process.env.URL}/api/ImageCache`, {
-      pageID: pageID,  // pageId yerine pageID kullanıyoruz (backend'le uyumlu olması için)
-      prompt: prompt,
+      pageID: pageID,
+      prompt: prompt
     });
 
     if (response.data && response.data.image) {
       return {
         success: true,
-        image: response.data.image,
+        image: response.data.image
       };
     }
+
     return {
       success: false,
       error: 'Failed to create image'
@@ -391,7 +394,7 @@ export const createCacheImage = async (pageID: string, prompt: string) => {
     console.error('Error creating cache image:', error);
     return {
       success: false,
-      error: error.message || 'Failed to create image',
+      error: error.message || 'Failed to create image'
     };
   }
 };
