@@ -53,13 +53,12 @@ export default function MyFollowedStores() {
 
             // Generate new image
             const result = await createCacheImage(
-                {
-                    pageID: 'my-followed-stores',
-                    prompt: finalPrompt,
-                }
-      
+                'my-followed-stores',
+                finalPrompt,
             );
+
 console.log(result);
+
             if (result.success) {
                 const imageUrl = `data:image/jpeg;base64,${result.image}`;
                 setSupplierImages(prev => ({

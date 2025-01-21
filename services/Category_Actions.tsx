@@ -1,4 +1,5 @@
 import axios from 'axios';
+import https from 'https';
 
 export const getCategories = async () => {
   try {
@@ -347,7 +348,8 @@ export async function getImageFromCache(pageId: string, prompt: string) {
 
 export const getCacheImageById = async (pageId: string, prompt: string, id: number) => {
 
-  const response = await fetch(`${process.env.URL}/api/ImageCache?pageId=${pageId}&prompt=${prompt}&id=${id}`, {
+  const response = await fetch(`${process.env.URL}/api/ImageCacheImageCache?pageId=${pageId}&prompt=${prompt}&id=${id}`, {
+    
     method: 'GET',
     headers: {
       'Accept': 'application/json',
@@ -360,27 +362,37 @@ export const getCacheImageById = async (pageId: string, prompt: string, id: numb
 
 };
 
-interface CreateCacheImageParams {
-  pageID: string;
-  prompt: string;
-}
 
-export const createCacheImage = async ({ pageID, prompt }: CreateCacheImageParams) => {
-
+export const createCacheImage = async (pageID: string, prompt: string) => {
   try {
-    const response = await axios.post('/api/ImageCache', {
-        pageID,
-        prompt,
+    const axiosInstance = axios.create({
+      httpsAgent: new https.Agent({  
+        rejectUnauthorized: false
+      })
     });
-    return response.data;
-  }
-  catch (error: any) {
-    console.error('Error creating cached image:', error);
+
+    const response = await axiosInstance.post(`${process.env.URL}/api/ImageCache`, {
+      pageID: pageID,  // pageId yerine pageID kullanıyoruz (backend'le uyumlu olması için)
+      prompt: prompt,
+    });
+
+    if (response.data && response.data.image) {
       return {
-        success: false,
-        error: error.response?.data?.error || error.message,
-        details: error.response?.data
+        success: true,
+        image: response.data.image,
+      };
     }
+    return {
+      success: false,
+      error: 'Failed to create image'
+    };
+
+  } catch (error: any) {
+    console.error('Error creating cache image:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to create image',
+    };
   }
 };
 
