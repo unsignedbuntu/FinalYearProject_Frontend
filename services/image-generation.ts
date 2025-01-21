@@ -73,7 +73,7 @@ export const generateImage = async ({
 // Prompt oluşturma yardımcı fonksiyonu
 export const generatePrompt = (productName: string, description: string) => {
     const basePrompt = `${productName}, ${description}, professional product photography`;
-    const stylePrompt = "high quality, detailed, 8k resolution, product showcase";
+    const stylePrompt = "high quality, detailed, 4k resolution, product showcase";
     const negativePrompt = "blur, noise, distortion, watermark, text, low quality";
     
     return {

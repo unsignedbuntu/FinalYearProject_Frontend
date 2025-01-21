@@ -1,8 +1,9 @@
 "use client"
 import { useState, useEffect } from 'react';
-import { getSuppliers } from '@/services/Category_Actions';
-import { generateImage,  generatePrompt } from '@/services/image-generation';
+import { getSuppliers, getImageFromCache, createCacheImage } from '@/services/Category_Actions';
+import { generatePrompt } from '@/services/image-generation';
 import Image from 'next/image';
+import axios from 'axios';
 
 interface Supplier {
     supplierID: number;
@@ -38,26 +39,35 @@ export default function MyFollowedStores() {
             const finalPrompt = customPrompt || generatedPrompt.prompt;
             console.log('Using prompt:', finalPrompt);
 
-            const result = await generateImage({
-                prompt: finalPrompt,
-                negative_prompt: generatedPrompt.negative_prompt,
-                width: 512,
-                height: 512,
-                steps: 15,
-                cfg_scale: 7,
-                sampler_name: "DPM 2M a",
+            // Check if image exists in cache
+            const cacheResult = await getImageFromCache('my-followed-stores', finalPrompt);
 
-            });
+            if (cacheResult.cached) {
+                console.log('Using cached image for:', supplierName);
+                setSupplierImages(prev => ({
+                    ...prev,
+                    [supplierID]: `data:image/jpeg;base64,${cacheResult.image}`
+                }));
+                return;
+            }
 
-            if (result.success && result.image) {
+            // Generate new image
+            const result = await createCacheImage(
+                {
+                    pageID: 'my-followed-stores',
+                    prompt: finalPrompt,
+                }
+      
+            );
+console.log(result);
+            if (result.success) {
                 const imageUrl = `data:image/jpeg;base64,${result.image}`;
                 setSupplierImages(prev => ({
                     ...prev,
                     [supplierID]: imageUrl
                 }));
-        
+                console.log('Generated new image for:', supplierName);
             } else {
-                console.error('Generation failed:', result.error, result.details);
                 throw new Error(result.error || 'Failed to generate image');
             }
 
@@ -91,16 +101,7 @@ export default function MyFollowedStores() {
                            await new Promise(resolve => setTimeout(resolve, 500));
                      }
 
-                // Sadece ilk 5 tedarikçi için görüntü oluştur
-                /*const first5Suppliers = data.slice(0, 5);
-                for (const supplier of first5Suppliers) {
-                    if (!mounted) break;
-                    console.log('Generating image for supplier:', supplier.supplierName);
-                    await generateStoreImage(supplier.supplierName, supplier.supplierID);
-                    // Sunucuya yük bindirmemek için kısa bir bekleme ekle
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                }
-*/
+ 
             } catch (err) {
                 if (!mounted) return;
                 setError('Failed to load suppliers');
