@@ -324,33 +324,28 @@ export const deleteSupplier = async (id: number) => {
 
 export async function getImageFromCache(pageId: string, prompt: string) {
   try {
-    const axiosInstance = axios.create({
-      httpsAgent: new https.Agent({  
-        rejectUnauthorized: false
-      })
-    });
+      // Create the same short hash for consistency
+      
+      const response = await axios.get(`${process.env.URL}/api/ImageCache/${pageId}/${prompt}`, {
+        
+          headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+          },
+          httpsAgent: new https.Agent({ rejectUnauthorized: false })
+      });
 
-    // URL yapısını backend'in beklediği formata uygun hale getiriyoruz
-    const response = await axiosInstance.get(`${process.env.URL}/api/ImageCache/${pageId}/${prompt}`);
-
-    if (response.data && response.data.cached) {
-      return {
-        cached: true,
-        image: response.data.image
-      };
-    }
-
-    return { cached: false };
-
-  } catch (error) {
-    console.error('Error fetching image from cache:', error);
-    return { cached: false };
+      console.log('Cache response:', response.data);
+      return response.data;
+  } catch (error: any) {
+      console.error('Error fetching from cache:', error);
+      return { cached: false, error: error.message };
   }
 }
 
 export const getCacheImageById = async (pageId: string, prompt: string, id: number) => {
 
-  const response = await fetch(`${process.env.URL}/api/ImageCacheImageCache?pageId=${pageId}&prompt=${prompt}&id=${id}`, {
+  const response = await fetch(`${process.env.URL}/api/ImageCache?pageId=${pageId}&prompt=${prompt}&id=${id}`, {
     
     method: 'GET',
     headers: {
@@ -364,56 +359,69 @@ export const getCacheImageById = async (pageId: string, prompt: string, id: numb
 
 };
 
+interface CreateCacheImageParams {
+  pageID: string;
+  prompt: string;
+}
 
-export const createCacheImage = async (pageID: string, prompt: string) => {
+export const createCacheImage = async ({ pageID, prompt }: CreateCacheImageParams) => {
   try {
-    const axiosInstance = axios.create({
-      httpsAgent: new https.Agent({  
-        rejectUnauthorized: false
-      })
-    });
+      if (!pageID || !prompt) {
+          console.error("HATA: pageID veya prompt eksik!", { pageID, prompt });
+          return { success: false, error: "PageID ve Prompt zorunludur!" };
+      }
 
-    const response = await axiosInstance.post(`${process.env.URL}/api/ImageCache`, {
-      pageID: pageID,
-      prompt: prompt
-    });
+      // Önce cache'de var mı kontrol et
+      const existingImage = await getImageFromCache(pageID, prompt);
+      if (existingImage.cached && existingImage.image) {
+          console.log("Görsel zaten cache'de mevcut, varolan görseli döndürüyorum");
+          return {
+              success: true,
+              image: existingImage.image
+          };
+      } 
 
-    if (response.data && response.data.image) {
+      const response = await axios.post(`${process.env.URL}/api/ImageCache`, {
+          pageID: pageID,
+          prompt: prompt,
+      }, {
+          headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+          },
+          httpsAgent: new https.Agent({ rejectUnauthorized: false })
+      });
+
+      if (response.data && response.data.image) {
+        return {
+          success: true,
+          image: response.data.image
+        };
+      }
+  
       return {
-        success: true,
-        image: response.data.image
+        success: false,
+        error: 'Failed to create image'
       };
-    }
-
-    return {
-      success: false,
-      error: 'Failed to create image'
-    };
 
   } catch (error: any) {
-    console.error('Error creating cache image:', error);
-    return {
-      success: false,
-      error: error.message || 'Failed to create image'
-    };
+      console.error('Error in createCacheImage:', error);
+      // Özel hata mesajları
+      if (error.response?.status === 500 && error.response?.data?.error?.includes('UNIQUE KEY constraint')) {
+          console.log("Duplicate key hatası - görsel zaten cache'de olabilir, tekrar kontrol ediliyor");
+          const retryImage = await getImageFromCache(pageID, prompt);
+          if (retryImage.cached && retryImage.image) {
+              return {
+                  success: true,
+                  image: retryImage.image
+              };
+          }
+      }
+      return { 
+          success: false, 
+          error: error.message || 'Görsel oluşturma ve cache işlemi başarısız' 
+      };
   }
-};
-
-export const updateCacheImage = async (id: number, data: any) => {
-
-  const response = await fetch(`${process.env.URL}/api/ImageCache/${id}`, {
-
-    method: 'PUT',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    },
-     mode: 'cors',
-    cache: 'no-store',
-    body: JSON.stringify(data),
-  });
-
-  return response.json();
 };
 
 export const deleteCacheImage = async (id: number) => {

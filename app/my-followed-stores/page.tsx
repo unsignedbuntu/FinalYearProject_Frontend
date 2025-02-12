@@ -17,24 +17,17 @@ export default function MyFollowedStores() {
     const [error, setError] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState<{[key: number]: boolean}>({});
 
-    const generateStoreImage = async (supplierName: string, supplierID: number, customPrompt?: string) => {
+    const generateStoreImage = async (supplierName: string, supplierID: number) => {
         try {
             setIsGenerating(prev => ({ ...prev, [supplierID]: true }));
 
-            const generatedPrompt = generatePrompt(
-                supplierName,
-                "modern storefront design with professional appearance"
-            );
-
-            const finalPrompt = customPrompt || generatedPrompt.prompt;
-            console.log('Using prompt:', finalPrompt);
-
+            const prompt = `${supplierName}, modern storefront design with professional appearance`;
+            
             // Cache'den kontrol et
-            const cacheResult = await getImageFromCache('my-followed-stores', finalPrompt);
+            const cacheResult = await getImageFromCache('my-followed-stores', prompt);
             console.log('Cache result:', cacheResult);
 
             if (cacheResult.cached && cacheResult.image) {
-                console.log('Using cached image for:', supplierName);
                 setSupplierImages(prev => ({
                     ...prev,
                     [supplierID]: `data:image/jpeg;base64,${cacheResult.image}`
@@ -43,18 +36,15 @@ export default function MyFollowedStores() {
             }
 
             // Yeni görsel oluştur
-            console.log('Generating new image for:', supplierName);
-            const result = await createCacheImage(
-                'my-followed-stores',
-                finalPrompt
-            );
+            const result = await createCacheImage({
+                pageID: 'my-followed-stores',
+                prompt: prompt
+            });
 
             if (result.success && result.image) {
-                const imageUrl = `data:image/jpeg;base64,${result.image}`;
-                console.log('Setting new image for:', supplierName);
                 setSupplierImages(prev => ({
                     ...prev,
-                    [supplierID]: imageUrl
+                    [supplierID]: `data:image/jpeg;base64,${result.image}`
                 }));
             } else {
                 throw new Error(result.error || 'Failed to generate image');
