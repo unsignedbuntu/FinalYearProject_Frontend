@@ -49,7 +49,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { pageID, prompt, image } = body;
+        const { pageID, prompt } = body;
 
         if (!pageID || !prompt) {
             return NextResponse.json({ 
@@ -59,36 +59,26 @@ export async function POST(req: Request) {
         }
 
         try {
-            // If no image is provided, generate one
-            let imageToCache = image;
-            if (!imageToCache) {
-                console.log('Generating image with parameters:', { pageID, prompt });
+            // Görsel oluşturma işlemi
+            console.log('Generating image with parameters:', { pageID, prompt });
+            const response = await axios.post(`${AUTOMATIC1111_API_URL}/sdapi/v1/txt2img`, {
+                prompt: prompt,
+                negative_prompt: '',
+                steps: 15,
+                sampler_name: "DPM++ 2M a",
+                width: 512,
+                height: 512,
+                cfg_scale: 7
+            }, {
+                timeout: 300000
+            });
 
-                // Generate image using AUTOMATIC1111
-                const response = await axios.post(`${AUTOMATIC1111_API_URL}/sdapi/v1/txt2img`, {
-                    prompt: prompt,
-                    negative_prompt: '',
-                    steps: 15,
-                    sampler_name: "DPM++ 2M a",
-                    width: 512,
-                    height: 512,
-                    cfg_scale: 7
-                }, {
-                    timeout: 300000
-                });
-
-                if (!response.data?.images?.[0]) {
-                    console.error('No image generated from AUTOMATIC1111');
-                    return NextResponse.json({ 
-                        success: false,
-                        error: 'Failed to generate image' 
-                    }, { status: 500 });
-                }
-
-                imageToCache = response.data.images[0];
+            if (!response.data?.images?.[0]) {
+                throw new Error('No image generated from AUTOMATIC1111');
             }
 
-            // Save to backend API
+            // Oluşturulan görseli cache'e kaydet
+            const imageToCache = response.data.images[0];
             const cacheResponse = await axios.post(`${API_URL}/api/ImageCache`, {
                 pageID,
                 prompt,
@@ -101,39 +91,26 @@ export async function POST(req: Request) {
                 httpsAgent: new https.Agent({ rejectUnauthorized: false })
             });
 
-            if (!cacheResponse.data) {
-                console.error('Failed to cache the generated image');
-                return NextResponse.json({ 
-                    success: false,
-                    error: 'Failed to cache the generated image' 
-                }, { status: 500 });
+            if (!cacheResponse.data?.success) {
+                throw new Error('Failed to cache the generated image');
             }
 
-            console.log('Image cached successfully');
             return NextResponse.json({
                 success: true,
-                image: imageToCache
+                image: imageToCache,
+                message: "Görsel başarıyla oluşturuldu ve cache'lendi"
             });
 
         } catch (error) {
-            console.error('Error in image generation or caching:', error);
-            if (axios.isAxiosError(error)) {
-                console.error('Response data:', error.response?.data);
-                console.error('Response status:', error.response?.status);
-                console.error('Response headers:', error.response?.headers);
-            }
-            return NextResponse.json({ 
-                success: false, 
-                error: error instanceof Error ? error.message : 'Failed to generate or cache image',
-                details: error instanceof Error ? error.stack : undefined
-            }, { status: 500 });
+            console.error('Error generating or caching image:', error);
+            throw error; // Üst catch bloğuna gönder
         }
 
     } catch (error: any) {
         console.error('Error in POST request:', error);
         return NextResponse.json({
             success: false, 
-            error: error.message,
+            error: error.message || 'Görsel oluşturma işlemi başarısız oldu',
             details: error.stack
         }, { status: 500 });
     }

@@ -20,27 +20,30 @@ export default function MyFollowedStores() {
     const generateStoreImage = async (supplierName: string, supplierID: number) => {
         try {
             setIsGenerating(prev => ({ ...prev, [supplierID]: true }));
-
+    
             const prompt = `${supplierName}, modern storefront design with professional appearance`;
             
-            // Cache'den kontrol et
+            console.log('Checking cache for:', { supplierID, prompt });
             const cacheResult = await getImageFromCache('my-followed-stores', prompt);
             console.log('Cache result:', cacheResult);
-
+    
             if (cacheResult.cached && cacheResult.image) {
+                console.log('Image found in cache');
                 setSupplierImages(prev => ({
                     ...prev,
                     [supplierID]: `data:image/jpeg;base64,${cacheResult.image}`
                 }));
                 return;
             }
-
-            // Yeni görsel oluştur
+    
+            console.log('Creating new image for:', supplierName);
             const result = await createCacheImage({
                 pageID: 'my-followed-stores',
                 prompt: prompt
             });
-
+            
+            console.log('Create cache image result:', result);
+            
             if (result.success && result.image) {
                 setSupplierImages(prev => ({
                     ...prev,
@@ -49,10 +52,10 @@ export default function MyFollowedStores() {
             } else {
                 throw new Error(result.error || 'Failed to generate image');
             }
-
-        } catch (error) {
+    
+        } catch (error: any) {
             console.error('Error generating image:', error);
-            setError(error instanceof Error ? error.message : 'Failed to generate image');
+            setError(error.message || 'Failed to generate image');
         } finally {
             setIsGenerating(prev => ({ ...prev, [supplierID]: false }));
         }
