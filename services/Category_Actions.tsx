@@ -362,6 +362,7 @@ export const getCacheImageById = async (pageId: string, prompt: string, id: numb
 interface CreateCacheImageParams {
   pageID: string;
   prompt: string;
+  image?: string;
 }
 
 export const createCacheImage = async ({ pageID, prompt }: CreateCacheImageParams) => {

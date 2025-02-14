@@ -79,6 +79,7 @@ export async function POST(req: Request) {
 
             // Oluşturulan görseli cache'e kaydet
             const imageToCache = response.data.images[0];
+            console.log('Generated image:', imageToCache);
             const cacheResponse = await axios.post(`${API_URL}/api/ImageCache`, {
                 pageID,
                 prompt,
