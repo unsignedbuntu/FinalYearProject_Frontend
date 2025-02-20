@@ -43,7 +43,7 @@ export default function MyFollowedStores() {
             });
             
             console.log('Create cache image result:', result);
-            
+
             if (result.success && result.image) {
                 setSupplierImages(prev => ({
                     ...prev,

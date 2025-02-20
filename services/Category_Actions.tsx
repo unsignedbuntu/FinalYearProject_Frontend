@@ -248,6 +248,80 @@ export const deleteStore = async (id: number) => {
 };
 
 // Suppliers
+export const getProductSuppliers = async () => {
+  try {
+    const response = await fetch(`${process.env.URL}/api/ProductSuppliers`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      mode: 'cors',
+      cache: 'no-store'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching suppliers:', error);
+    return [];
+  }
+};
+
+export const getProductSupplierById = async (id: number) => {
+    const response = await fetch(`${process.env.URL}/api/ProductSuppliers/${id}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      mode: 'cors',
+      cache: 'no-store'
+    });
+  return response.json();
+};
+
+export const createProductSupplier = async (data: any) => {
+  const response = await fetch(`${process.env.URL}/api/ProductSuppliers`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+     mode: 'cors',
+    cache: 'no-store',
+    body: JSON.stringify(data),
+  });
+  
+  return response.json();
+};
+
+export const updateProductSupplier = async (id: number, data: any) => {
+  const response = await fetch(`${process.env.URL}/api/ProductSuppliers/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+     mode: 'cors',
+    cache: 'no-store',
+    body: JSON.stringify(data),
+  });
+
+  return response.json();
+};
+
+export const deleteProductSupplier = async (id: number) => {
+  const response = await fetch(`${process.env.URL}/api/ProductSuppliers/SoftDelete_Status${id}`, {
+    method: 'DELETE',
+  });
+
+  return response.json();
+};
+
 export const getSuppliers = async () => {
   try {
     const response = await fetch(`${process.env.URL}/api/Suppliers`, {
