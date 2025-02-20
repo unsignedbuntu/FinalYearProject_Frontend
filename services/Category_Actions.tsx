@@ -413,9 +413,14 @@ export async function getImageFromCache(pageId: string, prompt: string) {
       return response.data;
   } catch (error: any) {
       console.error('Error fetching from cache:', error);
+      if (error.response) {
+          console.error('Error response:', error.response.data);
+          console.error('Error status:', error.response.status);
+      }
       return { cached: false, error: error.message };
   }
 }
+
 
 export const getCacheImageById = async (pageId: string, prompt: string, id: number) => {
 
@@ -436,13 +441,14 @@ export const getCacheImageById = async (pageId: string, prompt: string, id: numb
 interface CreateCacheImageParams {
   pageID: string;
   prompt: string;
+
 }
 
-export const createCacheImage = async ({ pageID, prompt }: CreateCacheImageParams) => {
+export const createCacheImage = async ({ pageID, prompt}: CreateCacheImageParams) => {
   try {
-      if (!pageID || !prompt) {
-          console.error("HATA: pageID veya prompt eksik!", { pageID, prompt });
-          return { success: false, error: "PageID ve Prompt zorunludur!" };
+      if ( !pageID || !prompt  ) {
+          console.error("HATA: pageID veya prompt veya image eksik!", { pageID, prompt });
+          return { success: false, error: "PageID ve Prompt,Image zorunludur!" };
       }
 
       // Önce cache'de var mı kontrol et
@@ -458,6 +464,7 @@ export const createCacheImage = async ({ pageID, prompt }: CreateCacheImageParam
       const response = await axios.post(`${process.env.URL}/api/ImageCache`, {
           pageID: pageID,
           prompt: prompt,
+  
       }, {
           headers: {
               'Accept': 'application/json',
@@ -477,25 +484,13 @@ export const createCacheImage = async ({ pageID, prompt }: CreateCacheImageParam
         success: false,
         error: 'Failed to create image'
       };
-
-  } catch (error: any) {
-      console.error('Error in createCacheImage:', error);
-      // Özel hata mesajları
-      if (error.response?.status === 500 && error.response?.data?.error?.includes('UNIQUE KEY constraint')) {
-          console.log("Duplicate key hatası - görsel zaten cache'de olabilir, tekrar kontrol ediliyor");
-          const retryImage = await getImageFromCache(pageID, prompt);
-          if (retryImage.cached && retryImage.image) {
-              return {
-                  success: true,
-                  image: retryImage.image
-              };
-          }
-      }
-      return { 
-          success: false, 
-          error: error.message || 'Görsel oluşturma ve cache işlemi başarısız' 
-      };
-  }
+    } catch (error: any) {
+        console.error('Error in createCacheImage:', error);
+        return { 
+            success: false, 
+            error: error.message || 'Failed to create and cache image' 
+        };
+    }
 };
 
 export const deleteCacheImage = async (id: number) => {

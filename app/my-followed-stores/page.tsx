@@ -74,7 +74,6 @@ export default function MyFollowedStores() {
             const cacheSaveResult = await createCacheImage({
                 pageID: 'my-followed-stores',
                 prompt: finalPrompt,
-                image: result.image,
             });
 
             if (!cacheSaveResult.success) {
