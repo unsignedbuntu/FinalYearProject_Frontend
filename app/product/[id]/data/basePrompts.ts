@@ -1,16 +1,7 @@
-export const generateProductPrompt = (productName: string, category: string) => {
-  // Önce kategoriyi kontrol et
-  if (!category) {
-    return {
-      main: `professional product photography of ${productName}, clean background, commercial product shot`,
-      views: []
-    };
-  }
 
-  // Kategori prompts map'i
-  const prompts: { [key: string]: { main: string, views: string[] } } = {
+export const basePrompts = {
     'Computer/Tablet': {
-      main: `ultra detailed product photography of ${productName}, modern gaming laptop, sleek design, premium build quality, RGB lighting, professional studio lighting`,
+      main:(productName: string) => `ultra detailed product photography of ${productName}, modern gaming laptop, sleek design, premium build quality, RGB lighting, professional studio lighting`,
       views: [
         'front view showing display and keyboard illumination',
         'side view highlighting slim profile and ports',
@@ -19,7 +10,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Printers & Projectors': {
-      main: `professional product photography of ${productName}, office environment, crisp image, high resolution`,
+        main: (productName: string) => `professional product photography of ${productName}, office environment, crisp image, high resolution`,
       views: [
         'front view showing control panel',
         'side view showing paper tray',
@@ -28,7 +19,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Telephone': {
-      main: `modern product photography of ${productName}, sleek design, corporate environment, high detail`,
+      main: (productName: string) => `modern product photography of ${productName}, sleek design, corporate environment, high detail`,
       views: [
         'front view with display lit up',
         'side view showing slim profile',
@@ -37,7 +28,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'TV, Visual and Audio Systems': {
-      main: `high-end product photography of ${productName}, entertainment setup, vibrant colors, immersive experience`,
+      main: (productName: string) => `high-end product photography of ${productName}, entertainment setup, vibrant colors, immersive experience`,
       views: [
         'front view showing screen content',
         'side view showing slim design',
@@ -46,7 +37,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'White Goods': {
-      main: `clean product photography of ${productName}, kitchen setting, stainless steel, modern appliances`,
+      main: (productName: string) => `clean product photography of ${productName}, kitchen setting, stainless steel, modern appliances`,
       views: [
         'front view showing door and controls',
         'side view showing size and depth',
@@ -55,7 +46,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Air Conditioners and Heaters': {
-      main: `product shot of ${productName}, room environment, energy efficient, comfort`,
+      main: (productName: string) => `product shot of ${productName}, room environment, energy efficient, comfort`,
       views: [
         'front view showing control panel',
         'side view showing slim profile',
@@ -64,7 +55,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Electrical Appliances': {
-      main: `studio product shot of ${productName}, household use, ease of use, practical`,
+      main: (productName: string) => `studio product shot of ${productName}, household use, ease of use, practical`,
       views: [
         'front view showing main features',
         'side view showing attachments',
@@ -73,7 +64,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Photo and Camera': {
-      main: `product photography of ${productName}, outdoor or studio setting, capturing moments, high resolution`,
+      main: (productName: string) => `product photography of ${productName}, outdoor or studio setting, capturing moments, high resolution`,
       views: [
         'front view showing lens and controls',
         'side view showing grip and ports',
@@ -82,7 +73,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Cleaning Products': {
-      main: `product shot of ${productName}, household cleaning, hygiene, effective`,
+      main: (productName: string) => `product shot of ${productName}, household cleaning, hygiene, effective`,
       views: [
         'front view showing bottle and label',
         'angled view showing spray nozzle',
@@ -91,7 +82,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Diaper and Wet Wipes': {
-      main: `product photography of ${productName}, baby care, gentle, safe`,
+      main: (productName: string) => `product photography of ${productName}, baby care, gentle, safe`,
       views: [
         'front view showing packaging',
         'angled view showing contents',
@@ -100,7 +91,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Paper Products': {
-      main: `product shot of ${productName}, household use, convenience, essential`,
+      main: (productName: string) => `product shot of ${productName}, household use, convenience, essential`,
       views: [
         'front view showing packaging',
         'angled view showing product stack',
@@ -109,7 +100,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Drinks': {
-      main: `product photography of ${productName}, refreshment, tasty, variety`,
+      main: (productName: string) => `product photography of ${productName}, refreshment, tasty, variety`,
       views: [
         'front view showing bottle or can',
         'angled view showing drink pouring',
@@ -118,7 +109,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Food Products': {
-      main: `product shot of ${productName}, delicious, nutritious, quality`,
+      main: (productName: string) => `product shot of ${productName}, delicious, nutritious, quality`,
       views: [
         'front view showing packaging',
         'angled view showing food preparation',
@@ -127,7 +118,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Petshop': {
-      main: `product photography of ${productName}, pet care, health, happiness`,
+      main: (productName: string) => `product photography of ${productName}, pet care, health, happiness`,
       views: [
         'front view showing packaging',
         'angled view showing product in use',
@@ -136,7 +127,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Household Consumables': {
-      main: `product shot of ${productName}, household essentials, practical, economical`,
+      main: (productName: string) => `product shot of ${productName}, household essentials, practical, economical`,
       views: [
         'front view showing packaging',
         'angled view showing usage',
@@ -145,7 +136,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Womens Clothing': {
-      main: `fashion product photography of ${productName}, stylish, trendy, high fashion`,
+      main: (productName: string) => `fashion product photography of ${productName}, stylish, trendy, high fashion`,
       views: [
         'front view showing full outfit',
         'side view showing silhouette',
@@ -154,7 +145,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Womens Accessories and Jewelry': {
-      main: `elegant product shot of ${productName}, stylish, sophisticated, delicate`,
+      main: (productName: string) => `elegant product shot of ${productName}, stylish, sophisticated, delicate`,
       views: [
         'front view showing overall design',
         'side view showing depth and detail',
@@ -163,7 +154,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Mens Clothing': {
-      main: `fashion product photography of ${productName}, stylish, modern, tailored`,
+      main: (productName: string) => `fashion product photography of ${productName}, stylish, modern, tailored`,
       views: [
         'front view showing full outfit',
         'side view showing fit and cut',
@@ -172,7 +163,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Mens Accessories and Jewelry': {
-      main: `elegant product shot of ${productName}, stylish, sophisticated, masculine`,
+      main: (productName: string) => `elegant product shot of ${productName}, stylish, sophisticated, masculine`,
       views: [
         'front view showing overall design',
         'side view showing construction and detail',
@@ -181,7 +172,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Womens Shoes and Bags': {
-      main: `stylish product photography of ${productName}, elegant, trendy, fashionable`,
+      main: (productName: string) => `stylish product photography of ${productName}, elegant, trendy, fashionable`,
       views: [
         'front view showing overall design',
         'side view showing shape and height',
@@ -190,7 +181,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Mens Shoes and Bags': {
-      main: `stylish product photography of ${productName}, trendy, modern, functional`,
+      main: (productName: string) => `stylish product photography of ${productName}, trendy, modern, functional`,
       views: [
         'front view showing design and closure',
         'side view showing capacity and shape',
@@ -199,7 +190,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Kids': {
-      main: `product photography of ${productName}, playful, colorful, durable`,
+      main: (productName: string) => `product photography of ${productName}, playful, colorful, durable`,
       views: [
         'front view showing design and features',
         'side view showing comfort and size',
@@ -208,7 +199,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Smart Home Devices': {
-      main: `product photography of ${productName}, connected, innovative, smart`,
+      main: (productName: string) => `product photography of ${productName}, connected, innovative, smart`,
       views: [
         'front view showing device interface',
         'side view showing size and integration',
@@ -217,7 +208,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Gaming Equipment': {
-      main: `professional product shot of ${productName}, gaming peripheral, dramatic lighting, matte finish, high-end commercial photography`,
+      main: (productName: string) => `professional product shot of ${productName}, gaming peripheral, dramatic lighting, matte finish, high-end commercial photography`,
       views: [
         'front view with RGB lighting effects',
         'side profile showing ergonomic design',
@@ -226,16 +217,16 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Musical Instruments': {
-      main: `artistic product photography of ${productName}, classic, resonant, craftsmanship`,
+      main: (productName: string) => `artistic product photography of ${productName}, classic, resonant, craftsmanship`,
       views: [
         'front view showing instrument body',
         'side view showing shape and form',
         'angled view showcasing details',
         'close-up of strings or keys'
       ]
-    },
+    },  
     'Office Supplies': {
-      main: `clean product photography of ${productName}, organized, efficient, essential`,
+      main: (productName: string) => `clean product photography of ${productName}, organized, efficient, essential`,
       views: [
         'front view showing item set',
         'angled view showing functionality',
@@ -244,7 +235,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Sports Equipment': {
-      main: `dynamic product photography of ${productName}, active, durable, high performance`,
+      main: (productName: string) => `dynamic product photography of ${productName}, active, durable, high performance`,
       views: [
         'front view showing key features',
         'side view showing design and shape',
@@ -253,7 +244,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Beauty and Personal Care': {
-      main: `elegant product photography of ${productName}, beauty, self-care, radiant`,
+      main: (productName: string) => `elegant product photography of ${productName}, beauty, self-care, radiant`,
       views: [
         'front view showing packaging and product',
         'angled view showcasing texture and color',
@@ -262,7 +253,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Home Decor': {
-      main: `stylish product photography of ${productName}, interior design, comfort, ambiance`,
+      main: (productName: string) => `stylish product photography of ${productName}, interior design, comfort, ambiance`,
       views: [
         'front view showing overall design',
         'angled view showcasing texture and color',
@@ -271,7 +262,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Garden Tools': {
-      main: `clean product photography of ${productName}, gardening, outdoor, durable`,
+      main: (productName: string) => `clean product photography of ${productName}, gardening, outdoor, durable`,
       views: [
         'front view showing tool head',
         'side view showing handle and length',
@@ -280,7 +271,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Automotive Accessories': {
-      main: `dynamic product photography of ${productName}, automotive, style, performance`,
+      main: (productName: string) => `dynamic product photography of ${productName}, automotive, style, performance`,
       views: [
         'front view showing accessory features',
         'side view showing fit and integration',
@@ -289,7 +280,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Books and Stationery': {
-      main: `classic product photography of ${productName}, reading, writing, education`,
+      main: (productName: string) => `classic product photography of ${productName}, reading, writing, education`,
       views: [
         'front view showing cover and title',
         'side view showing spine and thickness',
@@ -298,7 +289,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Bakery Products': {
-      main: `enticing product photography of ${productName}, delicious, fresh, artisanal`,
+      main: (productName: string) => `enticing product photography of ${productName}, delicious, fresh, artisanal`,
       views: [
         'front view showing product detail',
         'angled view showcasing texture and presentation',
@@ -307,7 +298,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Frozen Foods': {
-      main: `clean product photography of ${productName}, convenience, tasty, preserved`,
+      main: (productName: string) => `clean product photography of ${productName}, convenience, tasty, preserved`,
       views: [
         'front view showing packaging and contents',
         'angled view showcasing ingredients',
@@ -316,7 +307,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Dairy Products': {
-      main: `clean product photography of ${productName}, fresh, nutritious, healthy`,
+      main: (productName: string) => `clean product photography of ${productName}, fresh, nutritious, healthy`,
       views: [
         'front view showing packaging and product',
         'angled view showcasing texture and consistency',
@@ -325,7 +316,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Organic Foods': {
-      main: `natural product photography of ${productName}, organic, healthy, sustainable`,
+      main: (productName: string) => `natural product photography of ${productName}, organic, healthy, sustainable`,
       views: [
         'front view showing packaging and certifications',
         'angled view showcasing ingredients and texture',
@@ -334,7 +325,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Pet Accessories': {
-      main: `playful product photography of ${productName}, pet care, fun, durable`,
+      main: (productName: string) => `playful product photography of ${productName}, pet care, fun, durable`,
       views: [
         'front view showing accessory features',
         'angled view showcasing design and usage',
@@ -343,7 +334,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Fresh Produce': {
-      main: `vibrant product photography of ${productName}, fresh, organic, natural`,
+      main: (productName: string) => `vibrant product photography of ${productName}, fresh, organic, natural`,
       views: [
         'front view showing produce texture',
         'angled view showcasing color and shape',
@@ -352,7 +343,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Beverages': {
-      main: `refreshing product photography of ${productName}, tasty, cooling, variety`,
+      main: (productName: string) => `refreshing product photography of ${productName}, tasty, cooling, variety`,
       views: [
         'front view showing bottle or can',
         'angled view showcasing liquid texture',
@@ -361,7 +352,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Snacks and Confectionery': {
-      main: `enticing product photography of ${productName}, delicious, sweet, tempting`,
+      main: (productName: string) => `enticing product photography of ${productName}, delicious, sweet, tempting`,
       views: [
         'front view showing snack features',
         'angled view showcasing texture and toppings',
@@ -370,7 +361,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Mobile Accessories': {
-      main: `modern product photography of ${productName}, stylish, functional, tech`,
+      main: (productName: string) => `modern product photography of ${productName}, stylish, functional, tech`,
       views: [
         'front view showing accessory features',
         'side view showing compatibility and fit',
@@ -379,7 +370,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Computer Components': {
-      main: `technical product photography of ${productName}, high-performance, innovative, detailed`,
+      main: (productName: string) => `technical product photography of ${productName}, high-performance, innovative, detailed`,
       views: [
         'front view showing component layout',
         'side view showing heat sinks and ports',
@@ -388,7 +379,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Networking Equipment': {
-      main: `clean product photography of ${productName}, connected, efficient, reliable`,
+      main: (productName: string) => `clean product photography of ${productName}, connected, efficient, reliable`,
       views: [
         'front view showing device ports',
         'side view showing size and shape',
@@ -397,7 +388,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Storage Devices': {
-      main: `modern product photography of ${productName}, efficient, secure, portable`,
+      main: (productName: string) => `modern product photography of ${productName}, efficient, secure, portable`,
       views: [
         'front view showing device label',
         'side view showing size and port',
@@ -406,7 +397,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Wearable Technology': {
-      main: `dynamic product photography of ${productName}, active, connected, stylish`,
+      main: (productName: string) => `dynamic product photography of ${productName}, active, connected, stylish`,
       views: [
         'front view showing device display',
         'side view showing band and sensors',
@@ -415,7 +406,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Audio Equipment': {
-      main: `artistic product photography of ${productName}, immersive, clear, resonant`,
+      main: (productName: string) => `artistic product photography of ${productName}, immersive, clear, resonant`,
       views: [
         'front view showing device design',
         'side view showing earcups or speakers',
@@ -424,7 +415,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Kids Fashion': {
-      main: `playful product photography of ${productName}, cute, stylish, comfortable`,
+      main: (productName: string) => `playful product photography of ${productName}, cute, stylish, comfortable`,
       views: [
         'front view showing garment detail',
         'side view showing fit and shape',
@@ -433,7 +424,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Maternity Wear': {
-      main: `comfortable product photography of ${productName}, supportive, stylish, nurturing`,
+      main: (productName: string) => `comfortable product photography of ${productName}, supportive, stylish, nurturing`,
       views: [
         'front view showing garment detail',
         'side view showing fit and comfort',
@@ -442,7 +433,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Sportswear': {
-      main: `dynamic product photography of ${productName}, active, breathable, durable`,
+      main: (productName: string) => `dynamic product photography of ${productName}, active, breathable, durable`,
       views: [
         'front view showing garment features',
         'side view showing fit and mobility',
@@ -451,7 +442,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Underwear and Lingerie': {
-      main: `elegant product photography of ${productName}, comfortable, stylish, delicate`,
+      main: (productName: string) => `elegant product photography of ${productName}, comfortable, stylish, delicate`,
       views: [
         'front view showing garment detail',
         'side view showing fit and shape',
@@ -460,7 +451,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Seasonal Fashion': {
-      main: `trendy product photography of ${productName}, stylish, current, fashionable`,
+      main: (productName: string) => `trendy product photography of ${productName}, stylish, current, fashionable`,
       views: [
         'front view showing garment detail',
         'side view showing silhouette and trends',
@@ -469,7 +460,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Fashion': {
-      main: `high-end product photography of ${productName}, exclusive, elegant, sophisticated`,
+      main: (productName: string) => `high-end product photography of ${productName}, exclusive, elegant, sophisticated`,
       views: [
         'front view showing garment detail',
         'side view showing tailoring and shape',
@@ -478,7 +469,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Professional Workwear': {
-      main: `professional product photography of ${productName}, corporate, durable, stylish`,
+      main: (productName: string) => `professional product photography of ${productName}, corporate, durable, stylish`,
       views: [
         'front view showing garment fit',
         'side view showing tailoring and design',
@@ -487,7 +478,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Traditional Wear': {
-      main: `cultural product photography of ${productName}, traditional, unique, authentic`,
+      main: (productName: string) => `cultural product photography of ${productName}, traditional, unique, authentic`,
       views: [
         'front view showing garment detail',
         'side view showing silhouette and fit',
@@ -496,7 +487,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Fashion Accessories': {
-      main: `stylish product photography of ${productName}, fashionable, trendy, chic`,
+      main: (productName: string) => `stylish product photography of ${productName}, fashionable, trendy, chic`,
       views: [
         'front view showing accessory detail',
         'side view showing design and shape',
@@ -505,7 +496,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Outdoor Clothing': {
-      main: `dynamic product photography of ${productName}, durable, comfortable, weather-resistant`,
+      main: (productName: string) => `dynamic product photography of ${productName}, durable, comfortable, weather-resistant`,
       views: [
         'front view showing garment features',
         'side view showing fit and mobility',
@@ -514,7 +505,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Kitchen Appliances': {
-      main: `clean product photography of ${productName}, efficient, reliable, modern`,
+      main: (productName: string) => `clean product photography of ${productName}, efficient, reliable, modern`,
       views: [
         'front view showing device panel',
         'side view showing size and integration',
@@ -523,7 +514,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Personal Care Appliances': {
-      main: `stylish product photography of ${productName}, grooming, personal, hygienic`,
+      main: (productName: string) => `stylish product photography of ${productName}, grooming, personal, hygienic`,
       views: [
         'front view showing device features',
         'side view showing size and handle',
@@ -532,7 +523,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Home Cleaning Appliances': {
-      main: `clean product photography of ${productName}, efficient, powerful, hygienic`,
+      main: (productName: string) => `clean product photography of ${productName}, efficient, powerful, hygienic`,
       views: [
         'front view showing device head',
         'side view showing size and reach',
@@ -541,7 +532,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Home Security Devices': {
-      main: `modern product photography of ${productName}, secure, connected, reliable`,
+      main: (productName: string) => `modern product photography of ${productName}, secure, connected, reliable`,
       views: [
         'front view showing device interface',
         'side view showing size and integration',
@@ -550,7 +541,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Smart Wearables': {
-      main: `dynamic product photography of ${productName}, active, connected, stylish`,
+      main: (productName: string) => `dynamic product photography of ${productName}, active, connected, stylish`,
       views: [
         'front view showing device display',
         'side view showing band and sensors',
@@ -559,7 +550,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Pet Food': {
-      main: `natural product photography of ${productName}, healthy, nutritious, tasty`,
+      main: (productName: string) => `natural product photography of ${productName}, healthy, nutritious, tasty`,
       views: [
         'front view showing packaging details',
         'angled view showcasing texture and ingredients',
@@ -568,7 +559,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Pet Care Products': {
-      main: `playful product photography of ${productName}, caring, essential, reliable`,
+      main: (productName: string) => `playful product photography of ${productName}, caring, essential, reliable`,
       views: [
         'front view showing product features',
         'angled view showcasing design and usage',
@@ -577,7 +568,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Organic Beverages': {
-      main: `natural product photography of ${productName}, refreshing, healthy, organic`,
+      main: (productName: string) => `natural product photography of ${productName}, refreshing, healthy, organic`,
       views: [
         'front view showing bottle or can',
         'angled view showcasing liquid clarity',
@@ -586,7 +577,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Organic Snacks': {
-      main: `natural product photography of ${productName}, tasty, guilt-free, organic`,
+      main: (productName: string) => `natural product photography of ${productName}, tasty, guilt-free, organic`,
       views: [
         'front view showing snack details',
         'angled view showcasing texture and ingredients',
@@ -595,7 +586,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Bags': {
-      main: `high-end product photography of ${productName}, exclusive, elegant, fashionable`,
+      main: (productName: string) => `high-end product photography of ${productName}, exclusive, elegant, fashionable`,
       views: [
         'front view showing bag features',
         'side view showing shape and dimensions',
@@ -604,7 +595,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Shoes': {
-      main: `high-end product photography of ${productName}, exclusive, stylish, sophisticated`,
+      main: (productName: string) => `high-end product photography of ${productName}, exclusive, stylish, sophisticated`,
       views: [
         'front view showing shoe design',
         'side view showing heel height and shape',
@@ -613,7 +604,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Watches': {
-      main: `high-end product photography of ${productName}, timeless, precise, exquisite`,
+      main: (productName: string) => `high-end product photography of ${productName}, timeless, precise, exquisite`,
       views: [
         'front view showing dial and hands',
         'side view showing case and band',
@@ -622,7 +613,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Jewelry': {
-      main: `high-end product photography of ${productName}, sparkling, elegant, precious`,
+      main: (productName: string) => `high-end product photography of ${productName}, sparkling, elegant, precious`,
       views: [
         'front view showing jewelry detail',
         'side view showing clasp and setting',
@@ -631,7 +622,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Designer Clothing': {
-      main: `artistic product photography of ${productName}, innovative, stylish, iconic`,
+      main: (productName: string) => `artistic product photography of ${productName}, innovative, stylish, iconic`,
       views: [
         'front view showing garment design',
         'side view showing cut and silhouette',
@@ -640,7 +631,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Designer Accessories': {
-      main: `artistic product photography of ${productName}, innovative, stylish, unique`,
+      main: (productName: string) => `artistic product photography of ${productName}, innovative, stylish, unique`,
       views: [
         'front view showing accessory design',
         'side view showing shape and function',
@@ -649,7 +640,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Designer Shoes': {
-      main: `artistic product photography of ${productName}, avant-garde, stylish, luxurious`,
+      main: (productName: string) => `artistic product photography of ${productName}, avant-garde, stylish, luxurious`,
       views: [
         'front view showing shoe design',
         'side view showing construction and shape',
@@ -658,7 +649,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Designer Bags': {
-      main: `artistic product photography of ${productName}, innovative, functional, chic`,
+      main: (productName: string) => `artistic product photography of ${productName}, innovative, functional, chic`,
       views: [
         'front view showing bag features',
         'side view showing shape and dimensions',
@@ -667,7 +658,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Designer Jewelry': {
-      main: `artistic product photography of ${productName}, contemporary, elegant, precious`,
+      main: (productName: string) => `artistic product photography of ${productName}, contemporary, elegant, precious`,
       views: [
         'front view showing jewelry design',
         'side view showing clasp and setting',
@@ -676,7 +667,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Home Decor': {
-      main: `refined product photography of ${productName}, luxurious, stylish, elegant`,
+      main: (productName: string) => `refined product photography of ${productName}, luxurious, stylish, elegant`,
       views: [
         'front view showing decor detail',
         'angled view showcasing material quality',
@@ -685,7 +676,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Beauty Products': {
-      main: `elegant product photography of ${productName}, radiant, youthful, indulgent`,
+      main: (productName: string) => `elegant product photography of ${productName}, radiant, youthful, indulgent`,
       views: [
         'front view showing product packaging',
         'angled view showcasing textures and colors',
@@ -694,7 +685,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Personal Care': {
-      main: `refined product photography of ${productName}, comforting, indulgent, quality`,
+      main: (productName: string) => `refined product photography of ${productName}, comforting, indulgent, quality`,
       views: [
         'front view showing product features',
         'angled view showcasing textures and aromas',
@@ -703,7 +694,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Food Products': {
-      main: `refined product photography of ${productName}, gourmet, exclusive, delightful`,
+      main: (productName: string) => `refined product photography of ${productName}, gourmet, exclusive, delightful`,
       views: [
         'front view showing product presentation',
         'angled view showcasing ingredients',
@@ -712,7 +703,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Drinks': {
-      main: `refined product photography of ${productName}, premium, refreshing, sophisticated`,
+      main: (productName: string) => `refined product photography of ${productName}, premium, refreshing, sophisticated`,
       views: [
         'front view showing bottle or glass',
         'angled view showcasing liquid texture',
@@ -721,7 +712,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Snacks': {
-      main: `refined product photography of ${productName}, delectable, indulgent, exquisite`,
+      main: (productName: string) => `refined product photography of ${productName}, delectable, indulgent, exquisite`,
       views: [
         'front view showing snack presentation',
         'angled view showcasing textures and flavors',
@@ -730,7 +721,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Kitchen Appliances': {
-      main: `high-end product photography of ${productName}, efficient, stylish, state-of-the-art`,
+      main: (productName: string) => `high-end product photography of ${productName}, efficient, stylish, state-of-the-art`,
       views: [
         'front view showing device panel',
         'side view showing size and integration',
@@ -739,7 +730,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Home Appliances': {
-      main: `high-end product photography of ${productName}, efficient, powerful, whisper-quiet`,
+      main: (productName: string) => `high-end product photography of ${productName}, efficient, powerful, whisper-quiet`,
       views: [
         'front view showing appliance features',
         'side view showing size and efficiency',
@@ -748,7 +739,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Electronics': {
-      main: `high-end product photography of ${productName}, cutting-edge, immersive, sleek`,
+      main: (productName: string) => `high-end product photography of ${productName}, cutting-edge, immersive, sleek`,
       views: [
         'front view showing device screen',
         'side view showing design and ports',
@@ -757,7 +748,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Wearables': {
-      main: `high-end product photography of ${productName}, sophisticated, connected, stylish`,
+      main: (productName: string) => `high-end product photography of ${productName}, sophisticated, connected, stylish`,
       views: [
         'front view showing watch face',
         'side view showing band and sensors',
@@ -766,7 +757,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     'Luxury Smart Home Devices': {
-      main: `high-end product photography of ${productName}, automated, connected, secure`,
+      main: (productName: string) => `high-end product photography of ${productName}, automated, connected, secure`,
       views: [
         'front view showing device interface',
         'side view showing size and elegance',
@@ -775,7 +766,7 @@ export const generateProductPrompt = (productName: string, category: string) => 
       ]
     },
     default: {
-      main: `professional product photography of ${productName}, clean background, commercial product shot`,
+      main: (productName: string) => `professional product photography of ${productName}, clean background, commercial product shot`,
       views: [
         'front view product showcase',
         'side view showing dimensions',
@@ -783,9 +774,16 @@ export const generateProductPrompt = (productName: string, category: string) => 
         'close-up of main features'
       ]
     }
-  };
+  } as const;
 
-  // Kategori varsa kullan, yoksa default değeri döndür
-  return prompts[category] || prompts.default;
-};
+  export type CategoryPrompt = {     main: (productName: string) => string;     views: readonly string[]; };
+
+  export type CategoryKey = keyof typeof basePrompts;
   
+  export const generateProductPrompt = (productName: string, category: string) => { 
+        if (!category) {    
+           return {   
+                main: `professional product photography of ${productName}, clean background, commercial product shot`,views: []  
+              };   
+            }
+        };

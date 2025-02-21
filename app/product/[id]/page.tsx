@@ -10,6 +10,8 @@ import ProductDescription from './ProductDescription/ProductDescription';
 import { generateProductPrompt } from './data/basePrompts';
 import { categoryReviews } from './data/categoryReviews';
 import { Product, ProductSupplier, Store } from './types/Product';
+import { basePrompts } from './data/basePrompts';
+import { CategoryKey } from './data/basePrompts';
 
 export default function ProductPage() {
     const params = useParams() as { id: string };
@@ -24,19 +26,13 @@ export default function ProductPage() {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                console.log('Fetching data for product ID:', params.id);
-
                 const [productsData, suppliersData, storesData] = await Promise.all([
                     getProducts(),
                     getProductSuppliers(),
                     getStores()
                 ]);
 
-                const foundProduct = productsData.find(
-                    (p: Product) => p.productID === Number(params.id)
-                );
-
-                console.log('Found product:', foundProduct);
+                const foundProduct = productsData.find((p: Product) => p.productID === Number(params.id));
 
                 if (foundProduct) {
                     const productSupplier = suppliersData.find(
@@ -68,80 +64,75 @@ export default function ProductPage() {
 
                     if (!foundProduct.image) {
                         try {
-                            const categoryName = foundProduct.category?.categoryName || foundProduct.categoryName || '';
-                            console.log('Category Name:', categoryName);
+                            const categoryPrompt = basePrompts[foundProduct.categoryName as CategoryKey] || basePrompts.default;
+                            const mainPrompt = categoryPrompt.main(foundProduct.productName);
 
-                            const prompts = generateProductPrompt(
-                                foundProduct.productName || '',
-                                categoryName
+                            console.log("Category Prompt:", categoryPrompt);
+                            console.log("Main Prompt:", mainPrompt);
+
+                            // Ana görsel için POST isteği
+                            const mainImageResponse = await fetch('/api/ImageCache', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    pageID: 'products',
+                                    prompt: mainPrompt
+                                })
+                            });
+
+                            if (!mainImageResponse.ok) {
+                                throw new Error(`Image generation failed: ${mainImageResponse.statusText}`);
+                            }
+
+                            const mainImageData = await mainImageResponse.json();
+                            console.log('Main image response:', mainImageData);
+
+                            if (mainImageData.success && mainImageData.image) {
+                                foundProduct.image = `data:image/jpeg;base64,${mainImageData.image}`;
+                            }
+
+                            // Ek görseller için POST istekleri
+                            const additionalImages = await Promise.all(
+                                categoryPrompt.views.map(async (viewPrompt) => {
+                                    const fullPrompt = `${mainPrompt}, ${viewPrompt}`;
+                                    console.log('Processing view prompt:', fullPrompt);
+
+                                    const response = await fetch('/api/ImageCache', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        },
+                                        body: JSON.stringify({
+                                            pageID: 'products',
+                                            prompt: fullPrompt
+                                        })
+                                    });
+
+                                    if (!response.ok) {
+                                        console.error(`Failed to generate additional image: ${response.statusText}`);
+                                        return null;
+                                    }
+
+                                    const data = await response.json();
+                                    return data.success && data.image ? 
+                                        `data:image/jpeg;base64,${data.image}` : null;
+                                })
                             );
 
-                            if (prompts?.main) {
-                                console.log("Fetching image from API:", prompts.main);
-                                const mainImageResponse = await fetch('/api/ImageCache', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                    },
-                                    body: JSON.stringify({
-                                        pageID: 'products',
-                                        prompt: prompts.main
-                                    })
-                                });
-
-                                console.log("Main image response:", mainImageResponse); //LOG EKLENDİ 
-
-                                const mainImageData = await mainImageResponse.json();
-
-                                console.log("Main image data:", mainImageData); //LOG EKLENDİ
-                                
-                                const additionalImages = prompts.views && prompts.views.length > 0 ? 
-                                    await Promise.all(
-                                        prompts.views.map(async (viewPrompt) => {
-                                            console.log('Generating view with prompt:', `${prompts.main}, ${viewPrompt}`); 
-                                            const fullPrompt = `${prompts.main}, ${viewPrompt}`;
-
-                                            try {
-                                                const response = await fetch('/api/ImageCache', {
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'Content-Type': 'application/json',
-                                                    },
-                                                    body: JSON.stringify({
-                                                        pageID: 'products',
-                                                        prompt: fullPrompt
-                                                    })
-                                                });
-                                                
-                                                console.log("Additional image response:", response); // LOG EKLENDİ
-                                                const data = await response.json();
-                                                
-                                                console.log("Additional image data:", data); // LOG EKLENDİ
-                                                
-                                                return data.success && data.image ? 
-                                                    `data:image/jpeg;base64,${data.image}` : null;
-                                            } catch (error) {
-                                                console.error('Error generating additional image:', error);
-                                                return null;
-                                            }
-                                        })
-                                    ) : [];
-
-                            foundProduct.image = mainImageData.success ? 
-                                    `data:image/jpeg;base64,${mainImageData.image}` : null;
-
-                            console.log("Main image URL:", foundProduct.image); //LOG EKLENDİ
-                            foundProduct.additionalImages = additionalImages.filter(img => img !== null);
-                        }
-                            setProduct({
-                                ...foundProduct,
-                                reviews: formattedReviews
-                            });
-                            setSupplier(productSupplier || null);
+                            foundProduct.additionalImages = additionalImages.filter((img: string | null) => img !== null);
                         } catch (error) {
-                            console.error('Error generating images:', error);
+                            console.error('Image generation error:', error);
+                            foundProduct.image = '/placeholder.png';
                         }
                     }
+
+                    setProduct({
+                        ...foundProduct,
+                        reviews: formattedReviews
+                    });
+                    setSupplier(productSupplier || null);
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -172,52 +163,68 @@ export default function ProductPage() {
     return (
         <div className="min-h-screen bg-gray-50 py-8">
             {showCartNotification && <CartSuccessMessage onClose={() => setShowCartNotification(false)} />}
-
+            
             <div className="max-w-7xl mx-auto px-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Sol Kolon - Ürün Görselleri */}
                     <div className="space-y-4">
-                        <div className="aspect-square bg-white rounded-xl shadow-lg overflow-hidden">
+                        {/* Ana Görsel */}
+                        <div className="aspect-w-1 aspect-h-1 bg-white rounded-lg overflow-hidden shadow-md">
                             <Image
                                 src={product.image || '/placeholder.png'}
                                 alt={product.productName}
-                                layout="fill"
-                                objectFit="contain"
-                                className="p-4"
+                                width={500}
+                                height={500}
+                                className="object-contain w-full h-full p-4"
+                                priority
                             />
                         </div>
-                        
+
+                        {/* Küçük Görsel Galerisi */}
                         {product.additionalImages && product.additionalImages.length > 0 && (
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-4 gap-2">
                                 {product.additionalImages.map((img, i) => (
-                                    <div key={i} className="aspect-square bg-white rounded-xl shadow-lg overflow-hidden">
+                                    <button
+                                        key={i}
+                                        onClick={() => {
+                                            const currentMain = product.image;
+                                            setProduct({
+                                                ...product,
+                                                image: img,
+                                                additionalImages: [
+                                                    ...(product.additionalImages ? product.additionalImages.slice(0, i) : []),
+                                                    currentMain!,
+                                                    ...(product.additionalImages ? product.additionalImages.slice(i + 1) : [])
+
+                                                ]
+                                            });
+                                        }}
+                                        className="aspect-w-1 aspect-h-1 bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                                    >
                                         <Image
                                             src={img}
                                             alt={`${product.productName} view ${i + 1}`}
-                                            layout="fill"
-                                            objectFit="contain"
-                                            className="p-4"
+                                            width={120}
+                                            height={120}
+                                            className="object-contain w-full h-full p-2"
                                         />
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
                         )}
                     </div>
 
-                    <div className="bg-white rounded-xl shadow-lg p-6">
-                        <h1 className="text-3xl font-bold mb-4">{product.productName}</h1>
-
+                    {/* Sağ Kolon - Ürün Bilgileri */}
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                        <h1 className="text-2xl font-bold mb-4">{product.productName}</h1>
+                        
                         <div className="flex items-center justify-between mb-6">
                             <div className="text-3xl font-bold text-blue-600">
                                 {product.price} TL
                             </div>
                             <div className="flex items-center">
                                 {[1, 2, 3, 4, 5].map((star) => (
-                                    <span
-                                        key={star}
-                                        className="text-2xl text-yellow-400"
-                                    >
-                                        ★
-                                    </span>
+                                    <span key={star} className="text-xl text-yellow-400">★</span>
                                 ))}
                             </div>
                         </div>
@@ -239,7 +246,7 @@ export default function ProductPage() {
                                 onClick={handleToggleFavorite}
                                 className={`w-14 flex items-center justify-center rounded-lg transition-colors ${
                                     isFavorite ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-600'
-                                    }`}
+                                }`}
                             >
                                 <FavoriteIcon width={24} height={24} />
                             </button>
