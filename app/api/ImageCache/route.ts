@@ -62,6 +62,7 @@ export async function POST(req: Request) {
         try {
             // Önce cache'i kontrol et
             const cacheCheck = await axios.get(`${API_URL}/api/ImageCache/${pageID}/${prompt}`, {
+             
                 httpsAgent: new https.Agent({ rejectUnauthorized: false })
             });
 
