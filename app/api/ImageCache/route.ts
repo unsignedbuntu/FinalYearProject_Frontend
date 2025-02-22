@@ -60,82 +60,73 @@ export async function POST(req: Request) {
         }
 
         try {
-            // Önce cache'i kontrol et
-            const cacheCheck = await axios.get(`${API_URL}/api/ImageCache/${pageID}/${prompt}`, {
-             
-                httpsAgent: new https.Agent({ rejectUnauthorized: false })
-            });
+            // Cache kontrolü
+            const cacheResponse = await axios.get(
+                `${API_URL}/api/ImageCache/${pageID}/${encodeURIComponent(prompt)}`,
+                {
+                    httpsAgent: new https.Agent({ rejectUnauthorized: false })
+                }
+            );
 
-            // Eğer görsel cache'de varsa, onu döndür
-            if (cacheCheck.data && cacheCheck.data.cached && cacheCheck.data.image) {
-                console.log('Image found in cache, returning cached version');
+            // Cache'de varsa direkt dön
+            if (cacheResponse.status === 200 && cacheResponse.data?.image) {
                 return NextResponse.json({
                     success: true,
-                    image: cacheCheck.data.image,
+                    image: cacheResponse.data.image,
                     cached: true
                 });
             }
 
-            // Cache'de yoksa yeni görsel oluştur
-            console.log('Generating new image with parameters:', { pageID, prompt });
-            const response = await axios.post(`${AUTOMATIC1111_API_URL}/sdapi/v1/txt2img`, {
-                prompt: prompt,
-                negative_prompt: '',
-                steps: 15,
-                sampler_name: "DPM++ 2M a",
-                width: 512,
-                height: 512,
-                cfg_scale: 7
-            }, {
-                timeout: 300000
-            });
-
-            if (!response.data?.images?.[0]) {
-                throw new Error('No image generated from AUTOMATIC1111');
+        } catch (error: any) {
+            // 404 hatası normal akış, devam et
+            if (error.response?.status !== 404) {
+                console.error('Cache check error:', error);
+                return NextResponse.json({
+                    success: false,
+                    error: 'Cache kontrol hatası',
+                    details: error.message
+                }, { status: 500 });
             }
+        }
 
-            // Oluşturulan görseli cache'e kaydet
-            const imageToCache = response.data.images[0];
-            console.log('Generated image:', imageToCache);
-            const cacheResponse = await axios.post(`${API_URL}/api/ImageCache`, {
-                pageID,
-                prompt,
-                image: imageToCache,
-                status: true
+        // Yeni görsel üret
+        const response = await axios.post('http://127.0.0.1:7860/sdapi/v1/txt2img', {
+            prompt,
+            steps: 15,
+            width: 512,
+            height: 512
+        });
+
+        if (!response.data?.images?.[0]) {
+            return NextResponse.json({
+                success: false,
+                error: 'No image generated'
+            }, { status: 500 });
+        }
+
+        const base64Image = response.data.images[0];
+
+        // Cache'e kaydet
+        try {
+            await axios.post(`${API_URL}/api/ImageCache`, {
+                PageID: pageID,
+                Prompt: prompt,
+                Image: base64Image,
+                Status: true
             }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 httpsAgent: new https.Agent({ rejectUnauthorized: false })
             });
-            
-              if (!cacheResponse.data?.success) {
-                throw new Error('Failed to cache the generated image');
-            }
-
-            return NextResponse.json({
-                success: true,
-                image: imageToCache,
-                cached: false
-            });
-
         } catch (error: any) {
-            // Eğer 409 hatası alırsak (çakışma/duplicate), cache'den almayı tekrar dene
-            if (error.response?.status === 409) {
-                const cacheRetry = await axios.get(`${API_URL}/api/ImageCache/${pageID}/${prompt}`, {
-                    httpsAgent: new https.Agent({ rejectUnauthorized: false })
-                });
-
-                if (cacheRetry.data && cacheRetry.data.cached && cacheRetry.data.image) {
-                    return NextResponse.json({
-                        success: true,
-                        image: cacheRetry.data.image,
-                        cached: true
-                    });
-                }
-            }
-            throw error;
+            console.error('Cache save error:', error);
+            // Cache kayıt hatası kritik değil, görseli yine de dönelim
         }
+
+        return NextResponse.json({
+            success: true,
+            image: base64Image,
+            cached: false
+        });
 
     } catch (error: any) {
         console.error('Error in POST request:', error);
@@ -146,5 +137,4 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 }
-
 // GET endpoint'i aynı kalabilir...

@@ -1,4 +1,3 @@
-
 export const basePrompts = {
     'Computer/Tablet': {
       main:(productName: string) => `ultra detailed product photography of ${productName}, modern gaming laptop, sleek design, premium build quality, RGB lighting, professional studio lighting`,
@@ -73,12 +72,12 @@ export const basePrompts = {
       ]
     },
     'Cleaning Products': {
-      main: (productName: string) => `product shot of ${productName}, household cleaning, hygiene, effective`,
+      main: (productName: string) => `4k product photography of ${productName} on white background, studio lighting, commercial product shot, no people`,
       views: [
-        'front view showing bottle and label',
-        'angled view showing spray nozzle',
-        'close-up of ingredients and instructions',
-        'contextual view in a cleaning setting'
+        'front view showing label',
+        'side view showing container',
+        'close-up of dispenser',
+        'product details view'
       ]
     },
     'Diaper and Wet Wipes': {
@@ -91,12 +90,12 @@ export const basePrompts = {
       ]
     },
     'Paper Products': {
-      main: (productName: string) => `product shot of ${productName}, household use, convenience, essential`,
+      main: (productName: string) => `4k product photography of ${productName} on white background, studio lighting, commercial product shot, no people`,
       views: [
         'front view showing packaging',
-        'angled view showing product stack',
-        'close-up of material and texture',
-        'contextual view in a household setting'
+        'side view showing thickness',
+        'close-up of texture',
+        'multiple pack display'
       ]
     },
     'Drinks': {
@@ -766,11 +765,11 @@ export const basePrompts = {
       ]
     },
     default: {
-      main: (productName: string) => `professional product photography of ${productName}, clean background, commercial product shot`,
+      main: (productName: string) => `4k product photography of ${productName} on white background, studio lighting, commercial product shot, no people`,
       views: [
-        'front view product showcase',
-        'side view showing dimensions',
-        'angled view showing details',
+        'front view',
+        'side view',
+        '45-degree angle view',
         'close-up of main features'
       ]
     }
@@ -783,7 +782,7 @@ export const basePrompts = {
   export const generateProductPrompt = (productName: string, category: string) => { 
         if (!category) {    
            return {   
-                main: `professional product photography of ${productName}, clean background, commercial product shot`,views: []  
+                main: `4k product photography of ${productName} on white background, studio lighting, commercial product shot, no people`,views: []  
               };   
             }
         };
