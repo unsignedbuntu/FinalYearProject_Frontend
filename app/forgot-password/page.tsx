@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import Sign from '@/components/icons/Sign.png'
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
@@ -22,7 +21,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen relative">
       <Image
-        src={Sign}
+        src="/icons/Sign.png"
         alt="Background"
         fill
         className="object-cover"

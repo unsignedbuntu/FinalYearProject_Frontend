@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import Information from '../icons/Information';
 import Image from 'next/image';
-import Close from '../icons/Close.png';
+
 
 interface MyCartMessageProps {
   onClose: () => void;
@@ -32,7 +32,7 @@ export default function MyCartMessage({ onClose }: MyCartMessageProps) {
           className="absolute right-[14px] top-[14px] hover:opacity-80 transition-opacity
                    active:scale-95 transform duration-150"
         >
-          <Image src={Close} alt="Close Icon" width={12} height={12} />
+          <Image src="/icons/Close.png" alt="Close Icon" width={12} height={12} />
         </button>
 
         <div className="absolute left-0 top-0 w-[20px] h-full bg-[#56C8FA]">

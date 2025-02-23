@@ -5,7 +5,6 @@ import ToggleOff from '../icons/ToggleOff'
 import ToggleOn from '../icons/ToggleOn'
 import SuccessMessage from '@/components/messages/SuccessMessage'
 import DeleteMessageFavorites from '@/components/messages/DeleteMessageFavorites'
-import CloseIcon from '../icons/Close.png'
 import Cancel from '../icons/Cancel'
 
 interface CreateNewListOverlayProps {

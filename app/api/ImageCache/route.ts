@@ -90,7 +90,7 @@ export async function POST(req: Request) {
         }
 
         // Yeni görsel üret
-        const response = await axios.post('http://127.0.0.1:7860/sdapi/v1/txt2img', {
+        const response = await axios.post(`${AUTOMATIC1111_API_URL}/sdapi/v1/txt2img`, {
             prompt,
             steps: 15,
             width: 512,

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import TickGreen from '../icons/TickGreen';
 import Image from 'next/image';
-import Close from '../icons/Close.png';
+
 
 interface UserInformationMessageProps {
   onClose: () => void;
@@ -35,7 +35,7 @@ export default function UserInformationMessage({ onClose }: UserInformationMessa
           className="absolute right-[14px] top-[14px] hover:opacity-80 transition-opacity
                    active:scale-95 transform duration-150"
         >
-          <Image src={Close} alt="Close Icon" width={12} height={12} />
+          <Image src="/icons/Close.png" alt="Close Icon" width={12} height={12} />
         </button>
 
         {/* Success line */}

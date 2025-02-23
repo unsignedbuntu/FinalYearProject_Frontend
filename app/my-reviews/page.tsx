@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Sidebar from '@/components/sidebar/Sidebar'
 import Review from '@/components/icons/Review'
 import ReviewsMessage from '@/components/messages/ReviewsMessage'
-import Close from '@/components/icons/Close.png'
+
 
 interface Product {
   id: string
@@ -239,7 +239,7 @@ export default function MyReviewsPage() {
                 className="w-6 h-6 flex items-center justify-center"
               >
                 <Image 
-                  src={Close}
+                  src="/icons/Close.png"
                   alt="Close"
                   width={24}
                   height={24}
