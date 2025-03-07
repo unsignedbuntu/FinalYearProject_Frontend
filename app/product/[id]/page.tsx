@@ -1,18 +1,19 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import { getProducts, getProductSuppliers, getStores, getSuppliers, createCacheImage } from '@/services/Category_Actions';
+import { getProducts, getProductSuppliers, getStores, getSuppliers, createCacheImage, getCategories } from '@/services/Category_Actions';
 import CartFavorites from '@/components/icons/CartFavorites';
 import FavoriteIcon from '@/components/icons/FavoriteIcon';
 import FavoritesPageHover from '@/components/icons/FavoritesPageHover';
 import CartSuccessMessage from '@/components/messages/CartSuccessMessage';
 import { generateProductPrompt } from './data/basePrompts';
 import { categoryReviews } from './data/categoryReviews';
-import { Product, ProductSupplier, Store } from './types/Product';
+import { Product, ProductSupplier, Store, Category } from './types/Product';
 import { basePrompts } from './data/basePrompts';
 import { CategoryKey } from './data/basePrompts';
 import { productDetails as productDescriptionData } from './data/productDescription';
+import Link from 'next/link';
 
 // Ürün detayları için geçici veri
 const productDetails = {
@@ -58,6 +59,286 @@ const productDetails = {
 // Sekme türleri için tip tanımı
 type TabType = 'description' | 'specifications' | 'reviews' | 'shipping' | 'returnPolicy';
 
+// Benzer Ürünler bileşeni
+const SimilarProducts = ({ products, containerId = "similar-products-container", categoryName = "" }: { products: Product[], containerId?: string, categoryName?: string }) => {
+    if (!products || products.length === 0) return null;
+    
+    const [hoveredProducts, setHoveredProducts] = useState<Record<number, boolean>>({});
+    const [hoveredFavorites, setHoveredFavorites] = useState<Record<number, boolean>>({});
+    const [hoveredCarts, setHoveredCarts] = useState<Record<number, boolean>>({});
+    const [loadingImages, setLoadingImages] = useState<Record<number, boolean>>({});
+    
+    // Görsel üretme fonksiyonu
+    const generateProductImage = useCallback(async (product: Product) => {
+        // Zaten görseli varsa ve placeholder değilse üretme
+        if (product.image && 
+            product.image.length > 0 && 
+            !product.image.includes('placeholder') && 
+            product.image !== '/placeholder.png') {
+            console.log("Product already has a valid image, skipping generation:", product.productID);
+            setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
+            return;
+        }
+        
+        try {
+            console.log("Checking for cached image for product:", product.productID, product.productName);
+            setLoadingImages(prev => ({ ...prev, [product.productID]: true }));
+
+            // Kategori adını belirle
+            let productCategory = await getCategories().then(categories => 
+                categories.find((c: any) => c.categoryID === product.categoryID)
+            );
+            console.log("Product category:", productCategory);
+            
+            // Kategori adını al, yoksa 'default' kullan
+            const categoryName = productCategory?.categoryName || 'default';
+            console.log("Using category name:", categoryName);
+            
+            const categoryPrompt = basePrompts[categoryName as CategoryKey] || basePrompts.default;
+            const mainPrompt = categoryPrompt.main(product.productName);
+            
+            // Önce doğrudan backend'den görüntüyü almaya çalış
+            console.log("Checking if image exists in backend cache");
+            try {
+                const directCacheResponse = await fetch(`/api/ImageCache/${encodeURIComponent('products')}/${encodeURIComponent(mainPrompt)}`);
+                
+                if (directCacheResponse.ok) {
+                    const cacheData = await directCacheResponse.json();
+                    if (cacheData.image) {
+                        console.log("Image found in backend cache, using existing image");
+                        product.image = `data:image/jpeg;base64,${cacheData.image}`;
+                        setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
+                        return;
+                    }
+                }
+            } catch (cacheError) {
+                console.log("Image not found in direct cache, will try POST request");
+            }
+            
+            // Eğer doğrudan bulunamazsa, POST isteği ile al veya oluştur
+            console.log("Using POST request to get or generate image with prompt:", mainPrompt);
+            try {
+                const response = await fetch('/api/ImageCache', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        pageID: 'products',
+                        prompt: mainPrompt
+                    })
+                });
+                
+                console.log("Image response status:", response.status);
+                
+                if (response.ok) {
+                    const imageData = await response.json();
+                    
+                    if (imageData.success && imageData.image) {
+                        console.log("Successfully got image, source:", imageData.source || "unknown");
+                        product.image = `data:image/jpeg;base64,${imageData.image}`;
+                    } else {
+                        console.error("Failed to get image: Invalid response data");
+                        product.image = '/placeholder.png';
+                    }
+                } else {
+                    console.error(`Failed to get image: ${response.statusText}`);
+                    product.image = '/placeholder.png';
+                }
+            } catch (error) {
+                console.error("Error getting/generating image:", error);
+                product.image = '/placeholder.png';
+            }
+            
+            setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
+        } catch (error) {
+            console.error('Error in image process:', error);
+            setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
+            product.image = '/placeholder.png';
+        }
+    }, []);
+    
+    // Ürünlerin görsellerini kontrol et
+    useEffect(() => {
+        console.log("SimilarProducts component - products:", products);
+        
+        // Başlangıçta tüm ürünlerin yükleme durumunu false olarak ayarla
+        const initialLoadingState: Record<number, boolean> = {};
+        products.forEach(product => {
+            initialLoadingState[product.productID] = false;
+        });
+        setLoadingImages(initialLoadingState);
+        
+        // Sadece görseli olmayan veya placeholder olan ürünler için görsel oluştur
+        const productsWithoutImages = products.filter(p => 
+            !p.image || 
+            p.image === '/placeholder.png' || 
+            p.image.includes('placeholder')
+        );
+        console.log("Products without images:", productsWithoutImages.length);
+        
+        // Görüntü oluşturma işlemlerini takip etmek için bir Set kullanıyoruz
+        const processedProductIds = new Set<number>();
+        
+        if (productsWithoutImages.length > 0) {
+            // Görüntü oluşturma işlemlerini sırayla yapmak için async fonksiyon
+            const generateImagesSequentially = async () => {
+                for (const product of productsWithoutImages) {
+                    // Eğer bu ürün için daha önce görüntü oluşturma işlemi başlatıldıysa, tekrar işlem yapma
+                    if (processedProductIds.has(product.productID)) {
+                        console.log("Skipping duplicate image generation for product:", product.productID);
+                        continue;
+                    }
+                    
+                    // Bu ürün için görüntü oluşturma işlemi başlatıldığını kaydet
+                    processedProductIds.add(product.productID);
+                    
+                    // Görüntü oluşturma işlemini başlat
+                    await generateProductImage(product);
+                    
+                    // Kısa bir bekleme süresi ekleyerek API'ye aşırı yük bindirmeyi önle
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            };
+            
+            // Görüntü oluşturma işlemini başlat
+            generateImagesSequentially();
+        }
+    }, [products, generateProductImage]);
+    
+    return (
+        <div className="mt-8 border-t pt-6 bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4">
+                Similar Products {categoryName && <span className="text-sm font-normal text-gray-500 ml-2">({categoryName})</span>}
+            </h3>
+            <div className="relative">
+                <button 
+                    className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md z-10 hover:bg-gray-100"
+                    onClick={() => {
+                        const container = document.getElementById(containerId);
+                        if (container) {
+                            container.scrollBy({ left: -300, behavior: 'smooth' });
+                        }
+                    }}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                
+                <div 
+                    id={containerId}
+                    className="flex overflow-x-auto pb-4 hide-scrollbar gap-4"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                    {products.map((similarProduct) => (
+                        <div 
+                            key={similarProduct.productID}
+                            className="flex-shrink-0 w-56 border rounded-lg overflow-hidden hover:shadow-md transition-shadow relative"
+                            onMouseEnter={() => setHoveredProducts(prev => ({ ...prev, [similarProduct.productID]: true }))}
+                            onMouseLeave={() => setHoveredProducts(prev => ({ ...prev, [similarProduct.productID]: false }))}
+                        >
+                            <Link 
+                                href={`/product/${similarProduct.productID}`}
+                                className="block"
+                            >
+                                <div className="h-40 bg-gray-100 relative">
+                                    {loadingImages[similarProduct.productID] ? (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                        </div>
+                                    ) : (
+                                        <Image
+                                            src={similarProduct.image || '/placeholder.png'}
+                                            alt={similarProduct.productName}
+                                            fill
+                                            className="object-contain p-2"
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                            priority
+                                        />
+                                    )}
+                                </div>
+                                <div className="p-3">
+                                    <h4 className="font-medium text-sm line-clamp-2 h-10">{similarProduct.productName}</h4>
+                                    <div className="flex justify-between items-center mt-2">
+                                        <span className="text-blue-600 font-bold">${similarProduct.price.toFixed(2)}</span>
+                                        <span className="text-xs text-gray-500">Product</span>
+                                    </div>
+                                </div>
+                            </Link>
+                            
+                            {/* Butonlar */}
+                            <div className="absolute bottom-3 right-3 flex space-x-2">
+                                {/* Favorilere Ekle Butonu */}
+                                <button 
+                                    className="p-2 rounded-full bg-white hover:bg-red-100 transition-colors shadow-sm"
+                                    title="Favorilere Ekle"
+                                    onMouseEnter={() => setHoveredFavorites(prev => ({ ...prev, [similarProduct.productID]: true }))}
+                                    onMouseLeave={() => setHoveredFavorites(prev => ({ ...prev, [similarProduct.productID]: false }))}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        // Favorilere ekleme işlemi
+                                        console.log('Favorilere eklendi:', similarProduct.productName);
+                                    }}
+                                >
+                                    {hoveredFavorites[similarProduct.productID] ? (
+                                        <FavoritesPageHover width={20} height={20} />
+                                    ) : (
+                                        <FavoriteIcon width={20} height={20} className="text-gray-600" />
+                                    )}
+                                </button>
+                                
+                                {/* Sepete Ekle Butonu */}
+                                <button 
+                                    className={`p-2 rounded-full shadow-sm ${
+                                        hoveredCarts[similarProduct.productID] 
+                                            ? 'bg-blue-100 text-blue-500' 
+                                            : 'bg-white text-gray-500'
+                                    }`}
+                                    title="Sepete Ekle"
+                                    onMouseEnter={() => setHoveredCarts(prev => ({ ...prev, [similarProduct.productID]: true }))}
+                                    onMouseLeave={() => setHoveredCarts(prev => ({ ...prev, [similarProduct.productID]: false }))}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        // Sepete ekleme işlemi
+                                        console.log('Sepete eklendi:', similarProduct.productName);
+                                    }}
+                                >
+                                    <svg 
+                                        xmlns="http://www.w3.org/2000/svg" 
+                                        className="h-5 w-5" 
+                                        fill="none" 
+                                        viewBox="0 0 24 24" 
+                                        stroke="currentColor"
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                
+                <button 
+                    className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md z-10 hover:bg-gray-100"
+                    onClick={() => {
+                        const container = document.getElementById(containerId);
+                        if (container) {
+                            container.scrollBy({ left: 300, behavior: 'smooth' });
+                        }
+                    }}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    );
+};
+
 export default function ProductPage() {
     const params = useParams() as { id: string };
     const [product, setProduct] = useState<Product | null>(null);
@@ -71,6 +352,9 @@ export default function ProductPage() {
     const [supplierRating, setSupplierRating] = useState<number | null>(null);
     const [activeTab, setActiveTab] = useState<TabType>('description');
     const [isHoveringFavorite, setIsHoveringFavorite] = useState(false);
+    const [loadingImages, setLoadingImages] = useState<Record<number, boolean>>({});
+    const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
+    const [category, setCategory] = useState<Category | null>(null);
     
     // Sabit GamerGear puanı
     const storeRating = 5.7;
@@ -79,12 +363,16 @@ export default function ProductPage() {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const [productsData, suppliersData, storesData, allSuppliers] = await Promise.all([
+                const [productsData, suppliersData, storesData, allSuppliers, categoriesData] = await Promise.all([
                     getProducts(),
                     getProductSuppliers(),
                     getStores(),
-                    getSuppliers()
+                    getSuppliers(),
+                    getCategories()
                 ]);
+
+                console.log("All products:", productsData.length);
+                console.log("All categories:", categoriesData.length);
 
                 const foundProduct = productsData.find((p: Product) => p.productID === Number(params.id));
 
@@ -177,6 +465,7 @@ export default function ProductPage() {
                                         if (specParts[0] && (specParts[0].includes('Ryzen') || specParts[0].includes('Core'))) {
                                             parsedSpecs["Processor"] = specParts[0];
                                         }
+                                        
                                         
                                         // Ekran kartı bilgisi
                                         if (specParts[1] && specParts[1].includes('GeForce')) {
@@ -411,6 +700,147 @@ export default function ProductPage() {
                         specs: productSpecs,
                         stock: productSupplier?.stock || 0
                     });
+
+                    
+                    // Eğer categoryID yoksa, ürün adına göre benzer ürünleri bul
+                    let sameCategoryProducts = [];
+                    
+                    if (foundProduct.categoryID) {
+                        // CategoryID'ye göre benzer ürünleri bul
+                        sameCategoryProducts = productsData
+                            .filter((p: Product) => 
+                                p.categoryID === foundProduct.categoryID && 
+                                p.productID !== foundProduct.productID
+                            )
+                            .slice(0, 10);
+                        
+                        console.log(`Found ${sameCategoryProducts.length} products with same categoryID: ${foundProduct.categoryID}`);
+                    } else {
+                        // Ürün adına göre benzer ürünleri bul
+                        const productNameWords = foundProduct.productName.toLowerCase().split(' ');
+                        
+                        sameCategoryProducts = productsData
+                            .filter((p: Product) => {
+                                if (p.productID === foundProduct.productID) return false;
+                                
+                                // Ürün adında benzer kelimeler var mı kontrol et
+                                const pNameLower = p.productName.toLowerCase();
+                                return productNameWords.some((word: string) => 
+                                    word.length > 3 && pNameLower.includes(word)
+                                );
+                            })
+                            .slice(0, 10);
+                        
+                        console.log(`Found ${sameCategoryProducts.length} products with similar name`);
+                    }
+                    
+                    // Eğer hala benzer ürün bulunamadıysa, rastgele ürünleri göster
+                    if (sameCategoryProducts.length === 0) {
+                        console.log("No similar products found, showing random products");
+                        
+                        // Rastgele 10 ürün seç (mevcut ürün hariç)
+                        sameCategoryProducts = productsData
+                            .filter((p: Product) => p.productID !== foundProduct.productID)
+                            .sort(() => 0.5 - Math.random())
+                            .slice(0, 10);
+                        
+                        console.log(`Selected ${sameCategoryProducts.length} random products`);
+                    }
+                    
+                    console.log("Similar products:", sameCategoryProducts.map((p: Product) => p.productName));
+                    setSimilarProducts(sameCategoryProducts);
+                    
+                    // Benzer ürünler için görüntü oluştur
+                    const processedProductIds = new Set<number>();
+                    
+                    // Görüntü oluşturma işlemlerini toplu olarak yapmak için bir dizi oluştur
+                    const productsNeedingImages = sameCategoryProducts.filter((similarProduct: Product) => {
+                        // Eğer bu ürün için daha önce görüntü oluşturma işlemi başlatıldıysa, tekrar işlem yapma
+                        if (processedProductIds.has(similarProduct.productID)) {
+                            console.log("Skipping duplicate image generation for similar product:", similarProduct.productName);
+                            return false;
+                        }
+                        
+                        // Eğer ürünün zaten geçerli bir görseli varsa, işlem yapma
+                        if (similarProduct.image && 
+                            similarProduct.image.length > 0 && 
+                            !similarProduct.image.includes('placeholder') && 
+                            similarProduct.image !== '/placeholder.png') {
+                            console.log("Similar product already has a valid image, skipping generation:", similarProduct.productName);
+                            return false;
+                        }
+                        
+                        // Bu ürün için görüntü oluşturma işlemi başlatıldığını kaydet
+                        processedProductIds.add(similarProduct.productID);
+                        return true;
+                    });
+                    
+                    console.log(`Found ${productsNeedingImages.length} similar products needing images`);
+                    
+                    // Her bir ürün için görüntü oluştur
+                    for (const similarProduct of productsNeedingImages) {
+                        try {
+                            // Kategori adını belirle
+                            const similarProductCategoryName = category?.categoryName || 'default';
+                            
+                            const similarProductCategoryPrompt = basePrompts[similarProductCategoryName as CategoryKey] || basePrompts.default;
+                            const similarProductMainPrompt = similarProductCategoryPrompt.main(similarProduct.productName);
+                            
+                            // Önce doğrudan backend'den görüntüyü almaya çalış
+                            console.log("Checking if image exists in backend cache for similar product:", similarProduct.productName);
+                            try {
+                                const directCacheResponse = await fetch(`/api/ImageCache/${encodeURIComponent('products')}/${encodeURIComponent(similarProductMainPrompt)}`);
+                                
+                                if (directCacheResponse.ok) {
+                                    const cacheData = await directCacheResponse.json();
+                                    if (cacheData.image) {
+                                        console.log("Image found in backend cache, using existing image for similar product");
+                                        similarProduct.image = `data:image/jpeg;base64,${cacheData.image}`;
+                                        continue; // Bu ürün için işlem tamamlandı, sonraki ürüne geç
+                                    }
+                                }
+                            } catch (cacheError) {
+                                console.log("Image not found in direct cache for similar product, will try POST request");
+                            }
+                            
+                            // Eğer doğrudan bulunamazsa, POST isteği ile al veya oluştur
+                            console.log("Using POST request to get or generate image for similar product:", similarProduct.productName);
+                            console.log("Using prompt:", similarProductMainPrompt);
+                            
+                            const response = await fetch('/api/ImageCache', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    pageID: 'products',
+                                    prompt: similarProductMainPrompt
+                                })
+                            });
+                            
+                            console.log("Similar product image response status:", response.status);
+                            
+                            if (response.ok) {
+                                const imageData = await response.json();
+                                
+                                if (imageData.success && imageData.image) {
+                                    console.log("Successfully got image for similar product, source:", imageData.source || "unknown");
+                                    similarProduct.image = `data:image/jpeg;base64,${imageData.image}`;
+                                } else {
+                                    console.error("Failed to get image for similar product: Invalid response data");
+                                    similarProduct.image = '/placeholder.png';
+                                }
+                            } else {
+                                console.error(`Failed to get image for similar product: ${response.statusText}`);
+                                similarProduct.image = '/placeholder.png';
+                            }
+                        } catch (error) {
+                            console.error("Error in image process for similar product:", error);
+                            similarProduct.image = '/placeholder.png';
+                        }
+                    }
+
+                    setCategory(foundProduct.category);
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -619,6 +1049,18 @@ export default function ProductPage() {
                                     {productDescriptionData.defaultDescriptionTitle?.title || productDetails.description.title}
                                 </h3>
                                 <p className="mb-4">{product.description || productDescriptionData.defaultDescriptionTitle?.content || productDetails.description.content}</p>
+                                
+                                {/* Benzer Ürünler */}
+                                <div className="mt-8 border-t pt-4">
+                                    {similarProducts.length > 0 ? (
+                                        <SimilarProducts 
+                                            products={similarProducts} 
+                                            categoryName={category?.categoryName || ""}
+                                        />
+                                    ) : (
+                                        <p className="text-gray-500 italic mt-4">No similar products found.</p>
+                                    )}
+                                </div>
                             </div>
                         )}
                         

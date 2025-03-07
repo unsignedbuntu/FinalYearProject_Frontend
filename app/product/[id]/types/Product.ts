@@ -9,14 +9,20 @@ export interface Store {
     storeName: string;
 }
 
+export interface Category {
+    categoryID: number;
+    categoryName: string;
+    storeID?: number;
+}
+
 export interface Product {
     productID: number;
     productName: string;
     categoryID: number;
-    categoryName: string;
     price: number;
     image?: string;
     quantity: number;
+    stock?: number;
     description?: string;
     specs?: Record<string, string>;
     reviews?: Review[];
