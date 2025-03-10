@@ -59,6 +59,9 @@ const productDetails = {
 // Sekme türleri için tip tanımı
 type TabType = 'description' | 'specifications' | 'reviews' | 'shipping' | 'returnPolicy';
 
+// Tüm işlenmiş promptları takip etmek için global bir cache oluştur
+const globalImageCache: Record<string, string> = {};
+
 // Benzer Ürünler bileşeni
 const SimilarProducts = ({ products, containerId = "similar-products-container", categoryName = "" }: { products: Product[], containerId?: string, categoryName?: string }) => {
     if (!products || products.length === 0) return null;
@@ -67,8 +70,10 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
     const [hoveredFavorites, setHoveredFavorites] = useState<Record<number, boolean>>({});
     const [hoveredCarts, setHoveredCarts] = useState<Record<number, boolean>>({});
     const [loadingImages, setLoadingImages] = useState<Record<number, boolean>>({});
+    const [processedPrompts, setProcessedPrompts] = useState<Set<string>>(new Set());
+    const [imagesGenerated, setImagesGenerated] = useState(false);
     
-    // Görsel üretme fonksiyonu
+    // Görsel üretme fonksiyonu - sadece POST kullanarak
     const generateProductImage = useCallback(async (product: Product) => {
         // Zaten görseli varsa ve placeholder değilse üretme
         if (product.image && 
@@ -76,7 +81,6 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
             !product.image.includes('placeholder') && 
             product.image !== '/placeholder.png') {
             console.log("Product already has a valid image, skipping generation:", product.productID);
-            setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
             return;
         }
         
@@ -88,35 +92,32 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
             let productCategory = await getCategories().then(categories => 
                 categories.find((c: any) => c.categoryID === product.categoryID)
             );
-            console.log("Product category:", productCategory);
             
             // Kategori adını al, yoksa 'default' kullan
             const categoryName = productCategory?.categoryName || 'default';
-            console.log("Using category name:", categoryName);
-            
             const categoryPrompt = basePrompts[categoryName as CategoryKey] || basePrompts.default;
             const mainPrompt = categoryPrompt.main(product.productName);
             
-            // Önce doğrudan backend'den görüntüyü almaya çalış
-            console.log("Checking if image exists in backend cache");
-            try {
-                const directCacheResponse = await fetch(`/api/ImageCache/${encodeURIComponent('products')}/${encodeURIComponent(mainPrompt)}`);
-                
-                if (directCacheResponse.ok) {
-                    const cacheData = await directCacheResponse.json();
-                    if (cacheData.image) {
-                        console.log("Image found in backend cache, using existing image");
-                        product.image = `data:image/jpeg;base64,${cacheData.image}`;
-                        setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
-                        return;
-                    }
-                }
-            } catch (cacheError) {
-                console.log("Image not found in direct cache, will try POST request");
+            // Eğer bu prompt daha önce işlendiyse, atla
+            if (processedPrompts.has(mainPrompt)) {
+                console.log("This prompt was already processed locally, skipping:", mainPrompt);
+                setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
+                return;
             }
             
-            // Eğer doğrudan bulunamazsa, POST isteği ile al veya oluştur
-            console.log("Using POST request to get or generate image with prompt:", mainPrompt);
+            // Global cache'de varsa, kullan
+            if (globalImageCache[mainPrompt]) {
+                console.log("Image found in global cache, using cached image for:", product.productID);
+                product.image = globalImageCache[mainPrompt];
+                setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
+                setProcessedPrompts(prev => new Set(prev).add(mainPrompt));
+                return;
+            }
+            
+            // Bu promptu işlenmiş olarak işaretle
+            setProcessedPrompts(prev => new Set(prev).add(mainPrompt));
+            
+            // Doğrudan POST isteği yap - resim varsa backend'de kontrol edilecek
             try {
                 const response = await fetch('/api/ImageCache', {
                     method: 'POST',
@@ -125,42 +126,48 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
                     },
                     body: JSON.stringify({
                         pageID: 'products',
-                        prompt: mainPrompt
+                        prompt: mainPrompt,
+                        checkOnly: false
                     })
                 });
                 
-                console.log("Image response status:", response.status);
-                
                 if (response.ok) {
-                    const imageData = await response.json();
-                    
-                    if (imageData.success && imageData.image) {
-                        console.log("Successfully got image, source:", imageData.source || "unknown");
-                        product.image = `data:image/jpeg;base64,${imageData.image}`;
+                    // 200 OK - Resim bulundu veya oluşturuldu
+                    const data = await response.json();
+                    if (data.success && data.image) {
+                        console.log("Successfully retrieved or generated image for product:", product.productID);
+                        const imageUrl = `data:image/jpeg;base64,${data.image}`;
+                        product.image = imageUrl;
+                        // Global cache'e ekle
+                        globalImageCache[mainPrompt] = imageUrl;
                     } else {
-                        console.error("Failed to get image: Invalid response data");
+                        console.error("Failed to get image for product:", product.productID);
                         product.image = '/placeholder.png';
                     }
                 } else {
-                    console.error(`Failed to get image: ${response.statusText}`);
+                    console.error("Error getting image for product:", product.productID, response.status);
                     product.image = '/placeholder.png';
                 }
             } catch (error) {
-                console.error("Error getting/generating image:", error);
+                console.error("Exception during image retrieval for product:", product.productID, error);
                 product.image = '/placeholder.png';
             }
             
             setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
         } catch (error) {
-            console.error('Error in image process:', error);
-            setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
+            console.error('Error in image process for product:', product.productID, error);
             product.image = '/placeholder.png';
+            setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
         }
-    }, []);
+    }, [processedPrompts]);
     
-    // Ürünlerin görsellerini kontrol et
+    // Ürünlerin görsellerini kontrol et - sadece bir kez çalışacak
     useEffect(() => {
-        console.log("SimilarProducts component - products:", products);
+        // Eğer görüntüler zaten oluşturulduysa, tekrar oluşturma
+        if (imagesGenerated) {
+            console.log("Images already generated, skipping generation");
+            return;
+        }
         
         // Başlangıçta tüm ürünlerin yükleme durumunu false olarak ayarla
         const initialLoadingState: Record<number, boolean> = {};
@@ -170,39 +177,34 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
         setLoadingImages(initialLoadingState);
         
         // Sadece görseli olmayan veya placeholder olan ürünler için görsel oluştur
-        const productsWithoutImages = products.filter(p => 
+        const productsNeedingImages = products.filter(p => 
             !p.image || 
             p.image === '/placeholder.png' || 
             p.image.includes('placeholder')
         );
-        console.log("Products without images:", productsWithoutImages.length);
         
-        // Görüntü oluşturma işlemlerini takip etmek için bir Set kullanıyoruz
-        const processedProductIds = new Set<number>();
-        
-        if (productsWithoutImages.length > 0) {
-            // Görüntü oluşturma işlemlerini sırayla yapmak için async fonksiyon
-            const generateImagesSequentially = async () => {
-                for (const product of productsWithoutImages) {
-                    // Eğer bu ürün için daha önce görüntü oluşturma işlemi başlatıldıysa, tekrar işlem yapma
-                    if (processedProductIds.has(product.productID)) {
-                        console.log("Skipping duplicate image generation for product:", product.productID);
-                        continue;
-                    }
-                    
-                    // Bu ürün için görüntü oluşturma işlemi başlatıldığını kaydet
-                    processedProductIds.add(product.productID);
-                    
-                    // Görüntü oluşturma işlemini başlat
+        if (productsNeedingImages.length > 0) {
+            console.log(`Found ${productsNeedingImages.length} products needing images`);
+            
+            // Görüntü oluşturma işlemlerini sırayla yap
+            const generateImages = async () => {
+                for (const product of productsNeedingImages) {
+                    // Görüntü oluştur
                     await generateProductImage(product);
                     
-                    // Kısa bir bekleme süresi ekleyerek API'ye aşırı yük bindirmeyi önle
+                    // API'ye yük bindirmeyi önlemek için kısa bir bekleme
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
+                
+                // Tüm görüntüler oluşturuldu
+                setImagesGenerated(true);
             };
             
-            // Görüntü oluşturma işlemini başlat
-            generateImagesSequentially();
+            // İşlemi başlat
+            generateImages();
+        } else {
+            // Hiç görüntü oluşturulmadı, ama işlem tamamlandı
+            setImagesGenerated(true);
         }
     }, [products, generateProductImage]);
     
@@ -394,7 +396,7 @@ export default function ProductPage() {
 
                         setSupplier({
                             ...productSupplier,
-                            supplierName: supplierDetails?.supplierName || "GamerGear",
+                            supplierName: supplierDetails?.supplierName,
                             rating: storeRating
                         });
 
@@ -751,16 +753,11 @@ export default function ProductPage() {
                     setSimilarProducts(sameCategoryProducts);
                     
                     // Benzer ürünler için görüntü oluştur
-                    const processedProductIds = new Set<number>();
+                    // İşlenmiş promptları takip etmek için Set kullan
+                    const processedPrompts = new Set<string>();
                     
                     // Görüntü oluşturma işlemlerini toplu olarak yapmak için bir dizi oluştur
                     const productsNeedingImages = sameCategoryProducts.filter((similarProduct: Product) => {
-                        // Eğer bu ürün için daha önce görüntü oluşturma işlemi başlatıldıysa, tekrar işlem yapma
-                        if (processedProductIds.has(similarProduct.productID)) {
-                            console.log("Skipping duplicate image generation for similar product:", similarProduct.productName);
-                            return false;
-                        }
-                        
                         // Eğer ürünün zaten geçerli bir görseli varsa, işlem yapma
                         if (similarProduct.image && 
                             similarProduct.image.length > 0 && 
@@ -770,8 +767,6 @@ export default function ProductPage() {
                             return false;
                         }
                         
-                        // Bu ürün için görüntü oluşturma işlemi başlatıldığını kaydet
-                        processedProductIds.add(similarProduct.productID);
                         return true;
                     });
                     
@@ -782,31 +777,27 @@ export default function ProductPage() {
                         try {
                             // Kategori adını belirle
                             const similarProductCategoryName = category?.categoryName || 'default';
-                            
                             const similarProductCategoryPrompt = basePrompts[similarProductCategoryName as CategoryKey] || basePrompts.default;
                             const similarProductMainPrompt = similarProductCategoryPrompt.main(similarProduct.productName);
                             
-                            // Önce doğrudan backend'den görüntüyü almaya çalış
-                            console.log("Checking if image exists in backend cache for similar product:", similarProduct.productName);
-                            try {
-                                const directCacheResponse = await fetch(`/api/ImageCache/${encodeURIComponent('products')}/${encodeURIComponent(similarProductMainPrompt)}`);
-                                
-                                if (directCacheResponse.ok) {
-                                    const cacheData = await directCacheResponse.json();
-                                    if (cacheData.image) {
-                                        console.log("Image found in backend cache, using existing image for similar product");
-                                        similarProduct.image = `data:image/jpeg;base64,${cacheData.image}`;
-                                        continue; // Bu ürün için işlem tamamlandı, sonraki ürüne geç
-                                    }
-                                }
-                            } catch (cacheError) {
-                                console.log("Image not found in direct cache for similar product, will try POST request");
+                            // Eğer bu prompt daha önce işlendiyse, atla
+                            if (processedPrompts.has(similarProductMainPrompt)) {
+                                console.log("This prompt was already processed locally, skipping:", similarProductMainPrompt);
+                                continue;
                             }
                             
-                            // Eğer doğrudan bulunamazsa, POST isteği ile al veya oluştur
-                            console.log("Using POST request to get or generate image for similar product:", similarProduct.productName);
-                            console.log("Using prompt:", similarProductMainPrompt);
+                            // Global cache'de varsa, kullan
+                            if (globalImageCache[similarProductMainPrompt]) {
+                                console.log("Image found in global cache, using cached image for:", similarProduct.productID);
+                                similarProduct.image = globalImageCache[similarProductMainPrompt];
+                                processedPrompts.add(similarProductMainPrompt);
+                                continue;
+                            }
                             
+                            // Bu promptu işlenmiş olarak işaretle
+                            processedPrompts.add(similarProductMainPrompt);
+                            
+                            // Doğrudan POST isteği yap - resim varsa backend'de kontrol edilecek
                             const response = await fetch('/api/ImageCache', {
                                 method: 'POST',
                                 headers: {
@@ -814,30 +805,35 @@ export default function ProductPage() {
                                 },
                                 body: JSON.stringify({
                                     pageID: 'products',
-                                    prompt: similarProductMainPrompt
+                                    prompt: similarProductMainPrompt,
+                                    checkOnly: false
                                 })
                             });
                             
-                            console.log("Similar product image response status:", response.status);
-                            
                             if (response.ok) {
-                                const imageData = await response.json();
-                                
-                                if (imageData.success && imageData.image) {
-                                    console.log("Successfully got image for similar product, source:", imageData.source || "unknown");
-                                    similarProduct.image = `data:image/jpeg;base64,${imageData.image}`;
+                                // 200 OK - Resim bulundu veya oluşturuldu
+                                const data = await response.json();
+                                if (data.success && data.image) {
+                                    console.log("Successfully retrieved or generated image for similar product:", similarProduct.productID);
+                                    const imageUrl = `data:image/jpeg;base64,${data.image}`;
+                                    similarProduct.image = imageUrl;
+                                    // Global cache'e ekle
+                                    globalImageCache[similarProductMainPrompt] = imageUrl;
                                 } else {
-                                    console.error("Failed to get image for similar product: Invalid response data");
+                                    console.error("Failed to get image for similar product:", similarProduct.productID);
                                     similarProduct.image = '/placeholder.png';
                                 }
                             } else {
-                                console.error(`Failed to get image for similar product: ${response.statusText}`);
+                                console.error("Error getting image for similar product:", similarProduct.productID, response.status);
                                 similarProduct.image = '/placeholder.png';
                             }
                         } catch (error) {
-                            console.error("Error in image process for similar product:", error);
+                            console.error("Error in image process for similar product:", similarProduct.productID, error);
                             similarProduct.image = '/placeholder.png';
                         }
+                        
+                        // API'ye yük bindirmeyi önlemek için kısa bir bekleme
+                        await new Promise(resolve => setTimeout(resolve, 500));
                     }
 
                     setCategory(foundProduct.category);

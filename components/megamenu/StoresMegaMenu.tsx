@@ -50,6 +50,10 @@ export default function StoresMegaMenu() {
 
         if (Array.isArray(storesData)) {
           setStores(storesData);
+          // İlk mağazayı varsayılan olarak seç
+          if (storesData.length > 0) {
+            setSelectedStore(storesData[0]);
+          }
         }
         
         if (Array.isArray(categoriesData)) {
@@ -78,7 +82,6 @@ export default function StoresMegaMenu() {
   const handleMouseLeave = useCallback(() => {
     const id = setTimeout(() => {
       setIsOpen(false);
-      setSelectedStore(null);
     }, 300); // 300ms gecikme
     setTimeoutId(id);
   }, []);
@@ -98,7 +101,6 @@ export default function StoresMegaMenu() {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false);
-        setSelectedStore(null);
       }
     };
 
@@ -138,8 +140,9 @@ export default function StoresMegaMenu() {
           />
           
           <div
-            className="absolute top-full left-0 w-[800px] bg-white shadow-xl rounded-lg p-6 z-50"
+            className="absolute top-full left-0 w-[1800px] bg-white shadow-xl rounded-lg p-6 z-50"
             onMouseEnter={handleMouseEnter}
+            style={{ left: '-750px', top: '30px', zIndex: 50 }}
           >
             {isLoading ? (
               <div className="flex justify-center items-center h-40">
@@ -152,35 +155,46 @@ export default function StoresMegaMenu() {
             ) : (
               <div className="flex">
                 {/* Mağazalar Listesi */}
-                <div className="w-1/4 border-r border-gray-200 pr-4">
-                  {stores.length > 0 ? (
-                    stores.map((store) => (
-                      <div
-                        key={store.storeID}
-                        className="py-2 px-4 hover:bg-gray-50 cursor-pointer rounded-md group/store transition-colors"
-                        onMouseEnter={() => handleStoreHover(store)}
-                      >
-                        <div className="flex items-center justify-between group-hover/store:text-[#1D4ED8]">
-                          <span className="font-medium">{store.storeName}</span>
-                          <ArrowRight className="w-4 h-4 transition-colors" />
+                <div className="w-1/5 border-r border-gray-200 pr-4">
+                  <h2 className="font-bold text-xl text-[#FF9D00] mb-4">Stores</h2>
+                  <div className="max-h-[500px] overflow-y-auto pr-2">
+                    {stores.length > 0 ? (
+                      stores.map((store) => (
+                        <div
+                          key={store.storeID}
+                          className={`py-2 px-4 hover:bg-gray-50 cursor-pointer rounded-md group/store transition-colors ${selectedStore?.storeID === store.storeID ? 'bg-gray-100' : ''}`}
+                          onMouseEnter={() => handleStoreHover(store)}
+                        >
+                          <div className="flex items-center justify-between group-hover/store:text-[#1D4ED8]">
+                            <span className={`font-medium ${selectedStore?.storeID === store.storeID ? 'text-[#1D4ED8]' : ''}`}>
+                              {store.storeName}
+                            </span>
+                            <ArrowRight className={`w-4 h-4 transition-colors ${selectedStore?.storeID === store.storeID ? 'text-[#1D4ED8]' : ''}`} />
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="py-2 px-4 text-gray-500">No stores available</div>
-                  )}
+                      ))
+                    ) : (
+                      <div className="py-2 px-4 text-gray-500">No stores available</div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Kategoriler ve Ürünler */}
                 {selectedStore && (
-                  <div className="w-3/4 pl-6">
-                    <div className="grid grid-cols-5 gap-6">
+                  <div className="w-4/5 pl-6">
+                    <h2 className="font-bold text-xl text-[#1D4ED8] mb-4">{selectedStore.storeName} Categories</h2>
+                    <div className="grid grid-cols-4 gap-6 max-h-[500px] overflow-y-auto">
                       {categories
                         .filter(category => category.storeID === selectedStore.storeID)
-                        .map((category, index, arr) => (
+                        .map((category) => (
                           <div key={category.categoryID} className="space-y-3">
                             <h3 className="font-bold text-lg text-[#FF9D00] pb-2 border-b border-gray-200">
-                              {category.categoryName}
+                              <Link 
+                                href={`/store/details/${category.categoryID}`}
+                                className="hover:underline"
+                              >
+                                {category.categoryName}
+                              </Link>
                             </h3>
                             <ul className="space-y-2">
                               {products
@@ -188,16 +202,30 @@ export default function StoresMegaMenu() {
                                   product.categoryID === category.categoryID && 
                                   product.storeID === selectedStore.storeID
                                 )
+                                .slice(0, 6) // En fazla 6 ürün göster
                                 .map((product) => (
                                   <li key={product.productID}>
                                     <Link 
                                       href={`/product/${product.productID}`}
-                                      className="text-gray-600 hover:text-[#1D4ED8] transition-colors block py-1"
+                                      className="text-gray-600 hover:text-[#1D4ED8] transition-colors block py-1 text-sm"
                                     >
                                       {product.productName}
                                     </Link>
                                   </li>
                                 ))}
+                              {products.filter(product => 
+                                product.categoryID === category.categoryID && 
+                                product.storeID === selectedStore.storeID
+                              ).length > 6 && (
+                                <li>
+                                  <Link 
+                                    href={`/store/details/${category.categoryID}`}
+                                    className="text-[#1D4ED8] hover:underline block py-1 text-sm font-medium"
+                                  >
+                                    View all products...
+                                  </Link>
+                                </li>
+                              )}
                             </ul>
                           </div>
                         ))}

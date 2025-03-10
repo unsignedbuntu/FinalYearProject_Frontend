@@ -50,7 +50,7 @@ export async function GET(req: Request) {
 // POST /api/ImageCache - Generate and cache new image
 export async function POST(req: Request) {
     try {
-        const { pageID, prompt } = await req.json();
+        const { pageID, prompt, checkOnly } = await req.json();
 
         if (!pageID || !prompt) {
             return NextResponse.json({
@@ -84,6 +84,16 @@ export async function POST(req: Request) {
             } else {
                 console.error("Error checking backend cache:", error);
             }
+        }
+
+        // Eğer checkOnly parametresi true ise, sadece kontrol et ve görüntü oluşturma
+        if (checkOnly) {
+            console.log("checkOnly parameter is true, skipping image generation");
+            return NextResponse.json({
+                success: false,
+                error: 'Image not found in cache',
+                source: "check_only"
+            }, { status: 404 });
         }
 
         // Stable Diffusion API'ye istek gönder
