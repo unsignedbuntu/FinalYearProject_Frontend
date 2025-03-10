@@ -140,9 +140,9 @@ export default function StoresMegaMenu() {
           />
           
           <div
-            className="absolute top-full left-0 w-[1800px] bg-white shadow-xl rounded-lg p-6 z-50"
+            className="absolute top-full left-0 w-[1800px] h-[800px] bg-white shadow-xl rounded-lg p-6 z-50"
             onMouseEnter={handleMouseEnter}
-            style={{ left: '-750px', top: '30px', zIndex: 50 }}
+            style={{ left: '-750px', top: '-30px', zIndex: 50, width: 'calc(100vw - 100px)', maxWidth: '1800px', minHeight: '900px', height: 'auto', maxHeight: '80vh' }}
           >
             {isLoading ? (
               <div className="flex justify-center items-center h-40">
@@ -182,8 +182,8 @@ export default function StoresMegaMenu() {
                 {/* Kategoriler ve Ürünler */}
                 {selectedStore && (
                   <div className="w-4/5 pl-6">
-                    <h2 className="font-bold text-xl text-[#1D4ED8] mb-4">{selectedStore.storeName} Categories</h2>
-                    <div className="grid grid-cols-4 gap-6 max-h-[500px] overflow-y-auto">
+            
+                    <div className="grid grid-cols-4 gap-6 max-h-[800px] overflow-y-auto">
                       {categories
                         .filter(category => category.storeID === selectedStore.storeID)
                         .map((category) => (

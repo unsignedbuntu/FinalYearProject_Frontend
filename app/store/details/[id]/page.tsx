@@ -79,22 +79,23 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
 
         setCategories(categoriesData);
         
-        // Sadece bu kategoriye ait ürünleri filtrele
-        const filteredProducts = productsData
-          .filter((product: Product) => product.categoryID === categoryId)
-          .map((product: Product) => {
-            // Ürünün mağaza ID'sini bul
-            const productCategory = categoriesData.find((c: Category) => c.categoryID === product.categoryID);
-            const storeID = productCategory ? productCategory.storeID : 1; // Varsayılan olarak 1 kullan
-            
-            return {
-              ...product,
-              storeID: storeID
-            };
-          });
+        // Tüm ürünleri yükle, filtreleme yapmadan
+        const allProducts = productsData.map((product: Product) => {
+          // Ürünün mağaza ID'sini bul
+          const productCategory = categoriesData.find((c: Category) => c.categoryID === product.categoryID);
+          const storeID = productCategory ? productCategory.storeID : 1; // Varsayılan olarak 1 kullan
+          
+          return {
+            ...product,
+            storeID: storeID
+          };
+        });
+        
+        // Seçili kategoriye ait ürünleri filtrele
+        const filteredProducts = allProducts.filter((product: ExtendedProduct) => product.categoryID === categoryId);
         
         console.log(`Found ${filteredProducts.length} products for category ${categoryId}`);
-        setProducts(filteredProducts);
+        setProducts(allProducts); // Tüm ürünleri state'e kaydet
         setStores(storesData);
         
         // Kategoriyi genişlet
@@ -397,7 +398,13 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
   };
 
   const handleCategorySelect = (cat: Category) => {
-    window.location.href = `/store/details/${cat.categoryID}`;
+    // Kategori tıklandığında, otomatik olarak genişlet/daralt
+    toggleCategory(cat.categoryID);
+    
+    // Eğer farklı bir kategori seçildiyse, o kategoriye git
+    if (cat.categoryID !== categoryId) {
+      window.location.href = `/store/details/${cat.categoryID}`;
+    }
   };
 
   const handleBrandSelect = (brand: string) => {
@@ -458,21 +465,33 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
                   </button>
                 </div>
                 {expandedCategories[cat.categoryID] && (
-                  <ul className="pl-4 mt-2 space-y-1">
-                    {/* Alt kategoriler burada listelenecek */}
-                    {categories
-                      .filter(subCat => subCat.storeID === cat.storeID && subCat.categoryID !== cat.categoryID)
-                      .map(subCat => (
-                        <li key={subCat.categoryID}>
-                          <button 
-                            onClick={() => handleCategorySelect(subCat)}
-                            className={`text-sm ${subCat.categoryID === categoryId ? 'text-blue-600 font-medium' : 'text-gray-600'} hover:text-blue-600`}
+                  <ul className="pl-4 mt-2 space-y-1 max-h-[300px] overflow-y-auto">
+                    {/* Kategoriye ait tüm ürünleri listele, sınırlama olmadan */}
+                    {products
+                      .filter(product => product.categoryID === cat.categoryID)
+                      .map(product => (
+                        <li key={product.productID}>
+                          <Link 
+                            href={`/product/${product.productID}`}
+                            className="text-sm text-gray-600 hover:text-blue-600 flex items-center py-1"
                           >
-                            {subCat.categoryName}
-                          </button>
+                            <span className="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
+                            {product.productName}
+                          </Link>
                         </li>
                       ))
                     }
+                    {products.filter(product => product.categoryID === cat.categoryID).length === 0 && (
+                      <li className="text-sm text-gray-500 py-2 flex items-center">
+                        <Link 
+                          href={`/store/details/${cat.categoryID}`}
+                          className="text-blue-600 hover:underline flex items-center"
+                        >
+                          <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                          Bu kategorideki tüm ürünleri görüntüle
+                        </Link>
+                      </li>
+                    )}
                   </ul>
                 )}
               </li>

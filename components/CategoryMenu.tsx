@@ -65,31 +65,19 @@ export default function CategoryMenu() {
 
   // Ana kategorileri getir (storeID'ye göre gruplandırılmış)
   const getMainCategories = () => {
-    // Benzersiz storeID'leri bul
-    const uniqueStoreIds = Array.from(new Set(categories.map(cat => cat.storeID)));
-    
-    // Her mağaza için bir ana kategori seç
-    return uniqueStoreIds.map(storeId => {
-      const storeCategories = categories.filter(cat => cat.storeID === storeId);
-      // Her mağaza için ilk kategoriyi ana kategori olarak kullan
-      return storeCategories[0];
-    }).filter(Boolean); // undefined değerleri filtrele
+    // Tüm kategorileri döndür, gruplandırma yapma
+    return categories;
   };
 
   // Alt kategorileri getir
   const getSubCategories = (categoryId: number) => {
-    const mainCategory = categories.find(cat => cat.categoryID === categoryId);
-    if (!mainCategory) return [];
-    
-    return categories.filter(cat => 
-      cat.storeID === mainCategory.storeID && 
-      cat.categoryID !== categoryId
-    );
+    // Bu fonksiyonu artık kullanmıyoruz, boş dizi döndür
+    return [];
   };
 
   // Kategoriye ait ürünleri getir
   const getCategoryProducts = (categoryId: number) => {
-    return products.filter(product => product.categoryID === categoryId).slice(0, 5); // En fazla 5 ürün göster
+    return products.filter(product => product.categoryID === categoryId); 
   };
 
   if (loading) {
@@ -99,9 +87,9 @@ export default function CategoryMenu() {
   const mainCategories = getMainCategories();
 
   return (
-    <div className="relative" onMouseLeave={handleMouseLeave}>
+    <div className="relative z-40" onMouseLeave={handleMouseLeave}>
       {/* Ana Kategori Menüsü */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-200 overflow-x-auto">
         {mainCategories.map((category) => (
           <div
             key={category.categoryID}
@@ -110,72 +98,56 @@ export default function CategoryMenu() {
           >
             <Link
               href={`/store/details/${category.categoryID}`}
-              className={`px-4 py-3 block text-sm font-medium hover:text-blue-600 ${
+              className={`px-4 py-3 block text-sm font-medium hover:text-blue-600 whitespace-nowrap ${
                 activeCategory === category.categoryID ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-700'
               }`}
             >
               {category.categoryName}
             </Link>
             
-            {/* Alt Kategoriler ve Ürünler (Hover durumunda gösterilir) */}
+            {/* Ürünler (Hover durumunda gösterilir) */}
             {activeCategory === category.categoryID && (
-              <div className="absolute left-0 mt-1 w-[1000px] bg-white shadow-lg rounded-b-lg z-50 grid grid-cols-5 gap-4 p-6">
-                {/* Ana kategori ve ürünleri */}
-                <div className="col-span-1">
-                  <h3 className="font-bold text-blue-600 mb-2">
-                    <Link 
-                      href={`/store/details/${category.categoryID}`} 
-                      className="hover:underline"
-                    >
-                      {category.categoryName}
-                    </Link>
-                  </h3>
-                  <ul className="space-y-1">
-                    {getCategoryProducts(category.categoryID).map((product) => (
-                      <li key={product.productID}>
-                        <Link 
-                          href={`/product/${product.productID}`} 
-                          className="text-sm text-gray-600 hover:text-blue-600"
-                        >
-                          {product.productName}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                
-                {/* Alt kategoriler ve ürünleri */}
-                {getSubCategories(category.categoryID).slice(0, 4).map((subCategory) => (
-                  <div key={subCategory.categoryID} className="col-span-1">
-                    <h3 className="font-bold text-blue-600 mb-2">
+              <div 
+                className="absolute left-0 mt-1 w-[300px] bg-white shadow-lg rounded-b-lg z-[100] p-4"
+                style={{ 
+                  top: '100%',
+                  boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+                  border: '1px solid #e5e7eb'
+                }}
+              >
+                <h3 className="font-bold text-blue-600 mb-2">
+                  <Link 
+                    href={`/store/details/${category.categoryID}`} 
+                    className="hover:underline"
+                  >
+                    {category.categoryName}
+                  </Link>
+                </h3>
+                <ul className="max-h-[300px] overflow-y-auto">
+                  {getCategoryProducts(category.categoryID).map((product) => (
+                    <li key={product.productID} className="py-1 border-b border-gray-100 last:border-b-0">
                       <Link 
-                        href={`/store/details/${subCategory.categoryID}`} 
-                        className="hover:underline"
+                        href={`/product/${product.productID}`} 
+                        className="text-sm text-gray-600 hover:text-blue-600 block"
                       >
-                        {subCategory.categoryName}
+                        {product.productName}
                       </Link>
-                    </h3>
-                    <ul className="space-y-1">
-                      {getCategoryProducts(subCategory.categoryID).map((product) => (
-                        <li key={product.productID}>
-                          <Link 
-                            href={`/product/${product.productID}`} 
-                            className="text-sm text-gray-600 hover:text-blue-600"
-                          >
-                            {product.productName}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-                
-                {/* Eğer alt kategori yoksa veya çok az alt kategori varsa boş bir mesaj göster */}
-                {getSubCategories(category.categoryID).length === 0 && (
-                  <div className="col-span-4 text-center py-4">
-                    <p className="text-gray-500">Bu kategoride henüz alt kategori bulunmamaktadır.</p>
-                  </div>
-                )}
+                    </li>
+                  ))}
+                  {getCategoryProducts(category.categoryID).length === 0 && (
+                    <li className="py-2 text-center">
+                      <p className="text-gray-500 text-sm">Bu kategoride henüz ürün bulunmamaktadır.</p>
+                    </li>
+                  )}
+                </ul>
+                <div className="mt-2 text-right">
+                  <Link 
+                    href={`/store/details/${category.categoryID}`}
+                    className="text-sm text-blue-600 hover:underline font-medium"
+                  >
+                    Tüm ürünleri gör
+                  </Link>
+                </div>
               </div>
             )}
           </div>
