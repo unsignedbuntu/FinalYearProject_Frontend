@@ -108,9 +108,10 @@ export default function CategoryMenu() {
             {/* Ürünler (Hover durumunda gösterilir) */}
             {activeCategory === category.categoryID && (
               <div 
-                className="absolute left-0 mt-1 w-[300px] bg-white shadow-lg rounded-b-lg z-[100] p-4"
+                className="fixed w-[300px] bg-white shadow-lg rounded-b-lg z-[9999] p-4"
                 style={{ 
-                  top: '100%',
+                  top: '160px',
+                  left: '50px',
                   boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
                   border: '1px solid #e5e7eb'
                 }}
@@ -123,7 +124,7 @@ export default function CategoryMenu() {
                     {category.categoryName}
                   </Link>
                 </h3>
-                <ul className="max-h-[300px] overflow-y-auto">
+                <ul className="max-h-[300px] overflow-y-auto pr-2">
                   {getCategoryProducts(category.categoryID).map((product) => (
                     <li key={product.productID} className="py-1 border-b border-gray-100 last:border-b-0">
                       <Link 

@@ -95,7 +95,7 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
         const filteredProducts = allProducts.filter((product: ExtendedProduct) => product.categoryID === categoryId);
         
         console.log(`Found ${filteredProducts.length} products for category ${categoryId}`);
-        setProducts(allProducts); // Tüm ürünleri state'e kaydet
+        setProducts(filteredProducts); // Sadece filtrelenmiş ürünleri state'e kaydet
         setStores(storesData);
         
         // Kategoriyi genişlet
@@ -133,167 +133,11 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
     }
   }, [categoryId]);
 
-  // Görsel üretme fonksiyonu - product/[id]/page.tsx'deki gibi
-  const generateProductImage = useCallback(async (product: ExtendedProduct) => {
-    // Zaten görseli varsa ve placeholder değilse üretme
-    if (product.image && 
-        product.image.length > 0 && 
-        !product.image.includes('placeholder') && 
-        product.image !== '/placeholder.png') {
-      console.log("Product already has a valid image, skipping generation:", product.productID);
-      return;
-    }
-    
-    try {
-      console.log("Checking for cached image for product:", product.productID, product.productName);
-      setLoadingImages(prev => ({ ...prev, [product.productID]: true }));
-
-      // Kategori adını belirle
-      let productCategory = categories.find((c: Category) => c.categoryID === product.categoryID);
-      
-      // Kategori adını al, yoksa 'default' kullan
-      const categoryName = productCategory?.categoryName || 'default';
-      const categoryPrompt = basePrompts[categoryName as CategoryKey] || basePrompts.default;
-      const mainPrompt = categoryPrompt.main(product.productName);
-      
-      // Eğer bu prompt daha önce işlendiyse, atla
-      if (processedPrompts.has(mainPrompt)) {
-        console.log("This prompt was already processed locally, skipping:", mainPrompt);
-        setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
-        return;
-      }
-      
-      // Global cache'de varsa, kullan
-      if (globalImageCache[mainPrompt]) {
-        console.log("Image found in global cache, using cached image for:", product.productID);
-        
-        // Ürünü güncelle
-        setProducts(prevProducts => 
-          prevProducts.map(p => 
-            p.productID === product.productID 
-              ? { ...p, image: globalImageCache[mainPrompt] } 
-              : p
-          )
-        );
-        
-        setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
-        setProcessedPrompts(prev => new Set([...prev, mainPrompt]));
-        return;
-      }
-      
-      // Bu promptu işlenmiş olarak işaretle
-      setProcessedPrompts(prev => new Set([...prev, mainPrompt]));
-      
-      // Sadece POST isteği kullan - GET isteklerini tamamen kaldır
-      try {
-        // Önce sadece kontrol et, varsa getir
-        const checkResponse = await fetch('/api/ImageCache', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            pageID: 'products',
-            prompt: mainPrompt,
-            checkOnly: true
-          })
-        });
-        
-        if (checkResponse.ok) {
-          const checkData = await checkResponse.json();
-          
-          if (checkData.success && checkData.image) {
-            // Görsel zaten cache'de var, kullan
-            console.log("Image found in backend cache, using cached image for:", product.productID);
-            const imageUrl = `data:image/jpeg;base64,${checkData.image}`;
-            
-            // Ürünü güncelle
-            setProducts(prevProducts => 
-              prevProducts.map(p => 
-                p.productID === product.productID 
-                  ? { ...p, image: imageUrl } 
-                  : p
-              )
-            );
-            
-            // Global cache'e ekle
-            globalImageCache[mainPrompt] = imageUrl;
-            setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
-            return;
-          }
-        }
-        
-        // Cache'de yoksa, oluştur
-        console.log("Image not found in cache, generating for:", product.productID);
-        const generateResponse = await fetch('/api/ImageCache', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            pageID: 'products',
-            prompt: mainPrompt,
-            checkOnly: false
-          })
-        });
-        
-        if (generateResponse.ok) {
-          // 200 OK - Resim bulundu veya oluşturuldu
-          const data = await generateResponse.json();
-          if (data.success && data.image) {
-            console.log("Successfully retrieved or generated image for product:", product.productID);
-            const imageUrl = `data:image/jpeg;base64,${data.image}`;
-            
-            // Ürünü güncelle
-            setProducts(prevProducts => 
-              prevProducts.map(p => 
-                p.productID === product.productID 
-                  ? { ...p, image: imageUrl } 
-                  : p
-              )
-            );
-            
-            // Global cache'e ekle
-            globalImageCache[mainPrompt] = imageUrl;
-          } else {
-            console.error("Failed to get image for product:", product.productID);
-          }
-        } else if (generateResponse.status === 409) {
-          // 409 Conflict - Resim zaten var
-          const data = await generateResponse.json();
-          if (data.success && data.image) {
-            console.log("Image already exists in cache for product:", product.productID);
-            const imageUrl = `data:image/jpeg;base64,${data.image}`;
-            
-            // Ürünü güncelle
-            setProducts(prevProducts => 
-              prevProducts.map(p => 
-                p.productID === product.productID 
-                  ? { ...p, image: imageUrl } 
-                  : p
-              )
-            );
-            
-            // Global cache'e ekle
-            globalImageCache[mainPrompt] = imageUrl;
-          }
-        } else {
-          console.error("Error getting image for product:", product.productID, generateResponse.status);
-        }
-      } catch (error) {
-        console.error("Exception during image retrieval for product:", product.productID, error);
-      }
-      
-      setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
-    } catch (error) {
-      console.error('Error in image process for product:', product.productID, error);
-      setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
-    }
-  }, [categories, processedPrompts]);
-
   // Ürün resimleri için
   useEffect(() => {
     if (!loading && products.length > 0 && !imagesGenerated) {
+      console.log("Checking products for image generation");
+      
       // Başlangıçta tüm ürünlerin yükleme durumunu false olarak ayarla
       const initialLoadingState: Record<number, boolean> = {};
       products.forEach(product => {
@@ -301,50 +145,130 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
       });
       setLoadingImages(initialLoadingState);
       
-      const productsNeedingImages = products.filter(p => 
+      // Sadece seçili kategoriye ait ürünleri filtrele
+      const categoryProducts = products.filter(p => p.categoryID === categoryId);
+      console.log(`Filtered ${categoryProducts.length} products for category ${categoryId}`);
+      
+      // Görseli olmayan veya placeholder olan ürünleri filtrele
+      const productsNeedingImages = categoryProducts.filter(p => 
         !p.image || 
         p.image === '/placeholder.png' || 
         p.image.includes('placeholder')
       );
       
       if (productsNeedingImages.length > 0) {
-        console.log(`Found ${productsNeedingImages.length} products needing images`);
+        console.log(`Found ${productsNeedingImages.length} products needing images in category ${categoryId}`);
         
         // Görüntü oluşturma işlemlerini sırayla yap
         const generateImages = async () => {
-          // Aynı anda en fazla 2 ürün için görsel oluştur (paralelleştirme)
-          const batchSize = 2;
+          // İşlenen ürün sayısını takip et
+          let processedCount = 0;
           
-          // Maksimum 10 ürün için görsel oluştur, diğerleri için placeholder kullan
-          const maxProducts = Math.min(productsNeedingImages.length, 10);
+          // Tüm promptları önceden hazırla ve kontrol et
+          const productsToProcess: ExtendedProduct[] = [];
+          const promptsToProcess: string[] = [];
           
-          for (let i = 0; i < maxProducts; i += batchSize) {
-            const batch = productsNeedingImages.slice(i, i + batchSize);
+          // Önce hangi ürünlerin işlenmesi gerektiğini belirle
+          for (const product of productsNeedingImages) {
+            // Kategori adını belirle
+            let productCategory = categories.find((c: Category) => c.categoryID === product.categoryID);
+            const categoryName = productCategory?.categoryName || 'default';
+            const categoryPrompt = basePrompts[categoryName as CategoryKey] || basePrompts.default;
+            const mainPrompt = categoryPrompt.main(product.productName);
             
-            // Batch içindeki ürünler için paralel olarak görsel oluştur
-            await Promise.all(batch.map(product => generateProductImage(product)));
+            // Eğer bu prompt daha önce işlendiyse veya global cache'de varsa, atla
+            if (processedPrompts.has(mainPrompt) || globalImageCache[mainPrompt]) {
+              console.log(`Skipping product ${product.productID} - prompt already processed or in cache`);
+              
+              // Eğer global cache'de varsa, ürünü güncelle
+              if (globalImageCache[mainPrompt]) {
+                setProducts(prevProducts => 
+                  prevProducts.map(p => 
+                    p.productID === product.productID 
+                      ? { ...p, image: globalImageCache[mainPrompt] } 
+                      : p
+                  )
+                );
+              }
+              
+              continue;
+            }
             
-            // API'ye yük bindirmeyi önlemek için daha uzun bir bekleme
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Bu ürün ve prompt işlenecek
+            productsToProcess.push(product);
+            promptsToProcess.push(mainPrompt);
           }
           
-          // Kalan ürünler için placeholder kullan
-          if (productsNeedingImages.length > maxProducts) {
-            const remainingProducts = productsNeedingImages.slice(maxProducts);
-            console.log(`Using placeholders for ${remainingProducts.length} remaining products`);
+          console.log(`Will process ${productsToProcess.length} products after filtering already processed ones`);
+          
+          // Şimdi sırayla işle
+          for (let i = 0; i < productsToProcess.length; i++) {
+            const product = productsToProcess[i];
+            const prompt = promptsToProcess[i];
             
-            setProducts(prevProducts => 
-              prevProducts.map(p => {
-                if (remainingProducts.some(rp => rp.productID === p.productID)) {
-                  return { ...p, image: '/placeholder.png' };
+            // Bu promptu işlenmiş olarak işaretle (önceden işaretliyoruz ki paralel istekler olmasın)
+            setProcessedPrompts(prev => new Set([...prev, prompt]));
+            
+            // Görüntü oluştur
+            console.log(`Processing product ${processedCount + 1}/${productsToProcess.length}: ${product.productName}`);
+            setLoadingImages(prev => ({ ...prev, [product.productID]: true }));
+            
+            try {
+              // Doğrudan POST isteği yap - resim varsa backend'de kontrol edilecek
+              console.log("Sending API request for image generation:", product.productID);
+              const response = await fetch('/api/ImageCache', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  pageID: 'products',
+                  prompt: prompt,
+                  checkOnly: false
+                })
+              });
+              
+              if (response.ok) {
+                // 200 OK - Resim bulundu veya oluşturuldu
+                const data = await response.json();
+                if (data.success && data.image) {
+                  console.log("Successfully retrieved or generated image for product:", product.productID);
+                  const imageUrl = `data:image/jpeg;base64,${data.image}`;
+                  
+                  // Ürünü güncelle
+                  setProducts(prevProducts => 
+                    prevProducts.map(p => 
+                      p.productID === product.productID 
+                        ? { ...p, image: imageUrl } 
+                        : p
+                    )
+                  );
+                  
+                  // Global cache'e ekle
+                  globalImageCache[prompt] = imageUrl;
+                } else {
+                  console.error("Failed to get image for product:", product.productID);
                 }
-                return p;
-              })
-            );
+              } else {
+                console.error("Error getting image for product:", product.productID, response.status);
+              }
+            } catch (error) {
+              console.error("Exception during image retrieval for product:", product.productID, error);
+            } finally {
+              setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
+            }
+            
+            // İşlenen ürün sayısını artır
+            processedCount++;
+            console.log(`Processed ${processedCount}/${productsToProcess.length} products`);
+            
+            // API'ye yük bindirmeyi önlemek için kısa bir bekleme
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Daha uzun bekleme süresi
           }
           
           // Tüm görüntüler oluşturuldu
           setImagesGenerated(true);
+          console.log("All images have been generated successfully");
         };
         
         // İşlemi başlat
@@ -352,12 +276,18 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
       } else {
         // Hiç görüntü oluşturulmadı, ama işlem tamamlandı
         setImagesGenerated(true);
+        console.log("No images needed generation, all products have images");
       }
     }
-  }, [loading, products, imagesGenerated, generateProductImage]);
+  }, [loading, products, imagesGenerated, categories, processedPrompts, categoryId]);
 
   // Marka seçildiğinde ürünleri filtrele
   const filteredProducts = products.filter((product) => {
+    // Önce kategori filtresi uygula - sadece seçili kategoriye ait ürünleri göster
+    if (product.categoryID !== categoryId) {
+      return false;
+    }
+    
     // Marka filtresi
     if (selectedBrands.length > 0) {
       const productStore = stores.find((s) => s.storeID === product.storeID);
