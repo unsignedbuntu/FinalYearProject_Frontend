@@ -50,7 +50,7 @@ export async function GET(req: Request) {
 // POST /api/ImageCache - Generate and cache new image
 export async function POST(req: Request) {
     try {
-        const { pageID, prompt, checkOnly } = await req.json();
+        const { pageID, prompt, checkOnly, image } = await req.json();
 
         if (!pageID || !prompt) {
             return NextResponse.json({
@@ -60,6 +60,34 @@ export async function POST(req: Request) {
         }
 
         console.log("POST request received for pageID:", pageID, "prompt:", prompt);
+
+        // Eğer image doğrudan gönderilmişse, backend'e direkt olarak kaydet
+        if (image) {
+            console.log("Image data received directly, saving to backend cache");
+            try {
+                const cacheResponse = await axios.post(`${API_URL}/api/ImageCache`, {
+                    PageID: pageID,
+                    Prompt: prompt,
+                    Image: image,
+                    Status: true
+                }, {
+                    headers: { 'Content-Type': 'application/json' },
+                    httpsAgent: new https.Agent({ rejectUnauthorized: false })
+                });
+                
+                return NextResponse.json({
+                    success: true,
+                    image: image,
+                    source: "direct_upload"
+                });
+            } catch (saveError: any) {
+                console.error("Error saving direct image:", saveError);
+                return NextResponse.json({
+                    success: false,
+                    error: saveError.message || 'Error saving image to backend'
+                }, { status: 500 });
+            }
+        }
 
         // Önce backend'den direkt olarak görüntüyü almaya çalış
         try {
@@ -99,11 +127,22 @@ export async function POST(req: Request) {
         // Stable Diffusion API'ye istek gönder
         console.log("Generating new image with Stable Diffusion API");
         try {
-            const response = await axios.post(`${AUTOMATIC1111_API_URL}/sdapi/v1/txt2img`, {
+            const sdAgent = new https.Agent({ 
+                rejectUnauthorized: false 
+            });
+            
+            // HTTP kullan veya farklı bir endpoint dene
+            // Not: Backend sistemini kontrol et, hangi endpointin doğru olduğunu belirle
+            const response = await axios.post(`http://127.0.0.1:7860/sdapi/v1/txt2img`, {
                 prompt,
+                negative_prompt: "blurry, low quality, deformed",
                 steps: 15,
                 width: 512,
-                height: 512
+                height: 512,
+                cfg_scale: 7
+            }, {
+                httpsAgent: sdAgent,
+                timeout: 30000 // 30 saniye timeout ekle
             });
 
             if (!response.data?.images?.[0]) {

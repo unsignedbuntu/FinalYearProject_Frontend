@@ -398,10 +398,12 @@ export const deleteSupplier = async (id: number) => {
 
 export async function getImageFromCache(pageId: string, prompt: string) {
   try {
-      // Create the same short hash for consistency
-      
-      const response = await axios.get(`${process.env.URL}/api/ImageCache/${pageId}/${prompt}`, {
-        
+      // Using POST request to match the backend API expectations
+      const response = await axios.post(`${process.env.URL}/api/ImageCache`, {
+          pageID: pageId,
+          prompt: prompt,
+          checkOnly: true
+      }, {
           headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json'
@@ -451,20 +453,11 @@ export const createCacheImage = async ({ pageID, prompt}: CreateCacheImageParams
           return { success: false, error: "PageID ve Prompt,Image zorunludur!" };
       }
 
-      // Önce cache'de var mı kontrol et
-      const existingImage = await getImageFromCache(pageID, prompt);
-      if (existingImage.cached && existingImage.image) {
-          console.log("Görsel zaten cache'de mevcut, varolan görseli döndürüyorum");
-          return {
-              success: true,
-              image: existingImage.image
-          };
-      } 
-
+      // Doğrudan POST isteği yap
       const response = await axios.post(`${process.env.URL}/api/ImageCache`, {
           pageID: pageID,
           prompt: prompt,
-  
+          checkOnly: false
       }, {
           headers: {
               'Accept': 'application/json',
