@@ -1,13 +1,22 @@
 "use client"
 import { useState, useEffect } from 'react';
-import { getSuppliers } from '@/services/Category_Actions';
+import { getSuppliers, getProducts, getProductSuppliers } from '@/services/Category_Actions';
 import { generateImage, generatePrompt } from '@/services/image-generation';
 import Image from 'next/image';
+import Link from 'next/link';
+
+// Kategori bazlı prompts için import - utils yerine direkt product/[id]/data/basePrompts kullanıyoruz
+import { basePrompts, CategoryKey } from '@/app/product/[id]/data/basePrompts';
 
 // Global değişkenler - görüntü oluşturma işlemini kontrol etmek için
 const globalImageCache: Record<string, string> = {};
-const processingPrompts = new Set<string>();
-let imageGenerationInProgress = false;
+const globalProductImageCache: Record<string, string> = {};
+// Base64 encoded 1x1 transparent PNG as a placeholder
+const DEFAULT_PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+// Mağaza başına sabit ürünleri tutmak için bir cache ekleyelim
+const storeProductsCache: Record<number, Product[]> = {};
+// Mağaza fotoğraflarının yüklenme durumunu takip etmek için flag
+const storeImagesLoadingComplete = { value: false };
 
 interface Supplier {
     supplierID: number;
@@ -15,410 +24,33 @@ interface Supplier {
     contactEmail: string;
 }
 
-const DEFAULT_PLACEHOLDER = '/placeholder.png';
+interface Product {
+    productID: number;
+    productName: string;
+    price: number;
+    image?: string;
+    categoryID: number;
+    categoryName?: string;
+    supplierID: number; // Ürünün hangi mağazaya ait olduğunu belirten ID
+}
 
 export default function MyFollowedStores() {
+    const [activeTab, setActiveTab] = useState<'followed' | 'all'>('followed');
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [allStores, setAllStores] = useState<Supplier[]>([]);
     const [supplierImages, setSupplierImages] = useState<{[key: number]: string}>({});
+    const [followedSuppliers, setFollowedSuppliers] = useState<Set<number>>(new Set());
+    const [supplierRatings, setSupplierRatings] = useState<{[key: number]: number}>({});
+    const [products, setProducts] = useState<Product[]>([]);
+    const [productImages, setProductImages] = useState<{[key: number]: string}>({});
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [customPrompts, setCustomPrompts] = useState<{[key: number]: string}>({});
+    const [storeImagesLoaded, setStoreImagesLoaded] = useState(false);
+    const [loadingImages, setLoadingImages] = useState(false);
     const [isGenerating, setIsGenerating] = useState<{[key: number]: boolean}>({});
-    const [processedPrompts, setProcessedPrompts] = useState<Set<string>>(new Set());
-    const [imagesGenerated, setImagesGenerated] = useState(false);
 
-    const generateStoreImage = async (supplierName: string, supplierID: number, customPrompt?: string) => {
-        // Try bloğunun dışında prompt değişkenini tanımla
-        let currentPrompt = "";
-        
-        try {
-            // Yükleme durumunu güncelle
-            setIsGenerating(prev => ({ ...prev, [supplierID]: true }));
-            
-            // Başlangıçta placeholder göster
-            setSupplierImages(prev => ({
-                ...prev,
-                [supplierID]: DEFAULT_PLACEHOLDER
-            }));
-
-            // Prompt oluştur
-            const generatedPrompt = generatePrompt(
-                supplierName,
-                customPrompt || "modern storefront design with professional appearance"
-            );
-
-            const finalPrompt = generatedPrompt.prompt;
-            // Dış değişkene değer ata ki finally'de kullanabilelim
-            currentPrompt = finalPrompt;
-            console.log('🔍 Using prompt:', finalPrompt);
-            
-            // Eğer bu prompt daha önce işlendiyse veya şu anda işleniyorsa, atla
-            if (processedPrompts.has(finalPrompt) || processingPrompts.has(finalPrompt)) {
-                console.log(`⏭️ Skipping supplier ${supplierID} - prompt already processed or currently processing`);
-                setIsGenerating(prev => ({ ...prev, [supplierID]: false }));
-                return;
-            }
-            
-            // Eğer global cache'de varsa, ürünü güncelle ve devam et
-            if (globalImageCache[finalPrompt]) {
-                console.log(`💾 Using cached image for supplier ${supplierID}`);
-                setSupplierImages(prev => ({
-                    ...prev,
-                    [supplierID]: globalImageCache[finalPrompt]
-                }));
-                setIsGenerating(prev => ({ ...prev, [supplierID]: false }));
-                return;
-            }
-
-            // Bu promptu işlenmekte olarak işaretle
-            processingPrompts.add(finalPrompt);
-            
-            // Bu promptu işlenmiş olarak işaretle
-            setProcessedPrompts(prev => new Set([...prev, finalPrompt]));
-
-            // Önce cache'den kontrol et
-            console.log('🔄 Checking cache for:', { supplierID, finalPrompt });
-            
-            try {
-                // Doğrudan POST isteği yap - resim varsa backend'de kontrol edilecek, yoksa oluştur
-                const response = await fetch('/api/ImageCache', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        pageID: 'my-followed-stores',
-                        prompt: finalPrompt,
-                        checkOnly: false // Görüntüyü cache'de bulamazsa, doğrudan oluşturmasını sağla
-                    }),
-                    cache: 'no-store' // Cache'lemeyi devre dışı bırak
-                });
-                
-                if (!response.ok) {
-                    console.warn(`⚠️ API error with status ${response.status}`);
-                    throw new Error(`API error: ${response.statusText}`);
-                }
-                
-                const result = await response.json();
-                console.log('📥 API result:', result);
-
-                if (result && result.success && result.image) {
-                    console.log(`✅ Image ${result.source === 'backend_cache' ? 'found in cache' : 'generated successfully'}`);
-                    const imageUrl = `data:image/jpeg;base64,${result.image}`;
-                    
-                    setSupplierImages(prev => ({
-                        ...prev,
-                        [supplierID]: imageUrl
-                    }));
-                    
-                    // Global cache'e ekle
-                    if (typeof imageUrl === 'string' && imageUrl.startsWith('data:image')) {
-                        globalImageCache[finalPrompt] = imageUrl;
-                    }
-                    return;
-                } else {
-                    throw new Error(result?.error || 'Failed to get or generate image');
-                }
-            } catch (apiError) {
-                console.error('❌ Error with API:', apiError);
-                
-                // API'den görüntü alamadıysak, direkt generateImage ile deneyelim
-                try {
-                    console.log('🎨 Fallback: Creating new image directly for:', supplierName);
-                    
-                    const generatedPrompt = generatePrompt(
-                        supplierName,
-                        "modern storefront design with professional appearance"
-                    );
-                    
-            const result = await generateImage({
-                prompt: finalPrompt,
-                negative_prompt: generatedPrompt.negative_prompt,
-                width: 512,
-                height: 512,
-                steps: 15,
-                cfg_scale: 7,
-                sampler_name: "DPM++ 2M a"
-            });
-
-            if (!result.success || !result.image) {
-                throw new Error(result.error || 'Failed to generate image');
-            }
-
-                    const imageUrl = `data:image/jpeg;base64,${result.image}`;
-
-            setSupplierImages(prev => ({
-                ...prev,
-                        [supplierID]: imageUrl
-                    }));
-                    
-                    // Global cache'e ekle
-                    if (typeof imageUrl === 'string' && imageUrl.startsWith('data:image')) {
-                        globalImageCache[finalPrompt] = imageUrl;
-                    }
-                    
-                    // Daha sonra arka planda görüntüyü cache'e kaydetmeyi dene 
-                    console.log('💾 Saving generated image to cache in background...');
-                    
-                    fetch('/api/ImageCache', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            pageID: 'my-followed-stores',
-                            prompt: finalPrompt,
-                            image: result.image,
-                            checkOnly: false
-                        }),
-                        cache: 'no-store'
-                    }).catch(cacheSaveError => {
-                        console.warn('⚠️ Background cache save failed:', cacheSaveError);
-                    });
-                } catch (directGenerationError) {
-                    console.error('❌ Direct image generation failed:', directGenerationError);
-                    // Hata durumunda placeholder'a geri dön
-                    setSupplierImages(prev => ({
-                        ...prev,
-                        [supplierID]: DEFAULT_PLACEHOLDER
-                    }));
-                }
-            }
-        } catch (error: any) {
-            console.error('❌ Error in generateStoreImage:', error);
-            setError(error instanceof Error ? error.message : 'Failed to generate image');
-            // Hata durumunda placeholder'a geri dön
-            setSupplierImages(prev => ({
-                ...prev,
-                [supplierID]: DEFAULT_PLACEHOLDER
-            }));
-        } finally {
-            // İşleme tamamlandı, yükleme durumunu güncelle
-            setIsGenerating(prev => ({ ...prev, [supplierID]: false }));
-            // Promptu işlenmekte olan setinden kaldır
-            processingPrompts.delete(currentPrompt);
-        }
-    };
-
-    // Mağaza resimlerini yükleme için useEffect
-    useEffect(() => {
-        if (!isLoading && suppliers.length > 0 && !imagesGenerated && !imageGenerationInProgress) {
-            console.log("📋 Checking suppliers for image generation");
-            
-            // Global flag'i true yaparak işlemin başladığını belirt
-            imageGenerationInProgress = true;
-            
-            // Görüntü oluşturma işlemlerini sırayla yap
-            const generateImages = async () => {
-                try {
-                    // İşlenen tedarikçi sayısını takip et
-                    let processedCount = 0;
-                    
-                    // Görseli olmayan veya placeholder olan tedarikçileri filtrele
-                    const suppliersNeedingImages = suppliers.filter(supplier => 
-                        !supplierImages[supplier.supplierID] || 
-                        supplierImages[supplier.supplierID] === DEFAULT_PLACEHOLDER
-                    );
-                    
-                    console.log(`🔍 Found ${suppliersNeedingImages.length} suppliers needing images`);
-                    
-                    // Hiç işlenecek tedarikçi yoksa bitir
-                    if (suppliersNeedingImages.length === 0) {
-                        console.log("✅ No suppliers to process, all suppliers have images");
-                        setImagesGenerated(true);
-                        imageGenerationInProgress = false;
-                        return;
-                    }
-                    
-                    // Tüm promptları önceden hazırla ve kontrol et
-                    const suppliersToProcess: Supplier[] = [];
-                    const promptsToProcess: string[] = [];
-                    
-                    // Önce hangi tedarikçilerin işlenmesi gerektiğini belirle
-                    for (const supplier of suppliersNeedingImages) {
-                        // Prompt oluştur
-                        const generatedPrompt = generatePrompt(
-                            supplier.supplierName,
-                            "modern storefront design with professional appearance"
-                        );
-                        
-                        const finalPrompt = generatedPrompt.prompt;
-                        
-                        // Eğer bu prompt daha önce işlendiyse veya şu anda işleniyorsa, atla
-                        if (processedPrompts.has(finalPrompt) || processingPrompts.has(finalPrompt)) {
-                            console.log(`⏭️ Skipping supplier ${supplier.supplierID} - prompt already processed or currently processing`);
-                            continue;
-                        }
-                        
-                        // Eğer global cache'de varsa, ürünü güncelle ve devam et
-                        if (globalImageCache[finalPrompt]) {
-                            console.log(`💾 Using cached image for supplier ${supplier.supplierID}`);
-                            
-                            setSupplierImages(prev => ({
-                                ...prev,
-                                [supplier.supplierID]: globalImageCache[finalPrompt]
-                            }));
-                            
-                            // Bu promptu işlenmiş olarak işaretle
-                            setProcessedPrompts(prev => new Set([...prev, finalPrompt]));
-                            continue;
-                        }
-                        
-                        // Bu tedarikçi ve prompt işlenecek
-                        suppliersToProcess.push(supplier);
-                        promptsToProcess.push(finalPrompt);
-                        
-                        // İşlenecek promptu önceden işaretleyelim
-                        processingPrompts.add(finalPrompt);
-                    }
-                    
-                    console.log(`📊 Will process ${suppliersToProcess.length} suppliers after filtering already processed ones`);
-                    
-                    // Şimdi sırayla işle
-                    for (let i = 0; i < suppliersToProcess.length; i++) {
-                        const supplier = suppliersToProcess[i];
-                        const prompt = promptsToProcess[i];
-                        
-                        // Bu promptu işlenmiş olarak işaretle
-                        setProcessedPrompts(prev => new Set([...prev, prompt]));
-                        
-                        // Görüntü oluştur
-                        console.log(`🔄 Processing supplier ${processedCount + 1}/${suppliersToProcess.length}: ${supplier.supplierName}`);
-                        setIsGenerating(prev => ({ ...prev, [supplier.supplierID]: true }));
-                        
-                        try {
-                            // Doğrudan POST isteği yap - resim varsa backend'de kontrol edilecek, yoksa oluştur
-                            const response = await fetch('/api/ImageCache', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                    pageID: 'my-followed-stores',
-                                    prompt: prompt,
-                                    checkOnly: false // Görüntüyü cache'de bulamazsa, doğrudan oluşturmasını sağla
-                                }),
-                                cache: 'no-store' // Cache'lemeyi devre dışı bırak
-                            });
-                            
-                            if (!response.ok) {
-                                console.warn(`⚠️ API error with status ${response.status}`);
-                                throw new Error(`API error: ${response.statusText}`);
-                            }
-                            
-                            const result = await response.json();
-                            console.log('📥 API result:', result);
-
-                            if (result && result.success && result.image) {
-                                console.log(`✅ Image ${result.source === 'backend_cache' ? 'found in cache' : 'generated successfully'}`);
-                                const imageUrl = `data:image/jpeg;base64,${result.image}`;
-                                
-                                setSupplierImages(prev => ({
-                                    ...prev,
-                                    [supplier.supplierID]: imageUrl
-                                }));
-                                
-                                // Global cache'e ekle
-                                if (typeof imageUrl === 'string' && imageUrl.startsWith('data:image')) {
-                                    globalImageCache[prompt] = imageUrl;
-                                }
-                            } else {
-                                throw new Error(result?.error || 'Failed to get or generate image');
-                            }
-                        } catch (apiError) {
-                            console.error('❌ Error with API:', apiError);
-                            
-                            // API'den görüntü alamadıysak, direkt generateImage ile deneyelim
-                            try {
-                                console.log('🎨 Fallback: Creating new image directly for:', supplier.supplierName);
-                                
-                                const generatedPrompt = generatePrompt(
-                                    supplier.supplierName,
-                                    "modern storefront design with professional appearance"
-                                );
-                                
-                                const result = await generateImage({
-                                    prompt: prompt,
-                                    negative_prompt: generatedPrompt.negative_prompt,
-                                    width: 512,
-                                    height: 512,
-                                    steps: 15,
-                                    cfg_scale: 7,
-                                    sampler_name: "DPM++ 2M a"
-                                });
-                                
-                                if (!result.success || !result.image) {
-                                    throw new Error(result.error || 'Failed to generate image');
-                                }
-                                
-                                const imageUrl = `data:image/jpeg;base64,${result.image}`;
-                                
-                                setSupplierImages(prev => ({
-                                    ...prev,
-                                    [supplier.supplierID]: imageUrl
-                                }));
-                                
-                                // Global cache'e ekle
-                                if (typeof imageUrl === 'string' && imageUrl.startsWith('data:image')) {
-                                    globalImageCache[prompt] = imageUrl;
-                                }
-                                
-                                // Daha sonra arka planda görüntüyü cache'e kaydetmeyi dene 
-                                console.log('💾 Saving generated image to cache in background...');
-                                
-                                fetch('/api/ImageCache', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                    },
-                                    body: JSON.stringify({
-                                        pageID: 'my-followed-stores',
-                                        prompt: prompt,
-                                        image: result.image,
-                                        checkOnly: false
-                                    }),
-                                    cache: 'no-store'
-                                }).catch(cacheSaveError => {
-                                    console.warn('⚠️ Background cache save failed:', cacheSaveError);
-                                });
-                            } catch (directGenerationError) {
-                                console.error('❌ Direct image generation failed:', directGenerationError);
-                                // Hata durumunda placeholder'a geri dön
-                                setSupplierImages(prev => ({
-                                    ...prev,
-                                    [supplier.supplierID]: DEFAULT_PLACEHOLDER
-                                }));
-                            }
-                        } finally {
-                            // İşleme tamamlandı, yükleme durumunu güncelle
-                            setIsGenerating(prev => ({ ...prev, [supplier.supplierID]: false }));
-                            // Promptu işlenmekte olan setinden kaldır
-                            processingPrompts.delete(prompt);
-                        }
-                        
-                        // İşlenen tedarikçi sayısını artır
-                        processedCount++;
-                        console.log(`📊 Processed ${processedCount}/${suppliersToProcess.length} suppliers`);
-                        
-                        // API'ye yük bindirmeyi önlemek için daha uzun bir bekleme
-                        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 saniye bekle
-                    }
-                    
-                    // Tüm görüntüler oluşturuldu
-                    console.log("🎉 All images have been generated successfully");
-                    setImagesGenerated(true);
-                } catch (error) {
-                    console.error("❌ Error in image generation process:", error);
-                } finally {
-                    // İşlem bitti, global flag'i false yap
-                    imageGenerationInProgress = false;
-                }
-            };
-            
-            // İşlemi başlat
-            generateImages();
-        }
-    }, [isLoading, suppliers, imagesGenerated, supplierImages, processedPrompts]);
+    // Resim üretme fonksiyonlarını kaldırıyoruz
+    // generateStoreImage ve generateProductImage fonksiyonları artık kullanılmıyor
 
     // Verileri yükleme için useEffect
     useEffect(() => {
@@ -426,45 +58,542 @@ export default function MyFollowedStores() {
 
         const loadData = async () => {
             try {
-                const data = await getSuppliers();
+                // Tedarikçileri, ürünleri ve ürün-tedarikçi ilişkilerini paralel olarak yükle
+                const [suppliersData, productsData, productSuppliersData] = await Promise.all([
+                    getSuppliers() as Promise<Supplier[]>,
+                    getProducts() as Promise<Product[]>,
+                    getProductSuppliers() as Promise<any[]>
+                ]);
+                
                 if (!mounted) return;
 
-                setSuppliers(data);
-                setIsLoading(false);
+                console.log(`Toplam ${suppliersData.length} tedarikçi, ${productsData.length} ürün ve ${productSuppliersData.length} ürün-tedarikçi ilişkisi yüklendi`);
+                
+                // API'den gelen tüm ürün-tedarikçi ilişkilerini konsola yazdır
+                console.log("📊 TÜM ÜRÜN-TEDARİKÇİ İLİŞKİLERİ:", productSuppliersData);
+                
+                // Mağaza puanlarını oluştur (5-10 arası ağırlıklı olacak şekilde)
+                const ratings: {[key: number]: number} = {};
+                for (const supplier of suppliersData) {
+                    // 0-4 arası puan olasılığı %20, 5-10 arası puan olasılığı %80
+                    const randomVal = Math.random();
+                    if (randomVal < 0.2) {
+                        ratings[supplier.supplierID] = parseFloat((Math.random() * 5).toFixed(1));
+                    } else {
+                        ratings[supplier.supplierID] = parseFloat((Math.random() * 5 + 5).toFixed(1));
+                    }
+                }
+                setSupplierRatings(ratings);
 
-                // Eski direkt yükleme kodu kaldırıldı - artık ayrı useEffect'te yapılıyor
+                // Rasgele hangi mağazaların takip edildiğini belirle
+                const followed = new Set<number>();
+                suppliersData.forEach((supplier) => {
+                    if (Math.random() > 0.5) {
+                        followed.add(supplier.supplierID);
+                    }
+                });
+                setFollowedSuppliers(followed);
+
+                // Takip edilen mağazaları ayır
+                const followedSuppliersList = suppliersData.filter(supplier => followed.has(supplier.supplierID));
+                setSuppliers(followedSuppliersList);
+                setAllStores(suppliersData);
+                
+                // Ürünleri kaydet
+                setProducts(productsData);
+                
+                // Mağaza başına ürünleri atamak için bir yapı oluştur (API'den gelen veriye göre)
+                // Örneğin: { 18: [72, 75, 94, 105, 115, 168, 183, 225, 253], 32: [...], ... }
+                const supplierProductMap: Record<number, number[]> = {};
+                
+                // Her tedarikçi için boş ürün dizisi oluştur
+                suppliersData.forEach(supplier => {
+                    supplierProductMap[supplier.supplierID] = [];
+                });
+                
+                // ProductSuppliers verisinden gerçek ilişkileri al
+                productSuppliersData.forEach(relation => {
+                    // supplierID ve productID'yi kontrol et ve mevcut ise ilişkiyi kaydet
+                    if (relation.supplierID && relation.productID) {
+                        if (!supplierProductMap[relation.supplierID]) {
+                            supplierProductMap[relation.supplierID] = [];
+                        }
+                        supplierProductMap[relation.supplierID].push(relation.productID);
+                    }
+                });
+                
+                // İlişki bulunamayan mağazalar için rastgele ürünler ata
+                suppliersData.forEach((supplier, index) => {
+                    const supplierID = supplier.supplierID;
+                    
+                    // Eğer bu mağaza için hiç ürün yoksa (API'den veri gelmiyorsa)
+                    if (!supplierProductMap[supplierID] || supplierProductMap[supplierID].length === 0) {
+                        // Ürün sayısını belirle - rastgele 5-25 arası
+                        const productCount = 5 + Math.floor(Math.random() * 20);
+                        
+                        // Bu mağaza için rastgele ürün ID'leri seç
+                        const productIds = generateRandomProductIds(productsData.length, productCount);
+                        
+                        // Mağaza-ürün eşleşmesini kaydet
+                        supplierProductMap[supplierID] = productIds;
+                        
+                        console.log(`⚠️ Mağaza ID ${supplierID} (${supplier.supplierName}) için gerçek ilişki bulunamadı, ${productIds.length} rastgele ürün atandı`);
+                    } else {
+                        console.log(`✅ Mağaza ID ${supplierID} (${supplier.supplierName}) için ${supplierProductMap[supplierID].length} gerçek ürün ilişkisi bulundu`);
+                    }
+                });
+                
+                // Tüm mağaza-ürün ilişkilerini detaylı olarak konsola yazdır
+                console.log("📊 TÜM MAĞAZA-ÜRÜN İLİŞKİLERİ:");
+                
+                suppliersData.forEach((supplier, index) => {
+                    const supplierID = supplier.supplierID;
+                    const productIds = supplierProductMap[supplierID] || [];
+                    
+                    // Her bir mağaza için ürün bilgilerini bul
+                    const supplierProducts = productIds.map(productId => {
+                        const product = productsData.find(p => p.productID === productId);
+                        return product 
+                            ? { id: productId, name: product.productName, price: product.price } 
+                            : { id: productId, name: "Ürün bulunamadı", price: 0 };
+                    });
+                    
+                    console.log(`🏬 ${index+1}. Mağaza: ${supplier.supplierName} (ID: ${supplierID}) - ${productIds.length} ürün:`);
+                    console.log(`   Ürün ID'leri: [${productIds.join(', ')}]`);
+                    
+                    // Her bir ürünün detayını göster
+                    supplierProducts.forEach((product, idx) => {
+                        console.log(`   ${idx+1}. Ürün: ${product.name} (ID: ${product.id}) - $${product.price}`);
+                    });
+                });
+                
+                // Mağaza-ürün haritasını global olarak sakla
+                (window as any).productSupplierMap = supplierProductMap;
+                
+                console.log("✅ Mağaza-ürün eşleşmeleri oluşturuldu");
+                
+                setIsLoading(false);
             } catch (err) {
                 if (!mounted) return;
-                setError('Failed to load suppliers');
+                setError('Failed to load data');
                 console.error(err);
             }
+        };
+        
+        // Belirli miktarda rastgele ürün ID'si oluştur
+        const generateRandomProductIds = (maxProductId: number, count: number): number[] => {
+            const productIds: number[] = [];
+            const allIds = Array.from({length: maxProductId}, (_, i) => i + 1);
+            
+            // Rastgele ürün ID'leri seç
+            while (productIds.length < count && allIds.length > 0) {
+                const randomIndex = Math.floor(Math.random() * allIds.length);
+                const id = allIds.splice(randomIndex, 1)[0];
+                productIds.push(id);
+            }
+            
+            return productIds;
         };
 
         loadData();
 
         return () => {
             mounted = false;
-            // Temizlik işlemi
-            processingPrompts.clear();
-            imageGenerationInProgress = false;
         };
     }, []);
 
-    const handlePromptChange = (supplierID: number, prompt: string) => {
-        setCustomPrompts(prev => ({
-            ...prev,
-            [supplierID]: prompt
-        }));
+    // Mağaza takip etme/bırakma işlevleri
+    const handleFollowStore = (storeId: number) => {
+        setFollowedSuppliers(prev => {
+            const newFollowed = new Set(prev);
+            newFollowed.add(storeId);
+            return newFollowed;
+        });
+
+        // Takip edilen mağazalar listesini güncelle
+        setSuppliers(prev => {
+            const storeToAdd = allStores.find(store => store.supplierID === storeId);
+            if (storeToAdd && !prev.some(s => s.supplierID === storeId)) {
+                return [...prev, storeToAdd];
+            }
+            return prev;
+        });
     };
 
-    const handleRegenerateImage = async (supplier: Supplier) => {
-        await generateStoreImage(
-            supplier.supplierName,
-            supplier.supplierID,
-            customPrompts[supplier.supplierID]
-        );
+    const handleUnfollowStore = (storeId: number) => {
+        setFollowedSuppliers(prev => {
+            const newFollowed = new Set(prev);
+            newFollowed.delete(storeId);
+            return newFollowed;
+        });
+
+        // Takip edilen mağazalar listesini güncelle
+        setSuppliers(prev => prev.filter(supplier => supplier.supplierID !== storeId));
     };
 
+    // Bir mağazanın ürünlerini getiren yardımcı fonksiyon
+    const getStoreProducts = (storeId: number) => {
+        // Önbellekteki ürünleri doğrudan kullan - her mağaza gösterimi için sabit kalır
+        if (storeProductsCache[storeId]) {
+            return storeProductsCache[storeId];
+        }
+        
+        // GlobalStore'dan productSupplier haritasını al
+        const productSupplierMap = (window as any).productSupplierMap || {};
+        
+        // Bu mağazaya atanmış ürün kimlikleri
+        const productIds = productSupplierMap[storeId] || [];
+        
+        if (productIds.length > 0) {
+            // Bu kimliklerle eşleşen gerçek ürünleri bul
+            const supplierProducts = products.filter(product => 
+                productIds.includes(product.productID)
+            );
+            
+            console.log(`Mağaza ID ${storeId} için bulunabilecek ${supplierProducts.length} / ${productIds.length} ürün var`);
+            
+            if (supplierProducts.length > 0) {
+                // Rastgele karıştırmak yerine, storeId'yi kullanarak deterministik bir şekilde ürünleri seç
+                // Bu şekilde her seferinde aynı ürünler görülecek
+                const sortedProducts = [...supplierProducts].sort((a, b) => {
+                    // storeId kullanarak deterministik bir sıralama, böylece her yenileme için aynı olacak
+                    const hashA = (a.productID * storeId) % 997;
+                    const hashB = (b.productID * storeId) % 997;
+                    return hashA - hashB;
+                });
+                
+                // İlk 3 ürünü seç (veya daha az varsa tümünü)
+                const selected = sortedProducts.slice(0, Math.min(3, sortedProducts.length));
+                
+                console.log(`🔍 Mağaza ID ${storeId} için ${selected.length} sabit ürün seçildi (${supplierProducts.length} ürün içinden)`);
+                
+                // Önbelleğe al
+                storeProductsCache[storeId] = selected;
+                return selected;
+            }
+        }
+        
+        // Hiç ürün bulunamazsa boş liste döndür
+        console.log(`⚠️ Mağaza ID ${storeId} için hiç ürün bulunamadı`);
+        storeProductsCache[storeId] = [];
+        return [];
+    };
+
+    // Görsel yükleme süreci - mağaza ve ürün resimlerini sıralı şekilde yükler
+    useEffect(() => {
+        if (isLoading) return;
+        if (loadingImages) return; // Hali hazırda yükleme yapılıyorsa, bekle
+        if (storeImagesLoaded) return; // Eğer görüntüler yüklendiyse tekrar yükleme yapma
+        
+        const loadAllImages = async () => {
+            setLoadingImages(true);
+            
+            try {
+                // Log: tüm mağazaların ve ürünlerini yazdır
+                console.log("📊 TÜM MAĞAZALAR VE ÜRÜNLERİ");
+                
+                // GlobalStore'dan productSupplier haritasını al
+                const productSupplierMap = (window as any).productSupplierMap || {};
+                
+                // Her mağaza için atanan ürünleri yazdır
+                allStores.forEach((store, index) => {
+                    const storeProductIds = productSupplierMap[store.supplierID] || [];
+                    console.log(`🏬 ${store.supplierName} (ID: ${store.supplierID}) - ${index+1}. sırada: ${storeProductIds.length} ürün:`);
+                    console.log(`   Ürün ID'leri: [${storeProductIds.join(', ')}]`);
+                });
+                
+                // 1. ADIM: ÖNCE TÜM MAĞAZA GÖRSELLERİNİ YÜKLE - İLK FOLLOWED, SONRA UNFOLLOWED
+                console.log("🔄 Mağaza görselleri yükleniyor...");
+                
+                // Tüm mağazalara placeholder atama
+                [...suppliers, ...allStores.filter(store => !followedSuppliers.has(store.supplierID))].forEach(store => {
+                    if (!supplierImages[store.supplierID]) {
+                        setSupplierImages(prev => ({
+                            ...prev,
+                            [store.supplierID]: DEFAULT_PLACEHOLDER
+                        }));
+                    }
+                });
+                
+                // İlk önce takip edilen mağazaların görsellerini yükle
+                console.log(`🔵 ADIM 1/4: Takip edilen ${suppliers.length} mağazanın görselleri yükleniyor...`);
+                const followedImagePromises = [];
+                
+                for (const store of suppliers) {
+                    const loadStoreImage = async () => {
+                        try {
+                            const generatedPrompt = generatePrompt(
+                                store.supplierName,
+                                "modern storefront design with professional appearance"
+                            );
+                            
+                            const response = await fetch('/api/ImageCache', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    pageID: 'my-followed-stores',
+                                    prompt: generatedPrompt.prompt,
+                                    checkOnly: false
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data.success && data.image) {
+                                    const imageUrl = `data:image/jpeg;base64,${data.image}`;
+                                    setSupplierImages(prev => ({
+                                        ...prev,
+                                        [store.supplierID]: imageUrl
+                                    }));
+                                    console.log(`✅ [FOLLOWED] Mağaza ID ${store.supplierID} (${store.supplierName}) için görsel yüklendi`);
+                                }
+                            }
+                        } catch (error) {
+                            console.error(`❌ Mağaza ID ${store.supplierID} için görsel yüklenemedi:`, error);
+                        }
+                    };
+                    
+                    followedImagePromises.push(loadStoreImage().then(() => 
+                        new Promise(resolve => setTimeout(resolve, 300))
+                    ));
+                }
+                
+                // Takip edilen mağazaların görsellerinin yüklenmesini bekle
+                await Promise.all(followedImagePromises);
+                console.log("✅ Takip edilen tüm mağaza görselleri yüklendi");
+                
+                // Sonra takip edilmeyen mağazaların görsellerini yükle
+                const unfollowedStores = allStores.filter(store => !followedSuppliers.has(store.supplierID));
+                console.log(`🔵 ADIM 2/4: Takip edilmeyen ${unfollowedStores.length} mağazanın görselleri yükleniyor...`);
+                
+                const unfollowedImagePromises = [];
+                
+                for (const store of unfollowedStores) {
+                    const loadStoreImage = async () => {
+                        try {
+                            const generatedPrompt = generatePrompt(
+                                store.supplierName,
+                                "modern storefront design with professional appearance"
+                            );
+                            
+                            const response = await fetch('/api/ImageCache', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    pageID: 'my-followed-stores',
+                                    prompt: generatedPrompt.prompt,
+                                    checkOnly: false
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data.success && data.image) {
+                                    const imageUrl = `data:image/jpeg;base64,${data.image}`;
+                                    setSupplierImages(prev => ({
+                                        ...prev,
+                                        [store.supplierID]: imageUrl
+                                    }));
+                                    console.log(`✅ [UNFOLLOWED] Mağaza ID ${store.supplierID} (${store.supplierName}) için görsel yüklendi`);
+                                }
+                            }
+                        } catch (error) {
+                            console.error(`❌ Mağaza ID ${store.supplierID} için görsel yüklenemedi:`, error);
+                        }
+                    };
+                    
+                    unfollowedImagePromises.push(loadStoreImage().then(() => 
+                        new Promise(resolve => setTimeout(resolve, 300))
+                    ));
+                }
+                
+                // Takip edilmeyen mağazaların görsellerinin yüklenmesini bekle
+                await Promise.all(unfollowedImagePromises);
+                console.log("✅ Takip edilmeyen tüm mağaza görselleri yüklendi");
+                console.log("🎉 TÜM MAĞAZA GÖRSELLERİ BAŞARIYLA YÜKLENDİ");
+                
+                // Mağaza görselleri yüklenme işlemi tamamlandı
+                storeImagesLoadingComplete.value = true;
+                
+                // 3. ADIM: TÜM MAĞAZALAR İÇİN PRODUCT-SUPPLIER İLİŞKİLERİNİ DOĞRU KURARIM
+                console.log(`🔄 Tüm mağazalar için ürün ilişkileri kuruluyor...`);
+                
+                // Önce tüm mağazalar için rastgele 3 ürün seçimini yap
+                allStores.forEach(store => {
+                    // Önbelleği temizle ve yeniden ürünleri getir
+                    delete storeProductsCache[store.supplierID];
+                    
+                    // Ürünleri getir ve önbelleğe al
+                    storeProductsCache[store.supplierID] = getStoreProducts(store.supplierID);
+                });
+                
+                // 4. ADIM: ÜRÜN GÖRSELLERİNİ YÜKLE - ÖNCE FOLLOWED SONRA UNFOLLOWED STORES
+                console.log(`🔵 ADIM 3/4: Takip edilen mağazaların ürün görselleri yükleniyor...`);
+                
+                // Önce takip edilen mağazaların ürünlerini yükle
+                for (const store of suppliers) {
+                    // Bu mağazanın ürünlerini al
+                    const storeProducts = storeProductsCache[store.supplierID] || [];
+                    
+                    if (storeProducts.length === 0) {
+                        console.log(`ℹ️ Mağaza ID ${store.supplierID} (${store.supplierName}) için hiç ürün bulunamadı`);
+                        continue;
+                    }
+                    
+                    console.log(`🔄 [FOLLOWED] Mağaza: ${store.supplierName} için ${storeProducts.length} ürün görseli yükleniyor...`);
+                    
+                    // Önce tüm ürünlere placeholder atama
+                    for (const product of storeProducts) {
+                        if (!productImages[product.productID]) {
+                            setProductImages(prev => ({
+                                ...prev,
+                                [product.productID]: DEFAULT_PLACEHOLDER
+                            }));
+                        }
+                    }
+                    
+                    // Bu mağazanın tüm ürünlerinin görsellerini sırayla yükle
+                    for (const product of storeProducts) {
+                        try {
+                            const categoryKey = product.categoryName as CategoryKey || 'default';
+                            const categoryPrompt = basePrompts[categoryKey] || basePrompts.default;
+                            const prompt = categoryPrompt.main(product.productName);
+                            
+                            const response = await fetch('/api/ImageCache', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    pageID: 'products',
+                                    prompt: prompt,
+                                    checkOnly: false
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data.success && data.image) {
+                                    const imageUrl = `data:image/jpeg;base64,${data.image}`;
+                                    setProductImages(prev => ({
+                                        ...prev,
+                                        [product.productID]: imageUrl
+                                    }));
+                                    console.log(`✅ [FOLLOWED] Mağaza: ${store.supplierName} - Ürün ID ${product.productID} (${product.productName}) için görsel yüklendi`);
+                                }
+                            }
+                            
+                            // Her ürün arasında kısa bir gecikme
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                        } catch (error) {
+                            console.error(`❌ Ürün ID ${product.productID} için görsel yüklenemedi:`, error);
+                        }
+                    }
+                    
+                    console.log(`✅ [FOLLOWED] Mağaza: ${store.supplierName} için tüm ürün görselleri yüklendi`);
+                }
+                
+                console.log("✅ Takip edilen mağazaların tüm ürün görselleri yüklendi");
+                console.log(`🔵 ADIM 4/4: Takip edilmeyen mağazaların ürün görselleri yükleniyor...`);
+                
+                // Sonra takip edilmeyen mağazaların ürünlerini yükle
+                for (const store of unfollowedStores) {
+                    // Bu mağazanın ürünlerini al
+                    const storeProducts = storeProductsCache[store.supplierID] || [];
+                    
+                    if (storeProducts.length === 0) {
+                        console.log(`ℹ️ Mağaza ID ${store.supplierID} (${store.supplierName}) için hiç ürün bulunamadı`);
+                        continue;
+                    }
+                    
+                    console.log(`🔄 [UNFOLLOWED] Mağaza: ${store.supplierName} için ${storeProducts.length} ürün görseli yükleniyor...`);
+                    
+                    // Önce tüm ürünlere placeholder atama
+                    for (const product of storeProducts) {
+                        if (!productImages[product.productID]) {
+                            setProductImages(prev => ({
+                                ...prev,
+                                [product.productID]: DEFAULT_PLACEHOLDER
+                            }));
+                        }
+                    }
+                    
+                    // Bu mağazanın tüm ürünlerinin görsellerini sırayla yükle
+                    for (const product of storeProducts) {
+                        try {
+                            const categoryKey = product.categoryName as CategoryKey || 'default';
+                            const categoryPrompt = basePrompts[categoryKey] || basePrompts.default;
+                            const prompt = categoryPrompt.main(product.productName);
+                            
+                            const response = await fetch('/api/ImageCache', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    pageID: 'products',
+                                    prompt: prompt,
+                                    checkOnly: false
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data.success && data.image) {
+                                    const imageUrl = `data:image/jpeg;base64,${data.image}`;
+                                    setProductImages(prev => ({
+                                        ...prev,
+                                        [product.productID]: imageUrl
+                                    }));
+                                    console.log(`✅ [UNFOLLOWED] Mağaza: ${store.supplierName} - Ürün ID ${product.productID} (${product.productName}) için görsel yüklendi`);
+                                }
+                            }
+                            
+                            // Her ürün arasında kısa bir gecikme
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                        } catch (error) {
+                            console.error(`❌ Ürün ID ${product.productID} için görsel yüklenemedi:`, error);
+                        }
+                    }
+                    
+                    console.log(`✅ [UNFOLLOWED] Mağaza: ${store.supplierName} için tüm ürün görselleri yüklendi`);
+                }
+                
+                console.log("🎉 TÜM GÖRSEL YÜKLEME İŞLEMLERİ BAŞARIYLA TAMAMLANDI");
+                
+            } catch (error) {
+                console.error('❌ Görsel yükleme hatası:', error);
+            } finally {
+                setLoadingImages(false);
+                setStoreImagesLoaded(true);
+            }
+        };
+        
+        // Sayfa ilk yüklendiğinde hemen başlamasın, biraz beklesin
+        const timer = setTimeout(loadAllImages, 1000);
+        
+        return () => clearTimeout(timer);
+        
+    }, [isLoading, activeTab, storeImagesLoaded]);
+    
+    // Mağaza resimlerinden önce ürünlerin local kopya resimlerini gösterme için
+    useEffect(() => {
+        if (!products || products.length === 0) return;
+        
+        // Sayfa açılır açılmaz tüm ürünlere placeholder atama
+        // Bu sayede önce placeholder görünecek, sonra gerçek resimler gelince değişecek
+        products.forEach(product => {
+            if (!productImages[product.productID]) {
+                setProductImages(prev => ({
+                    ...prev,
+                    [product.productID]: DEFAULT_PLACEHOLDER
+                }));
+            }
+        });
+    }, [products]);
+
+    // Sekme değiştiğinde mağaza görsellerini yeniden yüklemeyi tetikle
+    useEffect(() => {
+        setStoreImagesLoaded(false); // Tab değiştiğinde, görsel yükleme işlemini sıfırla
+    }, [activeTab]);
+
+    // Yükleme ekranı
     if (isLoading) {
         return (
             <div className="flex justify-center items-center min-h-screen">
@@ -473,6 +602,7 @@ export default function MyFollowedStores() {
         );
     }
 
+    // Hata ekranı
     if (error) {
         return (
             <div className="flex justify-center items-center min-h-screen">
@@ -481,68 +611,143 @@ export default function MyFollowedStores() {
         );
     }
 
+    // Mağaza listesini belirleme
+    const storesToShow = activeTab === 'followed' 
+        ? suppliers 
+        : allStores.filter(store => !followedSuppliers.has(store.supplierID));
+
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="flex items-center justify-center">
-                <h1 style={{color: '#5365BF'}} className="text-5xl font-bold mt-12">My Followed Stores</h1>
+                <h1 style={{color: '#5365BF'}} className="text-5xl font-bold mt-12">Stores</h1>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-                {suppliers.map((supplier) => (
-                    <div
-                        key={supplier.supplierID}
-                        className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
-                    >
-                        <div className="relative h-48">
-                            <Image
-                                src={supplierImages[supplier.supplierID] || DEFAULT_PLACEHOLDER}
-                                alt={supplier.supplierName}
-                                fill
-                                className="object-cover"
-                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                unoptimized
-                            />
-                            {isGenerating[supplier.supplierID] && (
-                                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
-                                </div>
-                            )}
-                        </div>
+            {/* Sekme Başlıkları */}
+            <div className="flex justify-center mt-8 border-b border-gray-200">
+                <button
+                    className={`px-6 py-3 font-medium text-lg ${activeTab === 'followed' 
+                        ? 'text-blue-600 border-b-2 border-blue-600' 
+                        : 'text-gray-500 hover:text-gray-700'}`}
+                    onClick={() => setActiveTab('followed')}
+                >
+                    My Followed Stores
+                </button>
+                <button
+                    className={`px-6 py-3 font-medium text-lg ${activeTab === 'all' 
+                        ? 'text-blue-600 border-b-2 border-blue-600' 
+                        : 'text-gray-500 hover:text-gray-700'}`}
+                    onClick={() => setActiveTab('all')}
+                >
+                    Unfollowed Stores
+                </button>
+            </div>
 
-                        <div className="p-6">
-                            <h2 className="text-xl font-semibold mb-2">{supplier.supplierName}</h2>
-                            <p className="text-gray-600 mb-4">{supplier.contactEmail}</p>
-
-                            {/* Custom Prompt Input */}
-                            <div className="mb-4">
-                                <textarea
-                                    value={customPrompts[supplier.supplierID] || ''}
-                                    onChange={(e) => handlePromptChange(supplier.supplierID, e.target.value)}
-                                    placeholder="Enter custom prompt for image generation..."
-                                    className="w-full p-2 border rounded-lg text-sm"
-                                    rows={2}
-                                />
-                            </div>
-
-                            <div className="flex justify-between items-center">
-                                <button
-                                    onClick={() => handleRegenerateImage(supplier)}
-                                    disabled={isGenerating[supplier.supplierID]}
-                                    className={`bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-300 ${
-                                        isGenerating[supplier.supplierID] ? 'opacity-50 cursor-not-allowed' : ''
-                                    }`}
-                                >
-                                    {isGenerating[supplier.supplierID] ? 'Generating...' : 'Regenerate Image'}
-                                </button>
-                                <button
-                                    className="text-red-500 hover:text-red-600 transition-colors duration-300"
-                                >
-                                    Unfollow
-                                </button>
-                            </div>
-                        </div>
+            {/* Mağaza listesi */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
+                {storesToShow.length === 0 ? (
+                    <div className="col-span-full text-center py-12 text-gray-500">
+                        {activeTab === 'followed' 
+                            ? "You haven't followed any stores yet. Check the 'Unfollowed Stores' tab to follow some." 
+                            : "No more stores to follow. You've followed them all!"}
                     </div>
-                ))}
+                ) : (
+                    storesToShow.map((store) => {
+                        // Mağaza ürünlerini al
+                        const storeProducts = getStoreProducts(store.supplierID);
+                        
+                        return (
+                            <div
+                                key={store.supplierID}
+                                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
+                            >
+                                <div className="relative h-52">
+                                    <Image
+                                        src={supplierImages[store.supplierID] || DEFAULT_PLACEHOLDER}
+                                        alt={store.supplierName}
+                                        fill
+                                        className="object-cover"
+                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                        unoptimized
+                                    />
+                                    {isGenerating[store.supplierID] && (
+                                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="p-6">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h2 className="text-xl font-semibold">{store.supplierName}</h2>
+                                        <div className="flex items-center bg-blue-50 px-3 py-1 rounded-full">
+                                            <span className="text-yellow-500 mr-1">★</span>
+                                            <span className="font-semibold">{supplierRatings[store.supplierID]}</span>
+                                            <span className="text-gray-500 text-sm">/10</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <p className="text-gray-600 mb-4">{store.contactEmail}</p>
+
+                                    {/* Satıcı Ürünleri Bölümü */}
+                                    <div className="mb-6">
+                                        <h3 className="text-lg font-semibold border-b pb-2 mb-3">Seller's Products</h3>
+                                        {storeProducts.length > 0 ? (
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {storeProducts.map(product => (
+                                                    <Link 
+                                                        href={`/product/${product.productID}`} 
+                                                        key={product.productID}
+                                                        className="block group"
+                                                    >
+                                                        <div className="relative h-20 mb-1 overflow-hidden rounded">
+                                                            <Image
+                                                                src={productImages[product.productID] || DEFAULT_PLACEHOLDER}
+                                                                alt={product.productName}
+                                                                fill
+                                                                className="object-cover group-hover:scale-110 transition-transform duration-300"
+                                                                sizes="(max-width: 768px) 50vw, 120px"
+                                                                unoptimized
+                                                            />
+                                                        </div>
+                                                        <p className="text-xs font-medium truncate">{product.productName}</p>
+                                                        <p className="text-xs text-blue-600">${product.price.toFixed(2)}</p>
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-gray-500 text-center py-2">No products available for this store.</p>
+                                        )}
+                                        <Link 
+                                            href={`/store/details/${store.supplierID}`} 
+                                            className="block text-center text-blue-600 hover:text-blue-800 text-sm mt-3"
+                                        >
+                                            View All Products
+                                        </Link>
+                                    </div>
+
+                                    {/* Takip Et / Takibi Bırak butonu */}
+                                    <div>
+                                        {followedSuppliers.has(store.supplierID) ? (
+                                            <button
+                                                onClick={() => handleUnfollowStore(store.supplierID)}
+                                                className="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-300"
+                                            >
+                                                Unfollow
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleFollowStore(store.supplierID)}
+                                                className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-300"
+                                            >
+                                                Follow
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
             </div>
         </div>
     );

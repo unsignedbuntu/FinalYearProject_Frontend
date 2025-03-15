@@ -493,3 +493,76 @@ export const deleteCacheImage = async (id: number) => {
 
   return response.json();
 };
+export const getLoyaltyPrograms = async () => {
+  try {
+    const response = await fetch(`${process.env.URL}/api/LoyaltyPrograms`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json', 
+      },
+      mode: 'cors',
+      cache: 'no-store'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching suppliers:', error);
+    return [];
+  }
+};
+
+export const getLoyaltyProgramById = async (id: number) => {
+    const response = await fetch(`${process.env.URL}/api/LoyaltyPrograms/${id}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      mode: 'cors',
+      cache: 'no-store'
+    });
+  return response.json();
+};
+
+export const createLoyaltyProgram = async (data: any) => {
+    const response = await fetch(`${process.env.URL}/api/LoyaltyPrograms`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+     mode: 'cors',
+    cache: 'no-store',
+    body: JSON.stringify(data),
+  });
+  
+  return response.json();
+};
+
+export const updateLoyaltyProgram = async (id: number, data: any) => {
+  const response = await fetch(`${process.env.URL}/api/LoyaltyPrograms/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+     mode: 'cors',
+    cache: 'no-store',
+    body: JSON.stringify(data),
+  });
+
+  return response.json();
+};
+
+export const deleteLoyaltyProgram = async (id: number) => {
+  const response = await fetch(`${process.env.URL}/api/LoyaltyPrograms/SoftDelete_Status${id}`, {
+    method: 'DELETE',
+  });
+
+  return response.json();
+};
