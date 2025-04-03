@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { getProducts, getProductSuppliers, getStores } from '@/services/Category_Actions';
+import { getProducts, getProductSuppliers, getStores } from '@/services/API_Service';
 import ProductCard from '@/components/ProductCard';
 import { Product } from '@/types';
 

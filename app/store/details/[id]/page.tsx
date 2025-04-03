@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getCategories, getProducts, getStores, getCategoriesById } from '@/services/Category_Actions';
+import { getCategories, getProducts, getStores, getCategoriesById } from '@/services/API_Service';
 import { Product, Category, Store } from '@/app/product/[id]/types/Product';
 import { basePrompts } from '@/app/product/[id]/data/basePrompts';
 import { CategoryKey } from '@/app/product/[id]/data/basePrompts';

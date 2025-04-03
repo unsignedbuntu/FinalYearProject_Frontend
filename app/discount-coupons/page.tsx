@@ -7,10 +7,10 @@ import CouponCard from '@/components/CouponCard'
 
 // Örnek veri
 const COUPONS = [
-  { id: 1, amount: 20, minimumLimit: 200, validUntil: '10 January 2025', supplier: 'Trendyol' },
-  { id: 2, amount: 500, minimumLimit: 2700, validUntil: '12 January 2025', supplier: 'Hepsiburada' },
-  { id: 3, amount: 250, minimumLimit: 1200, validUntil: '12 January 2025', supplier: 'Amazon' },
-  { id: 4, amount: 400, minimumLimit: 2300, validUntil: '12 January 2025', supplier: 'N11' }
+  { id: 1, amount: 20, minimumLimit: 200, validUntil: '10 April 2025', supplier: 'Trendyol' },
+  { id: 2, amount: 500, minimumLimit: 2700, validUntil: '12 April 2025', supplier: 'Hepsiburada' },
+  { id: 3, amount: 250, minimumLimit: 1200, validUntil: '12 April 2025', supplier: 'Amazon' },
+  { id: 4, amount: 400, minimumLimit: 2300, validUntil: '12 April 2025', supplier: 'N11' }
 ]
 
 const ITEMS_PER_PAGE = 4

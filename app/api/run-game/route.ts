@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { createLoyaltyProgram } from '@/services/Category_Actions';
+import { createLoyaltyProgram } from '@/services/API_Service';
 
 // Dosya yolları
 const projectRoot = process.cwd();

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getCategories, getProducts, getStores } from '@/services/Category_Actions';
+import { getCategories, getProducts, getStores } from '@/services/API_Service';
 
 interface Category {
   categoryID: number;

@@ -44,7 +44,7 @@ const CouponCard: React.FC<CouponCardProps> = ({
           <span className="font-raleway text-[14px] font-normal">
             Valid for all products from supplier
           </span>
-          <span className="font-raleway text-[20px] font-normal text-[#00FFB7]">
+          <span className="font-raleway text-[28px] font-normal text-[#00FFB7]">
             {supplier}
           </span>
         </div>

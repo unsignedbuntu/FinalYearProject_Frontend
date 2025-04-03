@@ -108,8 +108,8 @@ export default function Sidebar() {
             </div>
           </Link>
 
-          <Link href="/address-info">
-            <div className={`flex items-center gap-2 mb-2 p-2 hover:bg-[#FFE8D6] rounded-md transition-colors -mx-4 pl-2 ${pathname === '/address-info' ? 'bg-[#00EEFF]' : ''}`}>
+          <Link href="/address/new">
+            <div className={`flex items-center gap-2 mb-2 p-2 hover:bg-[#FFE8D6] rounded-md transition-colors -mx-4 pl-2 ${pathname.startsWith('/address') ? 'bg-[#00EEFF]' : ''}`}>
               <div className="w-[40px] flex justify-start">
                 <Address width={37} height={37} color="#000000" />
               </div>

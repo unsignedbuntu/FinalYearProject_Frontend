@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getCategories, getProducts, getStores } from '@/services/Category_Actions';
+import { getCategories, getProducts, getStores } from '@/services/API_Service';
 import { Product, Category, Store } from '@/app/product/[id]/types/Product';
 
 export default function StoreDetailsPage() {

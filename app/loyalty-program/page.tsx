@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from 'react';
-import { getLoyaltyPrograms } from '@/services/Category_Actions';
+import { getLoyaltyPrograms } from '@/services/API_Service';
 import Image from 'next/image';
 import Link from 'next/link';
 

@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import { getProducts, getProductSuppliers, getStores, getSuppliers, createCacheImage, getCategories } from '@/services/Category_Actions';
+import { getProducts, getProductSuppliers, getStores, getSuppliers, createCacheImage, getCategories } from '@/services/API_Service';
 import CartFavorites from '@/components/icons/CartFavorites';
 import FavoriteIcon from '@/components/icons/FavoriteIcon';
 import FavoritesPageHover from '@/components/icons/FavoritesPageHover';

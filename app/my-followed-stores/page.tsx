@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from 'react';
-import { getSuppliers, getProducts, getProductSuppliers } from '@/services/Category_Actions';
+import { getSuppliers, getProducts, getProductSuppliers } from '@/services/API_Service';
 import { generateImage, generatePrompt } from '@/services/image-generation';
 import Image from 'next/image';
 import Link from 'next/link';

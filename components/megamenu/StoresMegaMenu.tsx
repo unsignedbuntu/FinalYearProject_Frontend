@@ -4,7 +4,7 @@ import Link from 'next/link'
 import TicIcon from '../icons/TicIcon'
 import TicHover from '../icons/Tic_Hover'
 import ArrowRight from '../icons/ArrowRight'
-import { getStores, getCategories, getProducts } from '@/services/Category_Actions'
+import { getStores, getCategories, getProducts } from '@/services/API_Service'
 
 interface Store {
   storeID: number;
