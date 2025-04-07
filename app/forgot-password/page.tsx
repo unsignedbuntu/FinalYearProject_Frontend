@@ -21,8 +21,8 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen relative">
       <Image
-        src="/icons/Sign.png"
-        alt="Background"
+        src="/Register.png"
+        alt="Register background"
         fill
         className="object-cover"
         priority
