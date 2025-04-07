@@ -4,20 +4,26 @@ import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import Visible from "@/components/icons/Visible";
 import Unvisible from "@/components/icons/Unvisible";
-import SigninSuccessMessage from "@/components/messages/SigninSuccessMessage";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function SignInPage() {
   const router = useRouter();
+  const { login, isLoading } = useAuth();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSignIn = () => {
-    setShowSuccessMessage(true);
-    setTimeout(() => {
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    try {
+      await login(email, password);
       router.push('/');
-    }, 3000);
+    } catch (err: any) {
+      console.error("Sign in failed:", err);
+      setError(err.response?.data?.message || err.message || "Sign in failed. Please check your credentials.");
+    }
   };
 
   return (
@@ -46,15 +52,21 @@ export default function SignInPage() {
           Management Store
         </h1>
 
-        <div className="w-[300px] space-y-4">
+        <form onSubmit={handleSignIn} className="w-[300px] space-y-4">
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
           <div className="relative">
             <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              required
               className="w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 focus:ring-[#B4D4FF]"
-              aria-label="Username"
+              aria-label="Email"
             />
           </div>
 
@@ -64,11 +76,15 @@ export default function SignInPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
+              required
               className="w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 focus:ring-[#B4D4FF]"
               aria-label="Password"
             />
             <button
-              onClick={() => setIsPasswordVisible(!isPasswordVisible)}
+              onClick={(e) => {
+                e.preventDefault();
+                setIsPasswordVisible(!isPasswordVisible);
+              }}
               aria-label={isPasswordVisible ? "Hide password" : "Show password"}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-black"
             >
@@ -86,10 +102,11 @@ export default function SignInPage() {
           </div>
 
           <button 
-            onClick={handleSignIn}
-            className="w-full bg-[#B4D4FF] text-black font-medium py-2 rounded-lg hover:bg-[#86B6F6]"
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-[#B4D4FF] text-black font-medium py-2 rounded-lg hover:bg-[#86B6F6] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Sign in
+            {isLoading ? 'Signing in...' : 'Sign in'}
           </button>
 
           <div className="text-center text-white">
@@ -101,7 +118,7 @@ export default function SignInPage() {
               Sign Up
             </button>
           </div>
-        </div>
+        </form>
 
         <div className="absolute bottom-12 left-12 max-w-md">
       
@@ -128,11 +145,6 @@ export default function SignInPage() {
             </h2>
           </div>
       </div>
-
-
-      {showSuccessMessage && (
-        <SigninSuccessMessage onClose={() => setShowSuccessMessage(false)} />
-      )}
     </div>
   );
 }

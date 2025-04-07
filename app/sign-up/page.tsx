@@ -4,13 +4,13 @@ import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import Visible from "@/components/icons/Visible";
 import Unvisible from "@/components/icons/Unvisible";
-import SignupSuccessMessage from "@/components/messages/SignupSuccessMessage";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function SignUpPage() {
   const router = useRouter();
+  const { register, isLoading } = useAuth();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   const [formData, setFormData] = useState({
@@ -46,12 +46,8 @@ export default function SignUpPage() {
       newErrors.birthDate = 'Birth date is required';
     }
 
-    if (!formData.phoneNumber) newErrors.phoneNumber = 'Phone number is required';
-    else if (formData.phoneNumber.startsWith('0')) {
-      newErrors.phoneNumber = 'Please enter your phone number without the leading zero';
-    }
-    else if (!/^\d{10}$/.test(formData.phoneNumber)) {
-      newErrors.phoneNumber = 'Phone number must be 10 digits';
+    if (formData.phoneNumber && !/^\d{10}$/.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = 'Phone number must be 10 digits and without leading zero';
     }
 
     if (!formData.password) newErrors.password = 'Password is required';
@@ -66,20 +62,18 @@ export default function SignUpPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSignUp = () => {
-    setShowSuccessMessage(true);
-    setTimeout(() => {
-      router.push('/');
-    }, 3000);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
     if (validateForm()) {
-      setShowSuccessMessage(true);
-      setTimeout(() => {
-        router.push('/');
-      }, 2000);
+      try {
+        const { confirmPassword, birthDay, birthMonth, birthYear, ...registerData } = formData;
+        await register(registerData);
+        router.push('/signin?registered=true');
+      } catch (err: any) {
+        console.error("Sign up failed:", err);
+        setErrors({ form: err.response?.data?.message || err.message || "Sign up failed. Please try again." });
+      }
     }
   };
 
@@ -89,11 +83,16 @@ export default function SignUpPage() {
       ...prev,
       [name]: value
     }));
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
         [name]: ''
+      }));
+    }
+    if (errors.form) {
+      setErrors(prev => ({
+        ...prev,
+        form: ''
       }));
     }
   };
@@ -124,6 +123,11 @@ export default function SignUpPage() {
         </h1>
 
         <form onSubmit={handleSubmit} className="w-[400px] space-y-4">
+          {errors.form && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center" role="alert">
+              <span className="block sm:inline">{errors.form}</span>
+            </div>
+          )}
           <div className="relative">
             <input
               type="text"
@@ -131,7 +135,8 @@ export default function SignUpPage() {
               value={formData.firstName}
               onChange={handleInputChange}
               placeholder="First name"
-              className="w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 focus:ring-[#B4D4FF]"
+              required
+              className={`w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 ${errors.firstName ? 'ring-red-500' : 'focus:ring-[#B4D4FF]'}`}
             />
             {errors.firstName && <div className="text-red-500 text-sm mt-1">{errors.firstName}</div>}
           </div>
@@ -143,7 +148,8 @@ export default function SignUpPage() {
               value={formData.lastName}
               onChange={handleInputChange}
               placeholder="Last name"
-              className="w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 focus:ring-[#B4D4FF]"
+              required
+              className={`w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 ${errors.lastName ? 'ring-red-500' : 'focus:ring-[#B4D4FF]'}`}
             />
             {errors.lastName && <div className="text-red-500 text-sm mt-1">{errors.lastName}</div>}
           </div>
@@ -155,7 +161,8 @@ export default function SignUpPage() {
               value={formData.email}
               onChange={handleInputChange}
               placeholder="Email"
-              className="w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 focus:ring-[#B4D4FF]"
+              required
+              className={`w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 ${errors.email ? 'ring-red-500' : 'focus:ring-[#B4D4FF]'}`}
             />
             {errors.email && <div className="text-red-500 text-sm mt-1">{errors.email}</div>}
           </div>
@@ -204,10 +211,9 @@ export default function SignUpPage() {
               name="phoneNumber"
               value={formData.phoneNumber}
               onChange={handleInputChange}
-              placeholder="Phone number"
-              className="w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 focus:ring-[#B4D4FF]"
+              placeholder="Phone number (Optional)"
+              className={`w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 ${errors.phoneNumber ? 'ring-red-500' : 'focus:ring-[#B4D4FF]'}`}
             />
-            <div className="text-white text-sm mt-1">Please enter your phone number without the leading zero.</div>
             {errors.phoneNumber && <div className="text-red-500 text-sm mt-1">{errors.phoneNumber}</div>}
           </div>
 
@@ -218,7 +224,8 @@ export default function SignUpPage() {
               value={formData.password}
               onChange={handleInputChange}
               placeholder="Password"
-              className="w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 focus:ring-[#B4D4FF]"
+              required
+              className={`w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 ${errors.password ? 'ring-red-500' : 'focus:ring-[#B4D4FF]'}`}
             />
             <button
               type="button"
@@ -237,7 +244,8 @@ export default function SignUpPage() {
               value={formData.confirmPassword}
               onChange={handleInputChange}
               placeholder="Confirm password"
-              className="w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 focus:ring-[#B4D4FF]"
+              required
+              className={`w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 ${errors.confirmPassword ? 'ring-red-500' : 'focus:ring-[#B4D4FF]'}`}
             />
             <button
               type="button"
@@ -250,11 +258,12 @@ export default function SignUpPage() {
           </div>
 
           <button 
-           onClick={handleSignUp}
-            className="w-[300px] h-[75px] bg-[#8EE7ED] text-black rounded-[40px] mx-auto block hover:bg-[#7ad4da] transition-colors"
+            type="submit"
+            disabled={isLoading}
+            className="w-[300px] h-[75px] bg-[#8EE7ED] text-black rounded-[40px] mx-auto block hover:bg-[#7ad4da] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span className="font-raleway text-[36px] font-normal text-center">
-              Sign up
+              {isLoading ? 'Signing up...' : 'Sign up'}
             </span>
           </button>
 
@@ -292,10 +301,6 @@ export default function SignUpPage() {
           </h2>
         </div>
       </div>
-
-      {showSuccessMessage && (
-        <SignupSuccessMessage onClose={() => setShowSuccessMessage(false)} />
-      )}
     </div>
   );
 } 

@@ -1,6 +1,27 @@
 import axios from 'axios';
 import https from 'https';
 
+// Create an Axios instance
+const api = axios.create({
+  baseURL: process.env.URL, // Use environment variable or default
+  httpsAgent: new https.Agent({ rejectUnauthorized: false }) // Keep this if needed for local dev with self-signed certs
+});
+
+// Request interceptor to add the JWT token
+api.interceptors.request.use((config) => {
+  // Check if running on the client side before accessing localStorage
+  if (typeof window !== 'undefined') { 
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
+// Export the configured Axios instance
+export { api };
+
 export const getCategories = async () => {
   try {
     const result = await fetch(`${process.env.URL}/api/Categories`, { 

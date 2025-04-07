@@ -2,12 +2,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import { getProducts, getProductSuppliers, getStores, getSuppliers, createCacheImage, getCategories } from '@/services/API_Service';
+import { getProducts, getProductSuppliers, getStores, getSuppliers, getCategories } from '@/services/API_Service';
 import CartFavorites from '@/components/icons/CartFavorites';
 import FavoriteIcon from '@/components/icons/FavoriteIcon';
 import FavoritesPageHover from '@/components/icons/FavoritesPageHover';
 import CartSuccessMessage from '@/components/messages/CartSuccessMessage';
-import { generateProductPrompt } from './data/basePrompts';
 import { categoryReviews } from './data/categoryReviews';
 import { Product, ProductSupplier, Store, Category } from './types/Product';
 import { basePrompts } from './data/basePrompts';
@@ -1167,7 +1166,7 @@ export default function ProductPage() {
                                         <ul className="list-disc pl-5 text-gray-600">
                                             {productDetails.cancellation.content.map((item, index) => (
                                                 <li key={index}>{item}</li>
-                                            ))}
+                                            ))}                
                                         </ul>
                                     </div>
                                 </div>

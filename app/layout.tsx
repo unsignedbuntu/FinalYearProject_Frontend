@@ -5,6 +5,7 @@ import "./globals.css";
 import Header from "@/components/header/Header";
 import NavigationBar from "@/components/navigation/NavigationBar";
 import { usePathname } from "next/navigation";
+import { AuthProvider } from '@/contexts/AuthContext';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,13 +34,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {!isAuthPage && (
-          <>
-            <Header />
-            <NavigationBar />
-          </>
-        )}
-        <main>{children}</main>
+        <AuthProvider>
+          {!isAuthPage && (
+            <>
+              <Header />
+              <NavigationBar />
+            </>
+          )}
+          <main>{children}</main>
+        </AuthProvider>
       </body>
     </html>
   );
