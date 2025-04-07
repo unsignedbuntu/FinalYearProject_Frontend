@@ -31,9 +31,15 @@ export default function RootLayout({
   const pathname = usePathname();
   const isAuthPage = pathname === "/signin" || pathname === "/sign-up" || pathname === "/forgot-password";
 
+  // Determine the body className based on the page type
+  const bodyClassName = !isAuthPage
+    ? "bg-[url('/Background.png')] bg-cover bg-center bg-no-repeat min-h-screen" // Apply background for non-auth pages
+    : "min-h-screen"; // Basic class for auth pages
+
   return (
     <html lang="en">
-      <body>
+      {/* Apply conditional className to the body */}
+      <body className={bodyClassName}>
         <AuthProvider>
           {!isAuthPage && (
             <>

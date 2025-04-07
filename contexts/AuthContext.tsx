@@ -9,7 +9,7 @@ interface CustomJwtPayload extends JwtPayload {
   // Standard claims (like sub, exp are already in JwtPayload)
   // Add custom claims from your token (adjust based on your backend)
   email?: string;
-  name?: string; // Assuming backend sends a full name claim as 'name'
+  fullName?: string; // Corrected: Use fullName to match backend claim
   // Add other claims like roles if needed: roles?: string[];
 }
 
@@ -34,6 +34,7 @@ interface RegisterData {
   lastName: string;
   email: string;
   password: string;
+  confirmPassword: string; // Re-added: Required by backend DTO validation
   phoneNumber?: string;
 }
 
@@ -58,16 +59,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        // Set user data from decoded token
-        if (decoded.sub && decoded.email && decoded.name) {
+        // Set user data from decoded token - Use fullName
+        if (decoded.sub && decoded.email && decoded.fullName) { // Corrected: Check for fullName
           setUser({
-            id: decoded.sub, // Use 'sub' claim for user ID
+            id: decoded.sub,
             email: decoded.email,
-            fullName: decoded.name, // Use 'name' claim for full name
+            fullName: decoded.fullName, // Corrected: Use fullName
           });
           setIsAuthenticated(true);
         } else {
-          console.error("Token missing required claims (sub, email, name)");
+          console.error("Token missing required claims (sub, email, fullName)"); // Updated error message
           localStorage.removeItem('token');
         }
       } catch (error) {
@@ -80,17 +81,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      // Use the imported 'api' instance
-      const response = await api.post('/Auth/Login', { email, password }); // Match backend casing
+      // Use the imported 'api' instance and the correct full path from Swagger
+      const response = await api.post('/api/Auth/login', { email, password }); // Corrected path
       const { token } = response.data; // Assuming backend returns { token: "..." }
       localStorage.setItem('token', token);
 
       const decoded = jwtDecode<CustomJwtPayload>(token);
-      if (decoded.sub && decoded.email && decoded.name) {
+      // Use fullName after login as well
+      if (decoded.sub && decoded.email && decoded.fullName) { // Corrected: Check for fullName
         setUser({
           id: decoded.sub,
           email: decoded.email,
-          fullName: decoded.name,
+          fullName: decoded.fullName, // Corrected: Use fullName
         });
         setIsAuthenticated(true);
       } else {
@@ -108,11 +110,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (userData: RegisterData) => {
     try {
-      // Backend RegisterDto likely doesn't need confirmPassword, and it's removed from RegisterData interface now
-      // const { confirmPassword, ...registerPayload } = userData; // Remove this line
-      // Use the imported 'api' instance
-      await api.post('/Auth/Register', userData); // Send userData directly
-      // Optionally handle success (e.g., show message), login is usually separate
+      // Send the complete userData, including confirmPassword, as backend expects it
+      await api.post('/api/Auth/register', userData);
     } catch (error) {
       console.error("Registration failed:", error);
       throw error; // Re-throw error to be caught in the component

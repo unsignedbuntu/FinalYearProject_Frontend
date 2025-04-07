@@ -12,20 +12,20 @@ import FavoriteHover from '../icons/FavoritesPageHover'
 import CartHover from '../icons/CartHover'
 import SignInOverlay from '../overlay/SignInOverlay'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function Header() {
   const [isSignInOpen, setIsSignInOpen] = useState(false)
   const router = useRouter()
+  const { user, logout, isAuthenticated } = useAuth()
 
   const toggleSignIn = (e: React.MouseEvent) => {
     e.preventDefault();
-    setIsSignInOpen(!isSignInOpen);
-  };
-
-  const handleCartClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    // Burada sepet kontrolü yapılacak, şimdilik cart sayfasına yönlendir
-    router.push('/cart');
+    if (isAuthenticated) {
+      logout();
+    } else {
+      setIsSignInOpen(true);
+    }
   };
 
   return (
@@ -67,8 +67,7 @@ export default function Header() {
         
         <div className="flex items-center gap-7">
         
-          <Link 
-            href="/sign-up"
+          <button
             onClick={toggleSignIn}
             className="relative w-[182px] h-[58px] bg-[#8CFF75] hover:bg-[#7ee569] rounded-lg transition-colors flex items-center group cursor-pointer"
           >
@@ -81,23 +80,34 @@ export default function Header() {
               </div>
             </div>
             <div className="flex flex-col ml-2" style={{ marginRight: '24px' }}>
-              <span className="text-[20px] group-hover:text-[25px] text-black group-hover:text-[#792AE8] transition-all whitespace-nowrap">Sign in</span>
-              <span className="text-[20px] group-hover:text-[25px] text-black group-hover:text-[#792AE8] transition-all whitespace-nowrap">or sign up</span>
+              {isAuthenticated && user ? (
+                <>
+                   <span className="text-[18px] group-hover:text-[22px] text-black group-hover:text-[#792AE8] transition-all whitespace-nowrap truncate" title={user.fullName}>Hi, {user.fullName.split(' ')[0]}</span>
+                   <span className="text-[14px] group-hover:text-[18px] text-gray-700 group-hover:text-[#792AE8] transition-all whitespace-nowrap">(Click to Logout)</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-[20px] group-hover:text-[25px] text-black group-hover:text-[#792AE8] transition-all whitespace-nowrap">Sign in</span>
+                  <span className="text-[16px] group-hover:text-[20px] text-gray-700 group-hover:text-[#792AE8] transition-all whitespace-nowrap">or sign up</span>
+                </>
+              )}
             </div>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <div className="group-hover:hidden">
-                <Arrowdown />
+            {!isAuthenticated && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="group-hover:hidden">
+                  <Arrowdown />
+                </div>
+                <div className="hidden group-hover:block">
+                  <ArrowdownHover />
+                </div>
               </div>
-              <div className="hidden group-hover:block">
-                <ArrowdownHover />
-              </div>
-            </div>
-          </Link>
+            )}
+          </button>
 
          
           <Link 
             href="/favorites" 
-            className="w-[162px] h-[58px] bg-[#ED7375] hover:bg-[#ED7375] rounded-lg transition-colors flex items-center justify-center gap-2 group"
+            className="w-[162px] h-[58px] bg-[#ED7375] hover:bg-[#d46769] rounded-lg transition-colors flex items-center justify-center gap-2 group"
           >
             <div className="group-hover:hidden">
                 <FavoriteIcon width={24} height={24} />
@@ -112,7 +122,6 @@ export default function Header() {
 
           <Link 
             href="/cart" 
-            onClick={handleCartClick}
             className="w-[162px] h-[58px] bg-[#D9D9D9] hover:bg-[#c2c2c2] rounded-lg transition-colors flex items-center justify-center gap-2 group"
           >
             <div className="group-hover:hidden">
@@ -128,10 +137,12 @@ export default function Header() {
         </div>
       </div>
 
-      <SignInOverlay 
-        isOpen={isSignInOpen}
-        onClose={() => setIsSignInOpen(false)}
-      />
+      {!isAuthenticated && isSignInOpen && (
+        <SignInOverlay 
+          isOpen={isSignInOpen}
+          onClose={() => setIsSignInOpen(false)}
+        />
+      )}
     </header>
   )
 }
