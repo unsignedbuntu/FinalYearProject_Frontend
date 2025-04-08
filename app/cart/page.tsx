@@ -1,6 +1,6 @@
 "use client"
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from '@/components/sidebar/Sidebar'
 import Coupon from '@/components/icons/Coupon'
 import ArrowRight from '@/components/icons/ArrowRight'
@@ -9,6 +9,7 @@ import Image from 'next/image'
 import MyCartMessage from '@/components/messages/MyCartMessage'
 import CompleteShopping from '@/components/messages/CompleteShopping'
 import Ticket from '@/components/icons/Ticket'
+import { useCartStore } from '@/app/stores/cartStore'
 
 interface Product {
   id: number
@@ -28,27 +29,24 @@ interface CouponType {
 
 export default function CartPage() {
   const router = useRouter()
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: 1,
-      name: "Kaspersky PLUS 2025- 1 User 1 YEAR -INCLUDING UNLIMITED VPN- Official Distributor Guaranteed- IMMEDIATE DELIVERY",
-      supplier: "Aykon informatics",
-      price: 165.00,
-      image: "/kaspersky.png",
-      quantity: 1
-    },
-    {
-      id: 2,
-      name: "Anatolia 1000 Piece Puzzle / Planets - Code 1033",
-      supplier: "Remzi Bookstore",
-      price: 165.00,
-      image: "/puzzle.png",
-      quantity: 1
-    }
-  ])
+  const {
+    items: products,
+    selectedItems,
+    totalPrice,
+    shippingCost,
+    removeItem,
+    undoRemove,
+    updateQuantity,
+    toggleItemSelection,
+    selectAllItems,
+    clearCart,
+    getSelectedTotalPrice,
+    getItemCount,
+    lastRemovedItems,
+  } = useCartStore()
+
   const [showCouponOverlay, setShowCouponOverlay] = useState(false)
   const [showUndoMessage, setShowUndoMessage] = useState(false)
-  const [lastRemovedProduct, setLastRemovedProduct] = useState<Product | null>(null)
   const [showCompleteShoppingMessage, setShowCompleteShoppingMessage] = useState(false)
   const [coupons] = useState<CouponType[]>([
     {
@@ -63,66 +61,57 @@ export default function CartPage() {
       limit: 50,
       supplier: "Remzi Kitabevi"
     }
-  ]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
-  const couponsPerPage = 4;
-  const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
+  ])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [searchTerm, setSearchTerm] = useState("")
+  const couponsPerPage = 4
 
-  // Filter coupons based on search
+  useEffect(() => {
+    if (lastRemovedItems && lastRemovedItems.length > 0) {
+      setShowUndoMessage(true)
+      const timer = setTimeout(() => setShowUndoMessage(false), 5000)
+      return () => clearTimeout(timer)
+    } else {
+      setShowUndoMessage(false)
+    }
+  }, [lastRemovedItems])
+
   const filteredCoupons = coupons.filter(coupon => 
     coupon.supplier.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  )
 
-  // Get current coupons for pagination
-  const indexOfLastCoupon = currentPage * couponsPerPage;
-  const indexOfFirstCoupon = indexOfLastCoupon - couponsPerPage;
-  const currentCoupons = filteredCoupons.slice(indexOfFirstCoupon, indexOfLastCoupon);
-  const totalPages = Math.ceil(filteredCoupons.length / couponsPerPage);
-
-  const totalPrice = products.reduce((sum, product) => sum + (product.price * product.quantity), 0)
-  const shippingCost = 0 // Şimdilik sabit
+  const indexOfLastCoupon = currentPage * couponsPerPage
+  const indexOfFirstCoupon = indexOfLastCoupon - couponsPerPage
+  const currentCoupons = filteredCoupons.slice(indexOfFirstCoupon, indexOfLastCoupon)
+  const totalPages = Math.ceil(filteredCoupons.length / couponsPerPage)
 
   const handleRemoveProduct = (productId: number) => {
-    const removedProduct = products.find(p => p.id === productId)
-    setProducts(products.filter(p => p.id !== productId))
-    setLastRemovedProduct(removedProduct || null)
-    setShowUndoMessage(true)
+    removeItem(productId)
   }
 
   const handleUndoRemove = () => {
-    if (lastRemovedProduct) {
-      setProducts([...products, lastRemovedProduct])
+    undoRemove()
       setShowUndoMessage(false)
-      setLastRemovedProduct(null)
-    }
   }
 
   const handleQuantityChange = (productId: number, change: number) => {
-    setProducts(products.map(product => {
-      if (product.id === productId) {
+    const product = products.find(p => p.id === productId)
+    if (product) {
         const newQuantity = product.quantity + change
-        if (newQuantity == 0) {
+      if (newQuantity > 0) {
+        updateQuantity(productId, newQuantity)
+      } else {
           handleRemoveProduct(productId)
-          return product
-        }
-        return {...product, quantity: newQuantity}
       }
-      return product
-    }))
+    }
   }
 
-  const handleCheckboxChange = (productId: number) => {
-    setSelectedProducts(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
-    );
-  };
+  const handleClearCart = () => {
+    clearCart()
+  }
 
-  const selectedTotalPrice = products
-    .filter(p => selectedProducts.includes(p.id))
-    .reduce((sum, product) => sum + (product.price * product.quantity), 0);
+  const selectedTotalPrice = getSelectedTotalPrice()
+  const itemCount = getItemCount()
 
   return (
     <div className="min-h-screen pt-[40px] relative">
@@ -132,17 +121,12 @@ export default function CartPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="font-raleway text-[64px] font-normal text-left">
-            My cart({products.length} product{products.length != 1 ? 's' : ''})
+            My cart({itemCount} product{itemCount !== 1 ? 's' : ''})
           </h1>
           
           <div className="flex items-center gap-2 cursor-pointer" 
                style={{position: 'absolute', left: '983px', top: '179px'}}
-               onClick={() => {
-                 const currentProducts = [...products];
-                 setLastRemovedProduct(currentProducts[0]); // Save all products for undo
-                 setProducts([]);
-                 setShowUndoMessage(true);
-               }}>
+               onClick={handleClearCart}>
             <span className="text-[#FFF600] font-raleway text-[24px]">Delete products</span>
             <Bin width={24} height={24} />
           </div>
@@ -168,7 +152,7 @@ export default function CartPage() {
 
         {/* Products List */}
         <div className="mt-[100px]">
-          {products.map((product, index) => (
+          {products.map((product) => (
             <div key={product.id} 
                  className="w-[800px] h-[150px] bg-[#D9D9D9] rounded-lg mb-4 relative">
               {/* Supplier Header */}
@@ -179,7 +163,7 @@ export default function CartPage() {
                     <span className="font-raleway text-[16px] text-[#00FFB7]">{product.supplier}</span>
                     <ArrowRight width={16} height={16} />
                   </div>
-                  {selectedProducts.includes(product.id) && (
+                  {selectedItems.includes(product.id) && (
                     <span className="font-raleway text-[20px] font-normal text-[#008A09]">
                       Free shipping
                     </span>
@@ -193,8 +177,8 @@ export default function CartPage() {
                 <input 
                   type="checkbox" 
                   className="w-[32px] h-[32px] absolute left-[6px] top-[36px]"
-                  checked={selectedProducts.includes(product.id)}
-                  onChange={() => handleCheckboxChange(product.id)}
+                  checked={selectedItems.includes(product.id)}
+                  onChange={() => toggleItemSelection(product.id)}
                 />
                 <div className="ml-[36px] flex items-center">
                   <Image 
@@ -215,7 +199,7 @@ export default function CartPage() {
 
               {/* Controls */}
               <div className="absolute right-6 top-[45px] flex items-center gap-4">
-                {product.quantity == 1 ? (
+                {product.quantity === 1 ? (
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleQuantityChange(product.id, 1)}
                             className="w-[30px] h-[30px] bg-white rounded-full flex items-center justify-center">
@@ -260,7 +244,7 @@ export default function CartPage() {
            style={{width: '255px', height: '300px', right: '372px', top: '205px'}}>
         <div className="p-4 flex flex-col h-full">
           <h2 className="font-red-hat-display text-[24px] font-normal text-center mb-4">
-            Selected products ({selectedProducts.length})
+            Selected products ({selectedItems.length})
           </h2>
           
           <div className="text-center mb-2">
@@ -271,10 +255,10 @@ export default function CartPage() {
 
           <button 
             onClick={() => {
-              if (selectedProducts.length == 0) {
-                setShowCompleteShoppingMessage(true);
+              if (selectedItems.length === 0) {
+                setShowCompleteShoppingMessage(true)
               } else {
-                router.push('/payment');
+                router.push('/payment')
               }
             }}
             className="w-[230px] h-[50px] mx-auto bg-white hover:bg-[#FF9D00] rounded-lg transition-colors -mt-4 cursor-pointer"
@@ -292,7 +276,7 @@ export default function CartPage() {
             <div className="flex justify-between items-center text-[#000000] opacity-40">
               <span className="font-red-hat-display">Shipping</span>
               <div className="flex items-center gap-2">
-                {selectedProducts.length > 0 ? (
+                {selectedItems.length > 0 ? (
                   <>
                     <span className="font-inter text-[16px] font-normal text-[#008A09]">Free</span>
                     <span className="font-red-hat-display line-through">49.99 TL</span>
@@ -308,13 +292,7 @@ export default function CartPage() {
 
       {/* Messages */}
       {showUndoMessage && (
-        <MyCartMessage onClose={() => {
-          setShowUndoMessage(false)
-          if (lastRemovedProduct) {
-            setProducts([...products, lastRemovedProduct])
-            setLastRemovedProduct(null)
-          }
-        }} />
+        <MyCartMessage onClose={() => setShowUndoMessage(false)} onUndo={handleUndoRemove} />
       )}
 
       {showCompleteShoppingMessage && (
@@ -389,11 +367,11 @@ export default function CartPage() {
                 ))}
               </div>
 
-              {/* New Pagination */}
+              {/* Pagination */}
               <div className="flex items-center justify-center gap-4 mt-6 px-4">
                 <button 
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage == 1}
+                  disabled={currentPage === 1}
                   className="text-sm text-[#5C5C5C] hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
@@ -403,7 +381,7 @@ export default function CartPage() {
                 </div>
                 <button 
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage == totalPages}
+                  disabled={currentPage === totalPages}
                   className="text-sm text-[#5C5C5C] hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next

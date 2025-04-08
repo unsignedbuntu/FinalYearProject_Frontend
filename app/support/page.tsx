@@ -66,11 +66,12 @@ export default function SupportPage() {
     service: -1,
     resource: -1
   })
+  const openMegaMenu = useUIStore((state) => state.openMegaMenu)
 
   const handleClick = (section: string, index: number) => {
     setActiveItems(prev => ({
       ...prev,
-      [section]: prev[section] === index ? -1 : index // Tekrar tıklanırsa kapatır
+      [section]: prev[section] === index ? -1 : index
     }))
   }
 
@@ -83,6 +84,12 @@ export default function SupportPage() {
           <div className="text-gray-600 max-w-2xl mx-auto">
             Our support team is here to assist you with any questions or concerns you may have.
           </div>
+          <button
+            onClick={openMegaMenu}
+            className="mt-8 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+          >
+            Browse Products
+          </button>
         </div>
       </section>
 

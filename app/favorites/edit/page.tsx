@@ -1,174 +1,200 @@
 "use client"
-import { useState } from 'react'
-import Sidebar from '@/components/sidebar/Sidebar'
-import Checkbox from '@/components/icons/Checkbox'
-import Menu from '@/components/icons/Menu'
-import CartFavorites from '@/components/icons/CartFavorites'
-import DeleteOverlay from '@/components/overlay/DeleteOverlay'
 
-interface Product {
-  id: number;
-  selected: boolean;
-}
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { useFavoritesStore } from "@/app/stores/favoritesStore"
+import Image from "next/image"
 
-export default function EditListPage() {
-  const [selectedCount, setSelectedCount] = useState(0)
-  const [isAllSelected, setIsAllSelected] = useState(false)
-  const [products, setProducts] = useState<Product[]>(
-    Array.from({ length: 8 }, (_, index) => ({
-      id: index + 1,
-      selected: false
-    }))
-  )
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+export default function FavoritesEditPage() {
+  const router = useRouter()
+  const { 
+    products, 
+    lists, 
+    selectedCount,
+    isAllSelected,
+    toggleProductSelection,
+    selectAllProducts,
+    moveProductsToList,
+    addList,
+    removeList,
+    renameList
+  } = useFavoritesStore()
 
-  const handleSelectAll = () => {
-    const newIsAllSelected = !isAllSelected
-    setIsAllSelected(newIsAllSelected)
-    setProducts(products.map(product => ({
-      ...product,
-      selected: newIsAllSelected
-    })))
-    setSelectedCount(newIsAllSelected ? products.length : 0)
-  }
+  const [newListName, setNewListName] = useState("")
+  const [editingListId, setEditingListId] = useState<number | null>(null)
+  const [editingListName, setEditingListName] = useState("")
 
-  const handleSelectProduct = (productId: number) => {
-    setProducts(products.map(product => {
-      if (product.id === productId) {
-        return { ...product, selected: !product.selected }
-      }
-      return product
-    }))
-    
-    const updatedProducts = products.map(product => 
-      product.id === productId ? { ...product, selected: !product.selected } : product
-    )
-    const newSelectedCount = updatedProducts.filter(p => p.selected).length
-    setSelectedCount(newSelectedCount)
-    setIsAllSelected(newSelectedCount === products.length)
-  }
-
-  const handleDelete = () => {
-    const selectedProducts = products.filter(p => p.selected)
-    if (selectedProducts.length > 0) {
-      setShowDeleteConfirm(true)
+  const handleCreateList = () => {
+    if (newListName.trim()) {
+      addList(newListName.trim())
+      setNewListName("")
     }
   }
 
-  const handleConfirmDelete = () => {
-    setProducts(prev => prev.filter(p => !p.selected))
-    setSelectedCount(0)
-    setIsAllSelected(false)
+  const handleRenameList = (id: number) => {
+    if (editingListName.trim()) {
+      renameList(id, editingListName.trim())
+      setEditingListId(null)
+      setEditingListName("")
+    }
+  }
+
+  const handleMoveToNewList = () => {
+    if (newListName.trim()) {
+      const selectedProducts = products.filter(p => p.selected).map(p => p.id)
+    if (selectedProducts.length > 0) {
+        const newListId = Date.now()
+        addList(newListName.trim())
+        moveProductsToList(selectedProducts, newListId)
+        setNewListName("")
+      }
+    }
   }
 
   return (
-    <div className="min-h-screen pt-[160px] relative">
-      <Sidebar />
-      
-      <div className="ml-[480px]">
-        <div className="mt-[30px]">
-          <div className="flex justify-between items-center">
-            <div className="w-[500px] h-[80px] bg-[#D9D9D9] flex items-center px-6 rounded-lg">
-              <h1 className="font-inter text-[48px] font-normal">
-                Edit list
-              </h1>
-            </div>
-          </div>
-          
-          {/* Action Buttons */}
-          <div className="flex items-center gap-8 mt-4">
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Favori Listeleri Düzenle</h1>
             <button 
-              className="w-[185px] h-[50px] bg-[#D9D9D9] rounded-[10px] border-2
-                        font-inter text-[24px] transition-all duration-200
-                        hover:bg-[#FF9500] hover:text-[#00F6FF]"
-              style={{ position: 'absolute', left: '1050px', top: '287px' }}
-              onClick={handleDelete}
-            >
-              Delete selected
-            </button>
-
-            <button 
-              className="w-[185px] h-[50px] bg-[#8F8F8F] rounded-[10px] border-2
-                        font-inter text-[24px] transition-all duration-200
-                        hover:bg-[#FF0048] hover:text-[#00F6FF]"
-              style={{ position: 'absolute', left: '1270px', top: '287px' }}
-            >
-              Move selected
+            onClick={() => router.back()}
+            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+          >
+            Geri Dön
             </button>
           </div>
 
-          {/* Selection Status */}
-          <div className="flex items-center justify-between" 
-               style={{ position: 'absolute', left: '947px', top: '357px', width: '508px' }}>
-            <span className="font-inter text-[24px] text-[#FF0000]">
-              {selectedCount === 0 
-                ? "No product selected" 
-                : `${selectedCount} product${selectedCount > 1 ? 's' : ''} selected`}
-            </span>
-
-            <div className="flex items-center gap-2">
-              <button onClick={handleSelectAll} className="flex items-center gap-2">
-                <Checkbox checked={isAllSelected} size={25} />
-                <span className="font-inter text-[24px]">
-                  Choose all ({selectedCount})
-                </span>
-              </button>
+        {/* Seçili Ürünler ve Yeni Liste */}
+        <div className="bg-white rounded-lg p-6 mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <span className="font-semibold">{selectedCount} ürün seçildi</span>
             </div>
-          </div>
-
-          {/* Ana içerik alanı */}
-          <div className="w-[1000px] h-[750px] bg-[#FFFFFF] mt-4 p-6 rounded-lg">
-            {/* Filtre butonları */}
-            <div className="flex items-center gap-4">
+            <div className="flex gap-4">
               <button 
-                className="w-[140px] h-[50px] border border-[#FF8800] rounded-lg font-inter text-[16px] 
-                          transition-colors text-[#FF8800]"
+                onClick={() => selectAllProducts(!isAllSelected)}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
               >
-                In stock
+                {isAllSelected ? "Seçimi Kaldır" : "Tümünü Seç"}
               </button>
-              
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  placeholder="Yeni liste adı"
+                  className="px-4 py-2 border rounded-lg"
+                />
               <button 
-                className="w-[160px] h-[50px] border border-gray-300 rounded-lg font-inter text-[16px] 
-                          transition-colors hover:text-[#FF8800] ml-4"
+                  onClick={handleMoveToNewList}
+                  disabled={!newListName.trim() || selectedCount === 0}
+                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
               >
-                Out of stock
+                  Yeni Listeye Taşı
               </button>
+              </div>
+            </div>
             </div>
 
-            {/* Ürün Grid'i */}
-            <div className="grid grid-cols-4 gap-6 mt-8">
+          {/* Ürün Listesi */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {products.map((product) => (
                 <div 
                   key={product.id}
-                  className="w-[200px] h-[200px] rounded-lg relative bg-[#D9D9D9]"
-                >
-                  <div className="absolute top-2 left-2 z-20">
-                    <button onClick={() => handleSelectProduct(product.id)}>
-                      <Checkbox checked={product.selected} size={25} />
+                className={`border rounded-lg p-4 ${
+                  product.selected ? "border-blue-500 bg-blue-50" : ""
+                }`}
+              >
+                <div className="flex items-start gap-4">
+                  <input
+                    type="checkbox"
+                    checked={product.selected}
+                    onChange={() => toggleProductSelection(product.id)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="relative w-full h-40 mb-2">
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        fill
+                        className="object-cover rounded-lg"
+                      />
+                    </div>
+                    <h3 className="font-semibold">{product.name}</h3>
+                    <p className="text-gray-600">₺{product.price}</p>
+                    {product.listId && (
+                      <p className="text-sm text-gray-500">
+                        Liste: {lists.find(l => l.id === product.listId)?.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Mevcut Listeler */}
+        <div className="bg-white rounded-lg p-6">
+          <h2 className="text-xl font-bold mb-4">Mevcut Listeler</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {lists.map((list) => (
+              <div key={list.id} className="border rounded-lg p-4">
+                {editingListId === list.id ? (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={editingListName}
+                      onChange={(e) => setEditingListName(e.target.value)}
+                      className="flex-1 px-2 py-1 border rounded"
+                    />
+                    <button
+                      onClick={() => handleRenameList(list.id)}
+                      className="px-2 py-1 bg-green-500 text-white rounded"
+                    >
+                      Kaydet
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingListId(null)
+                        setEditingListName("")
+                      }}
+                      className="px-2 py-1 bg-gray-500 text-white rounded"
+                    >
+                      İptal
                     </button>
                   </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold">{list.name}</h3>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setEditingListId(list.id)
+                          setEditingListName(list.name)
+                        }}
+                        className="px-2 py-1 bg-blue-500 text-white rounded"
+                      >
+                        Düzenle
+                      </button>
                   <button 
-                    className="absolute top-2 right-2 z-10"
+                        onClick={() => removeList(list.id)}
+                        className="px-2 py-1 bg-red-500 text-white rounded"
                   >
-                    <Menu />
+                        Sil
                   </button>
-                  <div className="absolute bottom-1 right-1">
-                    <CartFavorites />
+                    </div>
                   </div>
+                )}
+                <p className="text-sm text-gray-500 mt-2">
+                  {products.filter(p => p.listId === list.id).length} ürün
+                </p>
                 </div>
               ))}
             </div>
           </div>
         </div>
-      </div>
-
-      {showDeleteConfirm && (
-        <DeleteOverlay
-          productCount={selectedCount}
-          onClose={() => setShowDeleteConfirm(false)}
-          onConfirm={handleConfirmDelete}
-        />
-      )}
     </div>
   )
 } 

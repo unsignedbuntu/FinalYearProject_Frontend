@@ -1,32 +1,39 @@
 export interface ProductSupplier {
+    productSupplierID: number;
     productID: number;
     supplierID: number;
-    supplierName: string;
+    stock: number;
+    supplierName?: string;
+    rating?: number;
 }
 
 export interface Store {
     storeID: number;
     storeName: string;
+    rating: number;
+    userID: number;
 }
 
 export interface Category {
     categoryID: number;
     categoryName: string;
-    storeID?: number;
 }
 
 export interface Product {
     productID: number;
     productName: string;
-    categoryID: number;
+    description: string;
     price: number;
-    image?: string;
     quantity: number;
-    stock?: number;
-    description?: string;
-    specs?: Record<string, string>;
-    reviews?: Review[];
+    image?: string;
+    categoryID?: number;
+    categoryName?: string;
     additionalImages?: string[];
+    reviews?: Review[];
+    specs?: Record<string, string>;
+    stock?: number;
+    supplierName?: string;
+    category?: any;
 }
 
 export interface Review {
@@ -34,5 +41,5 @@ export interface Review {
     comment: string;
     userName: string;
     date: string;
-    avatar: string;
+    avatar?: string;
 }

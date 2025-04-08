@@ -142,7 +142,7 @@ export async function POST(req: Request) {
                 cfg_scale: 7
             }, {
                 httpsAgent: sdAgent,
-                timeout: 30000 // 30 saniye timeout ekle
+                timeout: 240000 
             });
 
             if (!response.data?.images?.[0]) {

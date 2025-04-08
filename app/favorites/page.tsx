@@ -11,54 +11,31 @@ import { useRouter } from 'next/navigation'
 import CartSuccessMessage from '@/components/messages/CartSuccessMessage'
 import ListSelectionOverlay from '@/components/overlay/ListSelectionOverlay'
 import FavoriteLists from '@/components/messages/FavoriteLists'
+import { useFavoritesStore } from '@/app/stores/favoritesStore'
 
 export default function FavoritesPage() {
- 
+  const router = useRouter()
+  const {
+    products: favoriteProducts,
+    sortType,
+    showInStock,
+    setSortType,
+    setShowInStock,
+    sortProducts,
+  } = useFavoritesStore()
+
   const [isSortOpen, setIsSortOpen] = useState(false)
-  const [sortType, setSortType] = useState('default')
-  const [showInStock, setShowInStock] = useState(true)
   const [showMoveToList, setShowMoveToList] = useState(false)
   const [showListSelection, setShowListSelection] = useState(false)
   const [showCartSuccess, setShowCartSuccess] = useState(false)
-  const router = useRouter()
-  
-  // Örnek veri
-  const [favoriteProducts, setFavoriteProducts] = useState([
-    { id: 1, name: "Nike Red Shoes", price: 299.99, date: new Date('2024-01-01'), image: "/slider/1000_F_46594969_DDZUkjGFtkv0jDMG7676blspQlgOkf1n.jpg", inStock: true },
-    { id: 2, name: "Space View", price: 199.99, date: new Date('2024-01-02'), image: "/slider/1000_F_139838537_ahJnL2GCKQviBW9JWjpUq4q8GlgRcwU3.jpg", inStock: true }
-  ])
 
   const handleSort = (type: string) => {
-    const sorted = [...favoriteProducts]
-    
-    switch(type) {
-      case 'price-high':
-        sorted.sort((a, b) => b.price - a.price)
-        break
-      case 'price-low':
-        sorted.sort((a, b) => a.price - b.price)
-        break
-      case 'oldest':
-        sorted.sort((a, b) => a.date.getTime() - b.date.getTime())
-        break
-      case 'newest':
-        sorted.sort((a, b) => b.date.getTime() - a.date.getTime())
-        break
-      case 'name-asc':
-        sorted.sort((a, b) => a.name.localeCompare(b.name))
-        break
-      case 'name-desc':
-        sorted.sort((a, b) => b.name.localeCompare(a.name))
-        break
-    }
-    
-    setFavoriteProducts(sorted)
+    sortProducts(type)
     setSortType(type)
   }
 
   const handleCartSuccess = () => {
     setShowCartSuccess(true)
-    // 2 saniye sonra ListSelectionOverlay'i göster
     setTimeout(() => {
       setShowCartSuccess(false)
       setShowListSelection(true)
@@ -67,11 +44,10 @@ export default function FavoritesPage() {
 
   const handleMoveToList = (productId: number, listId: number) => {
     // Ürünü eski listeden kaldır
-    setFavoriteProducts(prev => prev.filter(p => p.id !== productId))
+    useFavoritesStore.getState().removeProduct(productId)
     
     // Ürünü yeni listeye ekle
     // Bu işlem FavoriteLists komponenti içinde yapılacak
-    // Context veya global state management kullanılabilir
   }
 
   return (
@@ -94,7 +70,7 @@ export default function FavoritesPage() {
                     className="flex items-center bg-[#D9D9D9] w-[200px] h-[75px] rounded-lg px-4 justify-between"
                   >
                     <span className="font-inter text-[32px] font-normal text-[#FF8800]">
-                      Default
+                      {sortType}
                     </span>
                     <div className="w-[13px] h-[8px]">
                       <Arrowdown className="text-[#FF8800]" />

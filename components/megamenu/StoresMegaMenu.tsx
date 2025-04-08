@@ -5,6 +5,7 @@ import TicIcon from '../icons/TicIcon'
 import TicHover from '../icons/Tic_Hover'
 import ArrowRight from '../icons/ArrowRight'
 import { getStores, getCategories, getProducts } from '@/services/API_Service'
+import { useUIStore } from '@/app/stores/uiStore'
 
 interface Store {
   storeID: number;
@@ -27,7 +28,6 @@ interface Product {
 }
 
 export default function StoresMegaMenu() {
-  const [isOpen, setIsOpen] = useState(false);
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -36,6 +36,9 @@ export default function StoresMegaMenu() {
   const [error, setError] = useState<string | null>(null);
   const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const isOpen = useUIStore((state) => state.isStoresMegaMenuOpen);
+  const closeMenu = useUIStore((state) => state.closeStoresMegaMenu);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -76,15 +79,15 @@ export default function StoresMegaMenu() {
 
   const handleMouseEnter = useCallback(() => {
     if (timeoutId) clearTimeout(timeoutId);
-    setIsOpen(true);
+    useUIStore.getState().openStoresMegaMenu();
   }, [timeoutId]);
 
   const handleMouseLeave = useCallback(() => {
     const id = setTimeout(() => {
-      setIsOpen(false);
-    }, 300); // 300ms gecikme
+      closeMenu();
+    }, 300);
     setTimeoutId(id);
-  }, []);
+  }, [closeMenu]);
 
   useEffect(() => {
     return () => {
@@ -100,7 +103,7 @@ export default function StoresMegaMenu() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        closeMenu();
       }
     };
 
@@ -108,7 +111,7 @@ export default function StoresMegaMenu() {
     return () => {
       document.removeEventListener('mouseover', handleClickOutside);
     };
-  }, []);
+  }, [closeMenu]);
 
   return (
     <div 

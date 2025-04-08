@@ -5,9 +5,10 @@ import Image from 'next/image';
 
 interface MyCartMessageProps {
   onClose: () => void;
+  onUndo: () => void;
 }
 
-export default function MyCartMessage({ onClose }: MyCartMessageProps) {
+export default function MyCartMessage({ onClose, onUndo }: MyCartMessageProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -52,7 +53,7 @@ export default function MyCartMessage({ onClose }: MyCartMessageProps) {
         </div>
 
         <span
-          onClick={onClose}
+          onClick={onUndo}
           className="absolute left-[80px] top-[78px] font-inter text-[40px] text-[#6C84FA] 
                         hover:opacity-90 transition-opacity cursor-pointer"
         >
