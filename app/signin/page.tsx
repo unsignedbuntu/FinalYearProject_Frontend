@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Visible from "@/components/icons/Visible";
 import Unvisible from "@/components/icons/Unvisible";
 import { useAuth } from "@/contexts/AuthContext";
+import SigninSuccessMessage from "@/components/messages/SigninSuccessMessage";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -12,17 +13,25 @@ export default function SignInPage() {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState("");
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('handleSignIn triggered');
     setError("");
+    setShowSuccess(false);
     try {
+      console.log('Calling login function with:', email);
       await login(email, password);
-      router.push('/');
+      console.log('Login function finished successfully');
+      setShowSuccess(true);
+      setTimeout(() => {
+        router.push('/');
+      }, 2000);
     } catch (err: any) {
-      console.error("Sign in failed:", err);
-      setError(err.response?.data?.message || err.message || "Sign in failed. Please check your credentials.");
+      console.error("Sign in failed inside handleSignIn:", err);
+      setError(err.message || "Sign in failed. Please check your credentials.");
     }
   };
 
@@ -81,8 +90,8 @@ export default function SignInPage() {
               aria-label="Password"
             />
             <button
+              type="button"
               onClick={(e) => {
-                e.preventDefault();
                 setIsPasswordVisible(!isPasswordVisible);
               }}
               aria-label={isPasswordVisible ? "Hide password" : "Show password"}
@@ -94,6 +103,7 @@ export default function SignInPage() {
 
           <div className="text-center">
             <button 
+              type="button"
               onClick={() => router.push('/forgot-password')}
               className="text-[#FFFF00] hover:underline"
             >
@@ -112,6 +122,7 @@ export default function SignInPage() {
           <div className="text-center text-white">
             Don't have an account?{" "}
             <button 
+              type="button"
               onClick={() => router.push('/sign-up')}
               className="text-[#00FF85] hover:underline"
             >
@@ -145,6 +156,10 @@ export default function SignInPage() {
             </h2>
           </div>
       </div>
+
+      {showSuccess && (
+        <SigninSuccessMessage onClose={() => setShowSuccess(false)} />
+      )}
     </div>
   );
 }

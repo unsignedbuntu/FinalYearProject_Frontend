@@ -9,8 +9,8 @@ interface CustomJwtPayload {
 }
 
 export function middleware(request: NextRequest) {
-  // Try getting token from cookies first (preferred for SSR/middleware)
-  let token = request.cookies.get('token')?.value;
+  // Try getting token from cookies using the CORRECT name
+  let token = request.cookies.get('authToken')?.value;
   const { pathname } = request.nextUrl;
 
   let isTokenValid = false;
@@ -36,7 +36,7 @@ export function middleware(request: NextRequest) {
     '/user-info', 
     '/address', // Covers /address, /address/new, etc.
     '/favorites',
-    // Add other routes that require login, e.g., '/profile', '/orders'
+    '/my-orders' // Added My Orders as protected
   ];
 
   // Define auth routes
@@ -55,7 +55,7 @@ export function middleware(request: NextRequest) {
 
   // Redirect logged-out users away from protected pages
   if (!isTokenValid && isProtectedRoute) {
-    console.log("Middleware: Redirecting logged-out user from protected page to /signin");
+    console.log(`Middleware: Redirecting logged-out user from ${pathname} to /signin`);
     // Store the intended destination to redirect after login
     const redirectUrl = new URL('/signin', request.url);
     redirectUrl.searchParams.set('redirectedFrom', pathname);
@@ -77,6 +77,7 @@ export const config = {
     '/user-info/:path*',
     '/address/:path*',
     '/favorites/:path*',
+    '/my-orders/:path*', // Added matcher for My Orders
     // Add other protected route matchers
 
     // Match auth routes to prevent access when logged in

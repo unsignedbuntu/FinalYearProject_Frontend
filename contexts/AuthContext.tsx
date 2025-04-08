@@ -1,138 +1,160 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from '../services/API_Service'; // Import the configured Axios instance
-import { jwtDecode, JwtPayload } from 'jwt-decode'; // Import JwtPayload
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { api } from '@/services/API_Service'; // Import configured Axios instance
+import axios, { AxiosError } from 'axios'; // Import axios for isAxiosError check
 
-// Define the structure of the JWT payload based on your backend
-interface CustomJwtPayload extends JwtPayload {
-  // Standard claims (like sub, exp are already in JwtPayload)
-  // Add custom claims from your token (adjust based on your backend)
-  email?: string;
-  fullName?: string; // Corrected: Use fullName to match backend claim
-  // Add other claims like roles if needed: roles?: string[];
-}
-
+// Define the structure for the user object based on backend response
 interface User {
-  id: string; // JWT 'sub' is typically a string
+  id: number; // Or string depending on your backend ID type
   email: string;
   fullName: string;
+  // Add other relevant user properties if needed (e.g., roles)
 }
 
+// Define the context type
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
+  isLoading: boolean; // To track initial auth check
   login: (email: string, password: string) => Promise<void>;
-  register: (userData: RegisterData) => Promise<void>;
-  logout: () => void;
+  register: (data: RegisterData) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
-// Match this with your backend's RegisterDto
+// Define the structure for registration data
 interface RegisterData {
   firstName: string;
   lastName: string;
   email: string;
+  phoneNumber: string;
   password: string;
-  confirmPassword: string; // Re-added: Required by backend DTO validation
-  phoneNumber?: string;
+  confirmPassword: string;
 }
 
+// Create the context with a default undefined value to check for provider presence
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // Add loading state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Start loading
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
+    // Check authentication status when the app loads
+    const checkAuth = async () => {
+      setIsLoading(true);
       try {
-        const decoded = jwtDecode<CustomJwtPayload>(token);
-        // Check if token is expired (optional but recommended)
-        const currentTime = Date.now() / 1000;
-        if (decoded.exp && decoded.exp < currentTime) {
-          console.log("Token expired");
-          localStorage.removeItem('token');
-          setIsLoading(false);
-          return;
-        }
-
-        // Set user data from decoded token - Use fullName
-        if (decoded.sub && decoded.email && decoded.fullName) { // Corrected: Check for fullName
-          setUser({
-            id: decoded.sub,
-            email: decoded.email,
-            fullName: decoded.fullName, // Corrected: Use fullName
-          });
+        // Call the /me endpoint to verify the cookie
+        const response = await api.get('/api/Auth/me');
+        if (response.data && response.data.user) {
+          setUser(response.data.user);
           setIsAuthenticated(true);
         } else {
-          console.error("Token missing required claims (sub, email, fullName)"); // Updated error message
-          localStorage.removeItem('token');
+          // No user data means not authenticated
+          setUser(null);
+          setIsAuthenticated(false);
         }
       } catch (error) {
-        console.error("Failed to decode token:", error);
-        localStorage.removeItem('token');
+        // Check if it's an Axios error and has a response (like 401)
+        if (axios.isAxiosError(error) && error.response) {
+           console.log(`Auth check failed: ${error.response.status}`);
+        } else {
+          console.error("Error checking auth status:", error);
+        }
+        setUser(null);
+        setIsAuthenticated(false);
       }
-    }
-    setIsLoading(false); // Finish initial loading check
+      setIsLoading(false);
+    };
+
+    checkAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      // Use the imported 'api' instance and the correct full path from Swagger
-      const response = await api.post('/api/Auth/login', { email, password }); // Corrected path
-      const { token } = response.data; // Assuming backend returns { token: "..." }
-      localStorage.setItem('token', token);
+      // Backend now sets the HttpOnly cookie on successful login
+      const response = await api.post('/api/Auth/login', { email, password });
 
-      const decoded = jwtDecode<CustomJwtPayload>(token);
-      // Use fullName after login as well
-      if (decoded.sub && decoded.email && decoded.fullName) { // Corrected: Check for fullName
-        setUser({
-          id: decoded.sub,
-          email: decoded.email,
-          fullName: decoded.fullName, // Corrected: Use fullName
-        });
+      if (response.data && response.data.user) {
+        // Update user state with data returned from login endpoint
+        setUser(response.data.user);
         setIsAuthenticated(true);
+        console.log("Login successful, user state updated.");
       } else {
-        throw new Error("Login successful, but token missing required claims.");
+        // Handle unexpected response format
+        throw new Error("Login response did not contain user data.");
       }
+      // No need to handle token in frontend anymore
+
     } catch (error) {
       console.error("Login failed:", error);
-      // Clear any potential leftover state on failure
-      localStorage.removeItem('token');
-      setUser(null);
       setIsAuthenticated(false);
-      throw error; // Re-throw error to be caught in the component
+      setUser(null);
+      if (axios.isAxiosError(error) && error.response) {
+        // Use the error message from the backend if available
+        throw new Error(error.response.data?.message || 'Login failed'); // Match backend message property (lowercase message)
+      } else if (error instanceof Error) {
+        throw new Error(error.message || 'An unexpected error occurred during login.');
+      } else {
+         throw new Error('An unexpected error occurred during login.');
+      }
     }
   };
 
-  const register = async (userData: RegisterData) => {
+  const register = async (data: RegisterData) => {
     try {
-      // Send the complete userData, including confirmPassword, as backend expects it
-      await api.post('/api/Auth/register', userData);
+      // Register endpoint doesn't automatically log in or set a cookie
+      await api.post('/api/Auth/register', data);
+       console.log("Registration successful.");
+      // Optionally redirect to login or show success message
+      // No state change needed here as register doesn't log the user in
     } catch (error) {
       console.error("Registration failed:", error);
-      throw error; // Re-throw error to be caught in the component
+       if (axios.isAxiosError(error) && error.response) {
+           // Use the error message from the backend if available
+           const backendErrors = error.response.data?.errors; // Check for specific validation errors
+           const errorMessage = error.response.data?.message || 'Registration failed';
+           if(backendErrors){
+             // You might want to format multiple validation errors here
+             const errorMessages = Object.values(backendErrors).flat().join(', ');
+             throw new Error(errorMessages || errorMessage);
+           } else {
+             throw new Error(errorMessage);
+           }
+       } else if (error instanceof Error) {
+         throw new Error(error.message || 'An unexpected error occurred during registration.');
+       } else {
+           throw new Error('An unexpected error occurred during registration.');
+       }
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-    setIsAuthenticated(false);
-    // Optionally redirect to login page
-    // window.location.href = '/signin'; // Could use router.push if needed
+  const logout = async () => {
+    console.log("Logout function called! Timestamp:", new Date().toISOString());
+    try {
+      // Call the backend logout endpoint to clear the HttpOnly cookie
+      await api.post('/api/Auth/logout');
+      setUser(null);
+      setIsAuthenticated(false);
+       console.log("Logout successful.");
+    } catch (error) {
+      console.error("Logout failed:", error);
+       // Even if backend call fails, clear frontend state
+       setUser(null);
+       setIsAuthenticated(false);
+       // Consider how to handle logout errors - usually, just logging out the frontend is sufficient
+    }
   };
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, register, logout }}>
-      {!isLoading && children} {/* Render children only when loading is complete */}
+      {children}
     </AuthContext.Provider>
   );
 };
 
+// Custom hook to use the AuthContext
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

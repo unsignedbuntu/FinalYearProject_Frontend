@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation';
 import Visible from "@/components/icons/Visible";
 import Unvisible from "@/components/icons/Unvisible";
 import { useAuth } from "@/contexts/AuthContext";
+import SignupSuccessMessage from "@/components/messages/SignupSuccessMessage";
 
 export default function SignUpPage() {
   const router = useRouter();
   const { register, isLoading } = useAuth();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   const [formData, setFormData] = useState({
@@ -65,11 +67,14 @@ export default function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+    setShowSuccess(false);
     if (validateForm()) {
       try {
-        const { confirmPassword, birthDay, birthMonth, birthYear, ...registerData } = formData;
-        await register(registerData);
-        router.push('/signin?registered=true');
+        await register(formData);
+        setShowSuccess(true);
+        setTimeout(() => {
+          router.push('/signin?registered=true');
+        }, 2000);
       } catch (err: any) {
         console.error("Sign up failed:", err);
         setErrors({ form: err.response?.data?.message || err.message || "Sign up failed. Please try again." });
@@ -301,6 +306,10 @@ export default function SignUpPage() {
           </h2>
         </div>
       </div>
+
+      {showSuccess && (
+        <SignupSuccessMessage onClose={() => setShowSuccess(false)} />
+      )}
     </div>
   );
 } 

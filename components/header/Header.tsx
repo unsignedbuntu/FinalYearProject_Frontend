@@ -11,20 +11,24 @@ import Image from 'next/image'
 import FavoriteHover from '../icons/FavoritesPageHover'
 import CartHover from '../icons/CartHover'
 import SignInOverlay from '../overlay/SignInOverlay'
+import SignOutOverlay from '../overlay/SignOutOverlay'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function Header() {
   const [isSignInOpen, setIsSignInOpen] = useState(false)
+  const [isSignOutOpen, setIsSignOutOpen] = useState(false)
   const router = useRouter()
   const { user, logout, isAuthenticated } = useAuth()
 
-  const toggleSignIn = (e: React.MouseEvent) => {
+  const handleUserButtonClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (isAuthenticated) {
-      logout();
+      setIsSignOutOpen(prev => !prev);
+      setIsSignInOpen(false);
     } else {
-      setIsSignInOpen(true);
+      setIsSignInOpen(prev => !prev);
+      setIsSignOutOpen(false);
     }
   };
 
@@ -68,12 +72,12 @@ export default function Header() {
         <div className="flex items-center gap-7">
         
           <button
-            onClick={toggleSignIn}
+            onClick={handleUserButtonClick}
             className="relative w-[182px] h-[58px] bg-[#8CFF75] hover:bg-[#7ee569] rounded-lg transition-colors flex items-center group cursor-pointer"
           >
             <div className="pl-4 flex items-center">
               <div className="group-hover:hidden">
-                <UserIcon />
+                {isAuthenticated ? <GroupTeamHover /> : <UserIcon />}
               </div>
               <div className="hidden group-hover:block">
                 <GroupTeamHover />
@@ -83,7 +87,6 @@ export default function Header() {
               {isAuthenticated && user ? (
                 <>
                    <span className="text-[18px] group-hover:text-[22px] text-black group-hover:text-[#792AE8] transition-all whitespace-nowrap truncate" title={user.fullName}>Hi, {user.fullName.split(' ')[0]}</span>
-                   <span className="text-[14px] group-hover:text-[18px] text-gray-700 group-hover:text-[#792AE8] transition-all whitespace-nowrap">(Click to Logout)</span>
                 </>
               ) : (
                 <>
@@ -141,6 +144,12 @@ export default function Header() {
         <SignInOverlay 
           isOpen={isSignInOpen}
           onClose={() => setIsSignInOpen(false)}
+        />
+      )}
+      {isAuthenticated && isSignOutOpen && (
+        <SignOutOverlay 
+          isOpen={isSignOutOpen}
+          onClose={() => setIsSignOutOpen(false)}
         />
       )}
     </header>
