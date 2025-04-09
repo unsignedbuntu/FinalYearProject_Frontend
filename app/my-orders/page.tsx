@@ -1,68 +1,117 @@
 "use client"
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from '@/components/sidebar/Sidebar'
 import Image from 'next/image'
 import Shipped from '@/components/icons/Shipped'
 import Delivered from '@/components/icons/Delivered'
+import { useUserStore } from '@/app/stores/userStore'
+import { getUserOrders } from '@/services/API_Service'
 
 interface Order {
-  id: string;
-  date: string;
-  status: 'Shipped' | 'Delivered';
-  price: number;
-  image: string;
+  orderId: number;
+  orderDate: string;
+  status: string;
+  totalAmount: number;
 }
 
 export default function MyOrdersPage() {
   const router = useRouter()
+  const { user } = useUserStore()
+  const userId = user?.id
+
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTab, setSelectedTab] = useState('All')
-  const [orders] = useState<Order[]>([
-    {
-      id: '434 940 876',
-      date: '21 October 2024',
-      status: 'Shipped',
-      price: 203.95,
-      image: '/shoe.png'
-    },
-    {
-      id: '235 344 610',
-      date: '19 September 2024',
-      status: 'Delivered',
-      price: 874.9,
-      image: '/headphone.png'
-    }
-  ])
+  const [orders, setOrders] = useState<Order[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const ordersPerPage = 10
   
-  // Calculate pagination
+  useEffect(() => {
+    if (userId !== null && userId !== undefined) {
+      setIsLoading(true)
+      setError(null)
+      getUserOrders(userId)
+        .then(data => {
+          setOrders(data || [])
+        })
+        .catch(err => {
+          console.error("Error fetching orders:", err)
+          setError(err.message || 'Failed to load orders.')
+        })
+        .finally(() => {
+          setIsLoading(false)
+        })
+    } else {
+      setError('Please log in to view your orders.')
+      setIsLoading(false)
+      setOrders([])
+    }
+  }, [userId])
+
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = order.orderId.toString().includes(searchTerm) || 
+                         (order.status && order.status.toLowerCase().includes(searchTerm.toLowerCase()))
+    
+    let matchesTab = true
+    if (selectedTab !== 'All') {
+       if (selectedTab === 'Ongoing orders') {
+          matchesTab = order.status?.toLowerCase() === 'pending' || order.status?.toLowerCase() === 'processing' || order.status?.toLowerCase() === 'shipped'
+       } else if (selectedTab === 'Returns') {
+          matchesTab = order.status?.toLowerCase() === 'returning' || order.status?.toLowerCase() === 'returned'
+       } else if (selectedTab === 'Cancellations') {
+          matchesTab = order.status?.toLowerCase() === 'cancelled'
+       }
+    }
+
+    return matchesSearch && matchesTab
+  })
+
+  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage)
   const indexOfLastOrder = currentPage * ordersPerPage
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage
-  const currentOrders = orders.slice(indexOfFirstOrder, indexOfLastOrder)
-  const totalPages = Math.ceil(orders.length / ordersPerPage)
+  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder)
 
   const tabs = ['All', 'Ongoing orders', 'Returns', 'Cancellations']
   const timeFilters = ['All orders', 'Last 30 day', 'Last 6 month', 'Last year', 'More than a year']
 
-  const filteredOrders = orders.filter(order => 
-    order.id.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const formatDate = (dateString: string) => {
+    try {
+        return new Date(dateString).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    } catch {
+        return dateString
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+      const lowerStatus = status?.toLowerCase()
+      if (lowerStatus === 'shipped') return <Shipped />
+      if (lowerStatus === 'delivered') return <Delivered />
+      if (lowerStatus === 'pending') return <Shipped />
+      return null
+  }
+  
+  const getStatusColor = (status: string) => {
+      const lowerStatus = status?.toLowerCase()
+      if (lowerStatus === 'shipped') return 'text-blue-500'
+      if (lowerStatus === 'delivered') return 'text-green-500'
+      if (lowerStatus === 'pending') return 'text-orange-500'
+      if (lowerStatus === 'cancelled') return 'text-red-500'
+      if (lowerStatus === 'returned') return 'text-purple-500'
+      return 'text-gray-500'
+  }
 
   return (
     <div className="min-h-screen pt-[40px] relative">
       <Sidebar />
       
       <div className="ml-[391px] mt-[87px]">
-        {/* Main Content */}
         <div className="w-[1000px] bg-white rounded-lg p-6">
-          {/* Header */}
           <h1 className="font-raleway text-[64px] font-normal text-center mb-8">
             My orders
           </h1>
 
-          {/* Search Bar */}
           <div className="relative mb-6">
             <input
               type="text"
@@ -76,7 +125,6 @@ export default function MyOrdersPage() {
             </svg>
           </div>
 
-          {/* Tabs */}
           <div className="flex gap-6 mb-6 items-center">
             {tabs.map((tab) => (
               <button
@@ -103,73 +151,81 @@ export default function MyOrdersPage() {
             </div>
           </div>
 
-          {/* Orders List */}
-          <div className="space-y-4">
-            {currentOrders.map((order) => (
-              <div key={order.id} className="bg-[#D9D9D9] rounded-lg p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Image 
-                    src={order.image} 
-                    alt={`Order ${order.id}`}
-                    width={80} 
-                    height={80}
-                    className="rounded-lg"
-                  />
-                  <div>
-                    <div className="font-raleway text-[16px]">Order no: {order.id}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-[200px]">
-                  <div className="flex items-center gap-2">
-                    {order.status === 'Shipped' ? <Shipped /> : <Delivered />}
-                    <span className={order.status === 'Shipped' ? 'text-blue-500' : 'text-green-500'}>
-                      {order.status}
-                    </span>
-                  </div>
+          {isLoading ? (
+            <div className="text-center py-10">Loading orders...</div>
+          ) : error ? (
+            <div className="text-center py-10 text-red-500">Error: {error}</div>
+          ) : currentOrders.length === 0 ? (
+            <div className="text-center py-10 text-gray-500">No orders found.</div>
+          ) : (
+            <div className="space-y-4">
+              {currentOrders.map((order) => (
+                <div key={order.orderId} className="bg-[#D9D9D9] rounded-lg p-4 flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <div className="text-gray-500">{order.date}</div>
-                      <div className="font-bold text-[#12B51D]">{order.price.toFixed(2)} TL</div>
+                    <Image 
+                      src={'/placeholder.png'}
+                      alt={`Order ${order.orderId}`}
+                      width={80} 
+                      height={80}
+                      className="rounded-lg"
+                    />
+                    <div>
+                      <div className="font-raleway text-[16px]">Order no: {order.orderId}</div>
                     </div>
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                  </div>
+                  <div className="flex items-center gap-[200px]">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(order.status)}
+                      <span className={getStatusColor(order.status)}>
+                        {order.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <div className="text-gray-500">{formatDate(order.orderDate)}</div>
+                        <div className="font-bold text-[#12B51D]">{order.totalAmount.toFixed(2)} TL</div>
+                      </div>
+                      <svg className="w-6 h-6 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Pagination */}
-          <div className="flex justify-center items-center gap-4 mt-8">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 bg-[#D9D9D9] rounded-lg font-raleway disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <div className="flex items-center gap-2">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 rounded-lg font-raleway ${
-                    currentPage === page ? 'bg-[#40BFFF] text-white' : 'text-black'
-                  }`}
-                >
-                  {page}
-                </button>
               ))}
             </div>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-[#D9D9D9] rounded-lg font-raleway disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
+          )}
+
+          {totalPages > 1 && !isLoading && !error && currentOrders.length > 0 && (
+              <div className="flex justify-center items-center gap-4 mt-8">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 bg-[#D9D9D9] rounded-lg font-raleway disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 rounded-lg font-raleway ${
+                        currentPage === page ? 'bg-[#40BFFF] text-white' : 'text-black'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 bg-[#D9D9D9] rounded-lg font-raleway disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+           )}
         </div>
       </div>
     </div>

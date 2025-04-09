@@ -49,7 +49,7 @@ export default function CartSuccessMessage({ onClose }: CartSuccessMessageProps)
           Product added
         </div>
 
-        <Link href="/my-cart">
+        <Link href="/cart">
           <span className="absolute left-[80px] top-[78px] font-inter text-[40px] text-[#5AD363] 
                         hover:opacity-90 transition-opacity cursor-pointer">
             Go to cart

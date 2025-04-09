@@ -1,11 +1,13 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import Visible from "@/components/icons/Visible";
 import Unvisible from "@/components/icons/Unvisible";
 import { useAuth } from "@/contexts/AuthContext";
 import SigninSuccessMessage from "@/components/messages/SigninSuccessMessage";
+import { useUserStore } from "@/app/stores/userStore";
+import { getAuthMe } from "@/services/API_Service";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -16,6 +18,8 @@ export default function SignInPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState("");
 
+  const setUser = useUserStore((state) => state.setUser);
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('handleSignIn triggered');
@@ -25,6 +29,22 @@ export default function SignInPage() {
       console.log('Calling login function with:', email);
       await login(email, password);
       console.log('Login function finished successfully');
+      
+      console.log('Login successful, fetching user data from /me...');
+      const userData = await getAuthMe();
+      if (userData) {
+        console.log('User data fetched:', userData);
+        setUser({ 
+          id: userData.id.toString(),
+          email: userData.email,
+          name: userData.fullName, 
+          role: 'user'
+        });
+        console.log('User store updated.');
+      } else {
+        console.error('/me endpoint did not return user data after successful login.');
+      }
+      
       setShowSuccess(true);
       setTimeout(() => {
         router.push('/');

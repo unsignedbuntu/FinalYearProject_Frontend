@@ -1,39 +1,37 @@
 "use client"
-import { useState } from 'react'
+import { useSupportStore, SupportFormState } from '@/app/stores/supportStore'
 
 export default function ContactForm() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: ''
-  })
+  const { fullName, email, subject, message, setFormField, addMessageToHistory, resetForm } = useSupportStore()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Form gönderme işlemi burada yapılacak
-    console.log(formData)
+    console.log("Form submitted with:", { fullName, email, subject, message })
+    
+    if (subject && message) {
+      addMessageToHistory({ subject, message })
+      resetForm()
+    } else {
+      console.warn("Subject or message is empty. Not adding to history.")
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
+    setFormField(name as keyof SupportFormState, value)
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
           Full Name
         </label>
         <input
           type="text"
-          id="name"
-          name="name"
-          value={formData.name}
+          id="fullName"
+          name="fullName"
+          value={fullName}
           onChange={handleChange}
           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           required
@@ -48,7 +46,7 @@ export default function ContactForm() {
           type="email"
           id="email"
           name="email"
-          value={formData.email}
+          value={email}
           onChange={handleChange}
           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           required
@@ -63,7 +61,7 @@ export default function ContactForm() {
           type="text"
           id="subject"
           name="subject"
-          value={formData.subject}
+          value={subject}
           onChange={handleChange}
           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           required
@@ -77,7 +75,7 @@ export default function ContactForm() {
         <textarea
           id="message"
           name="message"
-          value={formData.message}
+          value={message}
           onChange={handleChange}
           rows={4}
           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"

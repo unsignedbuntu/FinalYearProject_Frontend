@@ -1,7 +1,7 @@
 "use client"
-import { useState } from 'react'
 import Image from 'next/image'
 import ContactForm from '@/components/contact/ContactForm'
+import { useSupportStore } from '@/app/stores/supportStore'
 
 const faqItems = [
   {
@@ -60,36 +60,33 @@ const resourceItems = [
   }
 ]
 
-export default function SupportPage() {
-  const [activeItems, setActiveItems] = useState<{[key: string]: number}>({
-    faq: -1,
-    service: -1,
-    resource: -1
-  })
-  const openMegaMenu = useUIStore((state) => state.openMegaMenu)
+// Define the type for accordion sections explicitly
+type AccordionSection = 'activeFAQ' | 'activeService' | 'activeResource';
 
-  const handleClick = (section: string, index: number) => {
-    setActiveItems(prev => ({
-      ...prev,
-      [section]: prev[section] === index ? -1 : index
-    }))
+export default function SupportPage() {
+  // Get state and actions from the store
+  const {
+    activeFAQ,
+    activeService,
+    activeResource,
+    setActiveAccordion,
+    messageHistory
+  } = useSupportStore();
+
+  // Update handleClick with the correct type for section
+  const handleClick = (section: AccordionSection, index: number) => {
+    setActiveAccordion(section, index);
   }
 
   return (
-    <main className="flex flex-col min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 pt-[160px]">
+    <main className="flex flex-col flex-1">
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 py-12">
+      <section className="max-w-7xl mx-auto px-4 py-12 pt-[160px]">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">How Can We Help You?</h1>
           <div className="text-gray-600 max-w-2xl mx-auto">
             Our support team is here to assist you with any questions or concerns you may have.
           </div>
-          <button
-            onClick={openMegaMenu}
-            className="mt-8 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-          >
-            Browse Products
-          </button>
         </div>
       </section>
 
@@ -102,16 +99,16 @@ export default function SupportPage() {
               {faqItems.map((item, index) => (
                 <li key={index} className="group">
                   <h4 
-                    onClick={() => handleClick('faq', index)}
+                    onClick={() => handleClick('activeFAQ', index)}
                     className={`font-medium cursor-pointer transition-colors
-                      ${activeItems.faq === index ? 'text-red-600' : 'text-blue-600 hover:text-blue-700'}`}
+                      ${activeFAQ === index ? 'text-red-600' : 'text-blue-600 hover:text-blue-700'}`}
                   >
                     {item.question}
                   </h4>
                   <div className={`text-sm text-gray-600 mt-1 transition-all
-                    ${activeItems.faq === index ? 'block' : 'hidden'}`}>
+                    ${activeFAQ === index ? 'block' : 'hidden'}`}>
                     {item.content}
-                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -123,14 +120,14 @@ export default function SupportPage() {
               {serviceItems.map((item, index) => (
                 <li key={index} className="group">
                   <h4 
-                    onClick={() => handleClick('service', index)}
+                    onClick={() => handleClick('activeService', index)}
                     className={`font-medium cursor-pointer transition-colors
-                      ${activeItems.service === index ? 'text-red-600' : 'text-blue-600 hover:text-blue-700'}`}
+                      ${activeService === index ? 'text-red-600' : 'text-blue-600 hover:text-blue-700'}`}
                   >
                     {item.title}
                   </h4>
                   <div className={`text-sm text-gray-600 mt-1 transition-all
-                    ${activeItems.service === index ? 'block' : 'hidden'}`}>
+                    ${activeService === index ? 'block' : 'hidden'}`}>
                     {item.content}
                   </div>
                 </li>
@@ -144,14 +141,14 @@ export default function SupportPage() {
               {resourceItems.map((item, index) => (
                 <li key={index} className="group">
                   <h4 
-                    onClick={() => handleClick('resource', index)}
+                    onClick={() => handleClick('activeResource', index)}
                     className={`font-medium cursor-pointer transition-colors
-                      ${activeItems.resource === index ? 'text-red-600' : 'text-blue-600 hover:text-blue-700'}`}
+                      ${activeResource === index ? 'text-red-600' : 'text-blue-600 hover:text-blue-700'}`}
                   >
                     {item.title}
                   </h4>
                   <div className={`text-sm text-gray-600 mt-1 transition-all
-                    ${activeItems.resource === index ? 'block' : 'hidden'}`}>
+                    ${activeResource === index ? 'block' : 'hidden'}`}>
                     {item.content}
                   </div>
                 </li>
@@ -161,11 +158,13 @@ export default function SupportPage() {
         </div>
       </section>
 
-      {/* Contact Form Section */}
+      {/* Contact Form and History Section */}
       <section className="max-w-7xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div className="flex flex-col md:flex-row">
-            <div className="md:w-1/2 p-8 bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Column 1: Get in Touch & History */}
+          <div className="space-y-8">
+            {/* Get in Touch Card */}
+            <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-lg shadow-lg p-8">
               <h2 className="text-3xl font-bold mb-6">Get in Touch</h2>
               <div className="mb-6">
                 Can't find what you're looking for? Send us a message and we'll get back to you as soon as possible.
@@ -185,9 +184,29 @@ export default function SupportPage() {
                 </div>
               </div>
             </div>
-            <div className="md:w-1/2 p-8">
-              <ContactForm />
-            </div>
+
+            {/* Message History Card */}
+            {messageHistory.length > 0 && (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-semibold mb-4">Message History (This Session)</h3>
+                <ul className="space-y-4 max-h-60 overflow-y-auto">
+                  {[...messageHistory].reverse().map((msg, index) => (
+                    <li key={msg.timestamp} className="border-b pb-2 last:border-b-0">
+                      <div className="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Subject: {msg.subject}</span>
+                        <span>{new Date(msg.timestamp).toLocaleString()}</span>
+                      </div>
+                      <p className="text-sm text-gray-700">{msg.message}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Column 2: Contact Form */}
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <ContactForm />
           </div>
         </div>
       </section>

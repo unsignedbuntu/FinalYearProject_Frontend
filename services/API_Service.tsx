@@ -38,9 +38,35 @@ export const getCategories = async () => {
 // Keep other fetch-based functions for now, but consider refactoring them too
 // if they need authentication or consistent HTTPS handling.
 
+// Add function to get current user info
+export const getAuthMe = async () => {
+  // Axios instance `api` should automatically handle cookies/credentials
+  try {
+    const response = await api.get('/api/Auth/me'); 
+    // Swagger response shows { status: "Success", user: { id: ..., email: ..., fullName: ... } }
+    // We need to return the user object inside
+    if (response.data && response.data.status === "Success" && response.data.user) {
+        return response.data.user; 
+    } else {
+        // Handle cases where the API returns 200 OK but no valid user data
+        console.error('getAuthMe returned success status but no user data:', response.data);
+        throw new Error('User data not found in /me response.');
+    }
+  } catch (error: any) {
+    // Handle specific errors like 401 Unauthorized (not logged in)
+    if (error.response && error.response.status === 401) {
+      console.warn('User not authenticated (401 from /api/Auth/me)');
+      return null; // Indicate not logged in
+    } else {
+      console.error('Error fetching /api/Auth/me:', error);
+      throw error; // Re-throw other errors
+    }
+  }
+};
+
 // Example: getCategoriesById using fetch (needs NEXT_PUBLIC_API_URL in env)
 export const getCategoriesById = async (id: number) => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7296';
+  const apiUrl = process.env.URL;
   const response = await fetch(`${apiUrl}/api/Categories/${id}`, {
     method: 'GET',
     headers: {
@@ -57,7 +83,7 @@ export const getCategoriesById = async (id: number) => {
 };
 
 // Ensure fetch calls use the correct environment variable or default
-const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7296';
+const getApiUrl = () => process.env.URL;
 
 // Example update for createCategory
 export const createCategory = async (data: any) => {
@@ -138,6 +164,33 @@ export const getProductById = async (id: number) => {
     cache: 'no-store'
   });
   return response.json();
+};
+
+export const getProductsByCategoryId = async (categoryId: number) => {
+  try {
+    const result = await fetch(`${getApiUrl()}/api/Products/ByCategory/${categoryId}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      mode: 'cors',
+      cache: 'no-store'
+    });
+
+    if (!result.ok) {
+      if (result.status === 404) {
+        console.warn(`No products found for category ${categoryId}`);
+        return []; 
+      }
+      throw new Error(`HTTP error! status: ${result.status}`);
+    }
+    const data = await result.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching products for category ${categoryId}:`, error);
+    return [];
+  }
 };
 
 export const createProduct = async (data: any) => {
@@ -542,4 +595,127 @@ export const deleteLoyaltyProgram = async (id: number) => {
   });
 
   return response.json();
+};
+
+//Reviews
+export const getUserReviews = async (userId: number) => {
+  try {
+    const response = await fetch(`${getApiUrl()}/api/Reviews/ByUser/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      mode: 'cors',
+      cache: 'no-store'
+    });
+    if (!response.ok) {
+      if (response.status === 404) return []; // Yorum yoksa boş dizi
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching reviews for user ${userId}:`, error);
+    return []; // Hata durumunda boş dizi
+  }
+};
+
+export const submitReviewApi = async (reviewData: { 
+  userId: number; 
+  productId: number; 
+  orderItemId?: number; // Backend'e göre gerekebilir
+  rating: number; 
+  comment: string; 
+}) => {
+  try {
+    const response = await fetch(`${getApiUrl()}/api/Reviews`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      mode: 'cors',
+      cache: 'no-store',
+      body: JSON.stringify(reviewData),
+    });
+    
+    if (!response.ok) {
+       const errorText = await response.text();
+       throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    return await response.json(); // Başarılı yanıtı döndür
+  } catch (error) {
+     console.error('Error submitting review:', error);
+     throw error; // Hatanın store action'ında yakalanması için tekrar fırlat
+  }
+};
+
+// Order creation DTO structure (adjust based on your actual backend DTO)
+interface OrderItemPayload {
+  productID: number;
+  quantity: number;
+  priceAtPurchase: number; // Use the price at the time of checkout
+  // Add other fields if needed by backend (e.g., size, color)
+}
+
+interface OrderPayloadDTO {
+  userID: number;
+  totalAmount: number;
+  shippingAddress?: string; // Optional or fetched elsewhere
+  orderItems: OrderItemPayload[];
+  // Add other fields if needed (e.g., couponCode)
+}
+
+//Orders
+export const getUserOrders = async (userId: number) => {
+  try {
+    const response = await fetch(`${getApiUrl()}/api/Orders/ByUser/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      mode: 'cors',
+      cache: 'no-store'
+    });
+    if (!response.ok) {
+      if (response.status === 404) return []; // Sipariş yoksa boş dizi
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching orders for user ${userId}:`, error);
+    return []; // Hata durumunda boş dizi
+  }
+};
+
+// Add function to create an order
+export const createOrder = async (orderData: OrderPayloadDTO) => {
+  try {
+    const response = await fetch(`${getApiUrl()}/api/Orders`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      mode: 'cors',
+      cache: 'no-store',
+      body: JSON.stringify(orderData),
+    });
+
+    if (!response.ok) {
+       const errorText = await response.text();
+       // Try to parse error if JSON
+       try {
+         const errorJson = JSON.parse(errorText);
+         throw new Error(errorJson.message || `HTTP error! status: ${response.status}, message: ${errorText}`);
+       } catch {
+         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+       }
+    }
+    return await response.json(); // Return the created order details
+  } catch (error) {
+     console.error('Error creating order:', error);
+     throw error; // Re-throw for the component to handle
+  }
 };

@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 
 interface UserState {
   user: {
-    id: string | null
+    id: number | null
     email: string | null
     name: string | null
     role: 'user' | 'admin' | null

@@ -17,22 +17,25 @@ export interface Store {
 export interface Category {
     categoryID: number;
     categoryName: string;
+    storeID?: number;
 }
 
 export interface Product {
     productID: number;
     productName: string;
-    description: string;
+    description?: string;
     price: number;
-    quantity: number;
+    stockQuantity: number;
     image?: string;
     categoryID?: number;
-    categoryName?: string;
+    categoryName: string;
+    storeID: number;
+    storeName?: string;
+    supplierName?: string;
+    barcode?: string;
     additionalImages?: string[];
     reviews?: Review[];
     specs?: Record<string, string>;
-    stock?: number;
-    supplierName?: string;
     category?: any;
 }
 

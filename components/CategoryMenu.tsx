@@ -6,16 +6,20 @@ import { getCategories, getProducts, getStores } from '@/services/API_Service';
 interface Category {
   categoryID: number;
   categoryName: string;
-  storeID: number;
+  storeName: string;
+  storeID?: number;
 }
 
 interface Product {
   productID: number;
   productName: string;
-  categoryID: number;
+  categoryName: string;
+  storeName?: string;
   productPrice?: number;
   productDescription?: string;
   productImage?: string;
+  price?: number;
+  stockQuantity?: number;
 }
 
 interface Store {
@@ -26,23 +30,20 @@ interface Store {
 export default function CategoryMenu() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<number | null>(null);
+  const [activeCategory, setActiveCategory] = useState<Category | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [categoriesData, productsData, storesData] = await Promise.all([
+        const [categoriesData, productsData] = await Promise.all([
           getCategories(),
           getProducts(),
-          getStores()
         ]);
 
-        setCategories(categoriesData);
-        setProducts(productsData);
-        setStores(storesData);
+        setCategories(categoriesData as Category[]);
+        setProducts(productsData as Product[]);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -53,60 +54,48 @@ export default function CategoryMenu() {
     fetchData();
   }, []);
 
-  // Kategori hover işlemi
-  const handleCategoryHover = (categoryId: number) => {
-    setActiveCategory(categoryId);
+  const handleCategoryHover = (category: Category) => {
+    setActiveCategory(category);
   };
 
-  // Hover'dan çıkma işlemi
   const handleMouseLeave = () => {
     setActiveCategory(null);
   };
 
-  // Ana kategorileri getir (storeID'ye göre gruplandırılmış)
-  const getMainCategories = () => {
-    // Tüm kategorileri döndür, gruplandırma yapma
-    return categories;
-  };
-
-  // Alt kategorileri getir
-  const getSubCategories = (categoryId: number) => {
-    // Bu fonksiyonu artık kullanmıyoruz, boş dizi döndür
-    return [];
-  };
-
-  // Kategoriye ait ürünleri getir
-  const getCategoryProducts = (categoryId: number) => {
-    return products.filter(product => product.categoryID === categoryId); 
+  const getCategoryProducts = (categoryName: string) => {
+    return products.filter(product => product.categoryName === categoryName); 
   };
 
   if (loading) {
     return <div className="flex justify-center py-4">Kategoriler yükleniyor...</div>;
   }
 
-  const mainCategories = getMainCategories();
+  const uniqueCategories = categories.reduce((acc, current) => {
+      if (!acc.find(item => item.categoryName === current.categoryName)) {
+          acc.push(current);
+      }
+      return acc;
+  }, [] as Category[]);
 
   return (
     <div className="relative z-40" onMouseLeave={handleMouseLeave}>
-      {/* Ana Kategori Menüsü */}
       <div className="flex border-b border-gray-200 overflow-x-auto">
-        {mainCategories.map((category) => (
+        {uniqueCategories.map((category) => (
           <div
             key={category.categoryID}
             className="relative group"
-            onMouseEnter={() => handleCategoryHover(category.categoryID)}
+            onMouseEnter={() => handleCategoryHover(category)}
           >
             <Link
               href={`/store/details/${category.categoryID}`}
               className={`px-4 py-3 block text-sm font-medium hover:text-blue-600 whitespace-nowrap ${
-                activeCategory === category.categoryID ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-700'
+                activeCategory?.categoryID === category.categoryID ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-700'
               }`}
             >
               {category.categoryName}
             </Link>
             
-            {/* Ürünler (Hover durumunda gösterilir) */}
-            {activeCategory === category.categoryID && (
+            {activeCategory?.categoryID === category.categoryID && (
               <div 
                 className="fixed w-[300px] bg-white shadow-lg rounded-b-lg z-[9999] p-4"
                 style={{ 
@@ -125,7 +114,7 @@ export default function CategoryMenu() {
                   </Link>
                 </h3>
                 <ul className="max-h-[300px] overflow-y-auto pr-2">
-                  {getCategoryProducts(category.categoryID).map((product) => (
+                  {getCategoryProducts(category.categoryName).map((product) => (
                     <li key={product.productID} className="py-1 border-b border-gray-100 last:border-b-0">
                       <Link 
                         href={`/product/${product.productID}`} 
@@ -135,7 +124,7 @@ export default function CategoryMenu() {
                       </Link>
                     </li>
                   ))}
-                  {getCategoryProducts(category.categoryID).length === 0 && (
+                  {getCategoryProducts(category.categoryName).length === 0 && (
                     <li className="py-2 text-center">
                       <p className="text-gray-500 text-sm">Bu kategoride henüz ürün bulunmamaktadır.</p>
                     </li>

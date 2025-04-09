@@ -6,6 +6,7 @@ import Header from "@/components/header/Header";
 import NavigationBar from "@/components/navigation/NavigationBar";
 import { usePathname } from "next/navigation";
 import { AuthProvider } from '@/contexts/AuthContext';
+import { Toaster } from 'react-hot-toast';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,14 +32,16 @@ export default function RootLayout({
   const pathname = usePathname();
   const isAuthPage = pathname === "/signin" || pathname === "/sign-up" || pathname === "/forgot-password";
 
-  // Determine the body className based on the page type
-  const bodyClassName = !isAuthPage
-    ? "bg-[url('/Background.png')] bg-cover bg-center bg-no-repeat min-h-screen" // Apply background for non-auth pages
-    : "min-h-screen"; // Basic class for auth pages
+  // Add flex classes for full height background
+  const bodyBaseClasses = "flex flex-col min-h-screen"; 
+  const bodyBackgroundClass = !isAuthPage
+    ? "bg-[url('/Background.png')] bg-cover bg-center bg-no-repeat bg-fixed"
+    : ""; 
+
+  const bodyClassName = `${bodyBaseClasses} ${bodyBackgroundClass}`.trim();
 
   return (
-    <html lang="en">
-      {/* Apply conditional className to the body */}
+    <html lang="en" className="h-full">
       <body className={bodyClassName}>
         <AuthProvider>
           {!isAuthPage && (
@@ -47,7 +50,9 @@ export default function RootLayout({
               <NavigationBar />
             </>
           )}
-          <main>{children}</main>
+          {/* Make main a flex container and grow, allow shrinking */}
+          <main className="flex flex-col flex-grow min-h-0">{children}</main>
+          <Toaster position="bottom-center" />
         </AuthProvider>
       </body>
     </html>

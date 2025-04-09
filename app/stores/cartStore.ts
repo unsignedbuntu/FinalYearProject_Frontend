@@ -25,6 +25,7 @@ interface CartState {
   clearCart: () => void
   getSelectedTotalPrice: () => number
   getItemCount: () => number
+  removeSelectedItems: () => void
 }
 
 export const useCartStore = create<CartState>()(
@@ -124,6 +125,25 @@ export const useCartStore = create<CartState>()(
 
       getItemCount: () => {
         return get().items.length
+      },
+
+      removeSelectedItems: () => {
+        set((state) => {
+          const remainingItems = state.items.filter(
+            item => !state.selectedItems.includes(item.id)
+          );
+          const newTotalPrice = remainingItems.reduce(
+            (total, item) => total + (item.price * item.quantity),
+            0
+          );
+
+          return {
+            items: remainingItems,
+            selectedItems: [],
+            totalPrice: newTotalPrice,
+            lastRemovedItems: null,
+          };
+        });
       }
     }),
     {

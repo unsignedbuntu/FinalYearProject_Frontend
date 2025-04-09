@@ -201,7 +201,7 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
                                     <h4 className="font-medium text-sm line-clamp-2 h-10">{similarProduct.productName}</h4>
                                     <div className="flex justify-between items-center mt-2">
                                             <span className="text-blue-600 font-bold">{similarProduct.price.toFixed(2)} TL</span>
-                                        <span className="text-xs text-gray-500">Product</span>
+                                        <span className="text-xs text-gray-500">{similarProduct.supplierName || 'GamerGear'}</span>
                                     </div>
                                 </div>
                             </Link>
@@ -227,7 +227,7 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
                                                 price: similarProduct.price, 
                                                 image: similarProduct.image || '/placeholder.png', 
                                                 date: new Date(),
-                                                inStock: (similarProduct.stock ?? 0) > 0,
+                                                inStock: (similarProduct.stockQuantity ?? 0) > 0,
                                                 selected: false,
                                                 listId: undefined
                                             };
@@ -349,16 +349,21 @@ export default function ProductPage() {
                     let fetchedStore: Store | null = null;
 
                     if (productSupplier) {
-                        console.log("Supplier info found:", productSupplier);
+                        console.log("Supplier info found (raw API):", productSupplier);
                         const supplierDetails = allSuppliers.find((s: any) => s.supplierID === productSupplier.supplierID);
+
+                        // Create fetchedSupplier - NO NEED to handle stock here
                         fetchedSupplier = {
-                            ...productSupplier,
+                            productSupplierID: productSupplier.productSupplierID,
+                            productID: productSupplier.productID,
+                            supplierID: productSupplier.supplierID,
+                            // status: productSupplier.status, // Status was removed
                             supplierName: supplierDetails?.supplierName || 'GamerGear',
                             rating: storeRating,
-                            stock: productSupplier.stock
+                            stock: 0 // Keep the field for type compatibility, but value comes from Product
                         };
                         setSupplier(fetchedSupplier);
-                        console.log("Supplier details set:", fetchedSupplier);
+                        console.log("Supplier state set (stock comes from Product):", fetchedSupplier);
 
                         const foundStore = storesData.find((s: Store) => s.storeID === productSupplier.supplierID);
                         if (foundStore) {
@@ -371,6 +376,7 @@ export default function ProductPage() {
                         }
                     } else {
                         console.warn("No supplier found for product ID:", productId);
+                        // Even if no supplier, product itself has stockQuantity
                     }
 
                     const productCategory = categoriesData.find((c: Category) => c.categoryID === foundProduct.categoryID);
@@ -544,56 +550,54 @@ export default function ProductPage() {
                         // (Current logic only generates additional if main was missing)
                     }
 
-                    // Update product state
-                    setProduct({
-                        ...foundProduct,
-                        reviews: formattedReviews,
-                        description: productDescription,
-                        specs: productSpecs,
-                        stock: fetchedSupplier?.stock ?? 0,
-                        supplierName: fetchedSupplier?.supplierName || 'GamerGear' // Ensure supplierName is set
-                    });
-                    console.log("Final product state set:", { ...foundProduct, reviews: formattedReviews, description: productDescription, specs: productSpecs, stock: fetchedSupplier?.stock ?? 0, supplierName: fetchedSupplier?.supplierName || 'GamerGear' });
+                    // Calculate stock from the main product data
+                    const actualStock = foundProduct.stockQuantity ?? 0;
+                    console.log("Using stockQuantity directly from foundProduct:", actualStock);
 
-                    // Find similar products (REVERTED LOGIC)
-                    let sameCategoryProducts = [];
-                    if (foundProduct.categoryID) {
-                        sameCategoryProducts = productsData
-                            .filter((p: Product) => p.categoryID === foundProduct.categoryID && p.productID !== foundProduct.productID)
-                            .slice(0, 10);
-                         console.log(`Found ${sameCategoryProducts.length} similar products by category ID.`);
-                    } else {
-                        const productNameWords = foundProduct.productName.toLowerCase().split(' ');
-                        sameCategoryProducts = productsData
-                            .filter((p: Product) => p.productID !== foundProduct.productID && productNameWords.some((word: string) => word.length > 3 && p.productName.toLowerCase().includes(word)))
-                            .slice(0, 10);
-                         console.log(`Found ${sameCategoryProducts.length} similar products by name.`);
-                    }
-                    if (sameCategoryProducts.length === 0) {
-                        sameCategoryProducts = productsData
-                            .filter((p: Product) => p.productID !== foundProduct.productID)
-                            .sort(() => 0.5 - Math.random())
-                            .slice(0, 10);
-                         console.log(`Found ${sameCategoryProducts.length} random similar products.`);
-                    }
-                    // Add supplier name and stock to similar products
+                    // Update product state using stock from foundProduct
+                    setProduct((prevProduct) => ({
+                        ...(prevProduct || foundProduct), // Use previous state or initial foundProduct
+                        ...foundProduct, // Ensure latest basic product details are used
+                        reviews: formattedReviews, // Assuming formattedReviews is defined earlier
+                        description: productDescription, // Assuming defined earlier
+                        specs: productSpecs, // Assuming defined earlier
+                        stockQuantity: actualStock, // USE stockQuantity FROM foundProduct!
+                        supplierName: fetchedSupplier?.supplierName || 'GamerGear'
+                    }));
+                    console.log("Final product state updated using foundProduct.stockQuantity.");
+
+                    // Find similar products using categoryName
+                    let sameCategoryProducts: Product[] = [];
+                    // Ana ürünün categoryName'i var mı kontrol et
+                    if (foundProduct.categoryName) { 
+                         // categoryName'e göre filtrele
+                        const filteredByCategoryName = productsData
+                            .filter((p: Product) => {
+                                // Hem p hem de foundProduct için categoryName var mı kontrol et
+                                const match = p.categoryName === foundProduct.categoryName && p.productID !== foundProduct.productID;
+                                return match;
+                            });
+                        
+                        sameCategoryProducts = filteredByCategoryName.slice(0, 10); // Limit to 10
+                         console.log(`Found ${sameCategoryProducts.length} similar products by categoryName (after slice).`);
+                    } 
+                    
+                    // Add supplier name
                      sameCategoryProducts.forEach((sp: Product) => {
                         const spSupplier = suppliersData.find((s: ProductSupplier) => s.productID === sp.productID);
-                        sp.stock = spSupplier?.stock ?? 0;
                         if (spSupplier) {
                             const spSupplierDetails = allSuppliers.find((s: any) => s.supplierID === spSupplier.supplierID);
                             sp.supplierName = spSupplierDetails?.supplierName || 'GamerGear';
                         } else {
-                            sp.supplierName = 'GamerGear'; // Default if no supplier found
+                            sp.supplierName = 'GamerGear';
                         }
                     });
-                    setSimilarProducts(sameCategoryProducts);
-                    console.log("Similar products set:", sameCategoryProducts.map((p: Product) => p.productName));
+                    setSimilarProducts(sameCategoryProducts); 
 
-                                } else {
+                } else {
                      console.error("Product not found for ID:", productId);
-                            }
-                        } catch (error) {
+                }
+            } catch (error) {
                 console.error('Error fetching product data:', error);
             } finally {
                 setLoading(false);
@@ -626,7 +630,7 @@ export default function ProductPage() {
             price: product.price,
             image: product.image || '/placeholder.png',
             date: new Date(),
-            inStock: (product.stock ?? 0) > 0,
+            inStock: (product.stockQuantity ?? 0) > 0,
             selected: false,
             listId: undefined
          };
@@ -652,10 +656,10 @@ export default function ProductPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
+        <div className="flex-1">
             {showCartNotification && <CartSuccessMessage onClose={() => setShowCartNotification(false)} />}
             
-            <div className="max-w-7xl mx-auto px-4">
+            <div className="max-w-7xl mx-auto px-4 py-8 bg-gray-50">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Left Column - Product Images */}
                     <div className="space-y-4">
@@ -743,10 +747,10 @@ export default function ProductPage() {
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center">
                                     <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-xl mr-3">
-                                        G
+                                        {(product.supplierName || '?')[0].toUpperCase()}
                                     </div>
                                     <div>
-                                        <p className="font-semibold">{store?.storeName || product.supplierName || 'GamerGear'}</p>
+                                        <p className="font-semibold">{product.supplierName || 'Unknown Supplier'}</p>
                                         <div className="flex items-center mt-1">
                                             <div className="flex">
                                                 {[1, 2, 3, 4, 5].map((star) => (
@@ -767,17 +771,17 @@ export default function ProductPage() {
                         </div>
 
                         <div className="text-sm text-gray-600 mb-6">
-                             Stock: <span className="font-semibold">{supplier?.stock ?? product.stock ?? 0}</span> { (supplier?.stock ?? product.stock ?? 0) === 1 ? 'unit' : 'units'} available
+                             Stock: <span className="font-semibold">{product.stockQuantity ?? 0}</span> { (product.stockQuantity ?? 0) === 1 ? 'unit' : 'units'} available
                         </div>
 
                         <div className="flex gap-4">
                             <button
                                 onClick={handleAddToCart}
-                                disabled={(supplier?.stock ?? product.stock ?? 0) === 0}
-                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg transition-colors ${(supplier?.stock ?? product.stock ?? 0) === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                disabled={(product.stockQuantity ?? 0) === 0}
+                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg transition-colors ${(product.stockQuantity ?? 0) === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                             >
                                 <CartFavorites />
-                                <span>{(supplier?.stock ?? product.stock ?? 0) === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
+                                <span>{(product.stockQuantity ?? 0) === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
                             </button>
 
                             <button
@@ -807,7 +811,7 @@ export default function ProductPage() {
                 </div>
 
                 {/* Product Details Tabs */}
-                <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden md:col-span-2">
                     <div className="flex border-b">
                         <button 
                             className={`px-6 py-3 font-medium ${activeTab === 'description' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-blue-600'}`}

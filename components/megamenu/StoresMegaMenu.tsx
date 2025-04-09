@@ -10,21 +10,30 @@ import { useUIStore } from '@/app/stores/uiStore'
 interface Store {
   storeID: number;
   storeName: string;
-  categories?: Category[];
+  // categories?: Category[]; // This might not be directly linkable anymore
 }
 
 interface Category {
   categoryID: number;
   categoryName: string;
-  storeID: number;
-  products?: Product[];
+  storeName: string; // API returns storeName, not storeID
+  // storeID: number; 
+  // products?: Product[];
 }
 
 interface Product {
   productID: number;
   productName: string;
-  categoryID: number;
-  storeID: number;
+  // categoryID: number; // API returns categoryName
+  // storeID: number; // API returns storeName
+  categoryName: string; // Use names from API
+  storeName: string; // Use names from API
+  price?: number; 
+  image?: string;
+  stockQuantity?: number; // Add other fields from API if needed
+  barcode?: string;
+  status?: boolean;
+  supplierName?: string;
 }
 
 export default function StoresMegaMenu() {
@@ -185,10 +194,9 @@ export default function StoresMegaMenu() {
                 {/* Kategoriler ve Ürünler */}
                 {selectedStore && (
                   <div className="w-4/5 pl-6">
-            
                     <div className="grid grid-cols-4 gap-6 max-h-[800px] overflow-y-auto">
                       {categories
-                        .filter(category => category.storeID === selectedStore.storeID)
+                        .filter(category => category.storeName === selectedStore.storeName)
                         .map((category) => (
                           <div key={category.categoryID} className="space-y-3">
                             <h3 className="font-bold text-lg text-[#FF9D00] pb-2 border-b border-gray-200">
@@ -202,8 +210,8 @@ export default function StoresMegaMenu() {
                             <ul className="space-y-2">
                               {products
                                 .filter(product => 
-                                  product.categoryID === category.categoryID && 
-                                  product.storeID === selectedStore.storeID
+                                  product.categoryName === category.categoryName && 
+                                  product.storeName === selectedStore.storeName 
                                 )
                                 .slice(0, 6) // En fazla 6 ürün göster
                                 .map((product) => (
@@ -217,8 +225,8 @@ export default function StoresMegaMenu() {
                                   </li>
                                 ))}
                               {products.filter(product => 
-                                product.categoryID === category.categoryID && 
-                                product.storeID === selectedStore.storeID
+                                product.categoryName === category.categoryName && 
+                                product.storeName === selectedStore.storeName
                               ).length > 6 && (
                                 <li>
                                   <Link 
@@ -228,6 +236,12 @@ export default function StoresMegaMenu() {
                                     View all products...
                                   </Link>
                                 </li>
+                              )}
+                              {products.filter(product => 
+                                product.categoryName === category.categoryName && 
+                                product.storeName === selectedStore.storeName
+                              ).length === 0 && (
+                                <li className="py-1 text-xs text-gray-400">(No products)</li>
                               )}
                             </ul>
                           </div>
