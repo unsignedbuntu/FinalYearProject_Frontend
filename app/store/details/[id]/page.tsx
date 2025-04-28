@@ -33,6 +33,11 @@ const CheckIcon = () => (
   </svg>
 );
 
+// Module-level cache and control variables (similar to the old working code)
+const imageCache: Record<string, string> = {};
+const processingPrompts = new Set<string>();
+let imageGenerationInProgress = false;
+
 // Product tipini genişletelim
 interface ExtendedProduct extends Product {
   // Artık backendden geliyorsa storeID'ye gerek yok gibi, ama Product type'ında zorunlu, kalsın.
@@ -53,12 +58,6 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
   const [sortOption, setSortOption] = useState<string>('popularity');
   const [loadingImages, setLoadingImages] = useState<Record<number, boolean>>({});
-  const [imagesGenerated, setImagesGenerated] = useState(false);
-  
-  // State/Ref olarak tanımlanan cache ve kontrol değişkenleri
-  const [imageCache, setImageCache] = useState<Record<string, string>>({});
-  const processingPromptsRef = useRef<Set<string>>(new Set());
-  const imageGenerationInProgressRef = useRef<boolean>(false);
 
   // Data yükleme işlemi için useEffect
   useEffect(() => {
@@ -77,8 +76,22 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
         setCategories(categoriesData);
         setStores(storesData); 
 
+        // Initialize products with images from cache if available
         const categoryProducts = productsData.map((product: Product): ExtendedProduct => {
-          return product; 
+          let initialImage = product.image;
+          try {
+             const productCategory = categoriesData.find((c: Category) => c.categoryID === product.categoryID);
+             const categoryName = productCategory?.categoryName || 'default';
+             const categoryPrompt = basePrompts[categoryName as CategoryKey] || basePrompts.default;
+             const mainPrompt = categoryPrompt.main(product.productName);
+             if (imageCache[mainPrompt]) {
+                 initialImage = imageCache[mainPrompt];
+                 console.log(`🔄 Initializing product ${product.productID} with cached image.`);
+             }
+          } catch (e) {
+             console.warn(`Could not determine initial image for ${product.productName}`, e);
+          }
+          return { ...product, image: initialImage };
         });
         
         console.log(`Loaded ${categoryProducts.length} products directly for category ${categoryId}`);
@@ -118,189 +131,201 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
     }
   }, [categoryId]);
 
-  // Ürün resimleri için useEffect
+  // Ürün resimleri için useEffect (Updated logic)
   useEffect(() => {
-    // Ref değerini kontrol et
-    if (loading || imagesGenerated || imageGenerationInProgressRef.current) {
-      return; // Yükleniyorsa, tamamlandıysa veya zaten işlemdeyse bir şey yapma
+    // Use module-level flag
+    if (loading || products.length === 0 || imageGenerationInProgress) {
+      return;
     }
-    
-    if (products.length > 0) {
-      console.log("📋 Checking products for image generation");
-      
-      const initialLoadingState: Record<number, boolean> = {};
-      products.forEach(product => {
-        initialLoadingState[product.productID] = false;
-      });
-      setLoadingImages(initialLoadingState);
-      
-      const productsNeedingImages = products.filter(p => 
-        !p.image || 
-        p.image === '/placeholder.png' || 
-        p.image.includes('placeholder') ||
-        !imageCache[basePrompts[p.categoryName as CategoryKey || 'default']?.main(p.productName)] // Cache'de yoksa
-      );
-      
-      if (productsNeedingImages.length > 0) {
-        console.log(`🔍 Found ${productsNeedingImages.length} products needing images in category ${categoryId}`);
-        
-        // Ref değerini true yap
-        imageGenerationInProgressRef.current = true;
-        
-        const generateImages = async () => {
-          try {
-            let processedCount = 0;
-            const productsToProcess: ExtendedProduct[] = [];
-            const promptsToProcess: string[] = [];
-            
-            for (const product of productsNeedingImages) {
-              let productCategory = categories.find((c: Category) => c.categoryID === product.categoryID); 
-              const categoryName = productCategory?.categoryName || 'default';
-              const categoryPrompt = basePrompts[categoryName as CategoryKey] || basePrompts.default;
-              // Prompt oluştururken hata olmaması için kontrol
-              if (!categoryPrompt || typeof categoryPrompt.main !== 'function') {
-                console.warn(`❓ Could not find or use prompt function for category: ${categoryName}, product: ${product.productName}`);
-                continue;
-              }
-              const mainPrompt = categoryPrompt.main(product.productName);
-              
-              // Ref'teki seti kontrol et
-              if (processingPromptsRef.current.has(mainPrompt)) {
-                console.log(`⏭️ Skipping product ${product.productID} - prompt currently processing`);
-                continue;
-              }
-              
-              // State'teki cache'i kontrol et
-              if (imageCache[mainPrompt]) {
-                console.log(`💾 Using cached image from state for product ${product.productID}`);
-                // Eğer üründe hala placeholder varsa, cache'deki ile güncelle (bu normalde olmamalı ama garanti)
-                setProducts(prevProducts => 
-                  prevProducts.map(p => 
-                    p.productID === product.productID && (!p.image || p.image.includes('placeholder'))
-                      ? { ...p, image: imageCache[mainPrompt] } 
-                      : p
-                  )
-                );
-                continue; // Cache'de varsa işleme ekleme
-              }
-              
-              productsToProcess.push(product);
-              promptsToProcess.push(mainPrompt);
-              // Ref'teki sete ekle
-              processingPromptsRef.current.add(mainPrompt);
-            }
-            
-            console.log(`📊 Will process ${productsToProcess.length} products after filtering already processed/cached ones`);
-            
-            if (productsToProcess.length === 0) {
-              console.log("✅ No products to process, all products either have images or are being processed/cached");
-              setImagesGenerated(true);
-              imageGenerationInProgressRef.current = false; // Ref'i false yap
-              return;
-            }
-            
-            for (let i = 0; i < productsToProcess.length; i++) {
-               // Döngü başlamadan önce flag'i tekrar kontrol et (başka bir işlem başlatmış olabilir)
-              if (!imageGenerationInProgressRef.current) {
-                console.log("🛑 Image generation process was stopped externally.");
-                break; 
-              }
 
-              const product = productsToProcess[i];
-              const prompt = promptsToProcess[i];
-              
-              console.log(`🔄 Processing product ${processedCount + 1}/${productsToProcess.length}: ${product.productName}`);
-              setLoadingImages(prev => ({ ...prev, [product.productID]: true }));
-              
-              try {
-                console.log("📡 Sending API request for image generation:", product.productID);
-                // NOT: Backend loglarındaki uyarıya göre, belki burada GET denemek daha iyi olabilir?
-                // Şimdilik POST ile devam edelim, ama sorun sürerse burayı değiştirebiliriz.
-                const response = await fetch('/api/ImageCache', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ pageID: 'products', prompt: prompt, checkOnly: false }),
-                  cache: 'no-store' 
-                });
-                
-                if (response.ok) {
-                  const data = await response.json();
-                  console.log("📥 API response for product:", product.productID, "success:", data.success);
-                  
-                  if (data.success && data.image) {
-                    console.log("✅ Successfully retrieved or generated image for product:", product.productID);
-                    const imageUrl = `data:image/jpeg;base64,${data.image}`;
-                    
-                    // Önce state'deki cache'i güncelle
-                    if (typeof imageUrl === 'string' && imageUrl.startsWith('data:image')) {
-                       setImageCache(prevCache => ({ ...prevCache, [prompt]: imageUrl }));
-                       console.log(`💾 Added image to state cache for product ${product.productID}`);
-                    }
+    console.log("📋 Checking products for image generation");
 
-                    // Sonra product state'ini güncelle
-                    setProducts(prevProducts => 
-                      prevProducts.map(p => 
-                        p.productID === product.productID 
-                          ? { ...p, image: imageUrl } 
-                          : p
-                      )
-                    );
-                    
-                  } else {
-                    console.error("❌ Failed to get image data from API response for product:", product.productID, "Response data:", data);
-                  }
-                } else {
-                  console.error("❌ Error response from API for product:", product.productID, "Status:", response.status);
-                }
-              } catch (error) {
-                console.error("❌ Exception during image retrieval for product:", product.productID, error);
-              } finally {
-                setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
-                // Ref'teki setten kaldır
-                processingPromptsRef.current.delete(prompt);
-              }
-              
-              processedCount++;
-              console.log(`📊 Processed ${processedCount}/${productsToProcess.length} products`);
-              // Gecikmeyi koruyalım
-              await new Promise(resolve => setTimeout(resolve, 500)); // Biraz kısalttım
+    const initialLoadingState: Record<number, boolean> = {};
+    products.forEach(product => {
+      initialLoadingState[product.productID] = false;
+    });
+    setLoadingImages(initialLoadingState);
+
+    // Check for products needing images based on current state and module-level cache
+    const productsNeedingImages = products.filter(p => {
+        if (!p.image || p.image === '/placeholder.png' || p.image.includes('placeholder')) {
+            try {
+                const productCategory = categories.find((c: Category) => c.categoryID === p.categoryID);
+                const categoryName = productCategory?.categoryName || 'default';
+                const categoryPrompt = basePrompts[categoryName as CategoryKey] || basePrompts.default;
+                const mainPrompt = categoryPrompt.main(p.productName);
+                // Needs image if not in module cache AND not currently processing
+                return !imageCache[mainPrompt] && !processingPrompts.has(mainPrompt);
+            } catch (e) {
+                console.warn(`Could not determine prompt for ${p.productName}`, e);
+                return false; // Don't process if prompt fails
             }
-            
-            console.log("🎉 Image generation loop finished");
-            setImagesGenerated(true); // Tüm potansiyel ürünler işlendi
-          } catch (error) {
-            console.error("❌ Error in image generation process:", error);
-          } finally {
-            // Ref'i false yap
-            imageGenerationInProgressRef.current = false;
-            console.log("🏁 Image generation process ended.");
-          }
-        };
-        
-        generateImages();
-      } else {
-        // Hiç görüntüye ihtiyaç yoksa, işlemi tamamlanmış say
-        if (!imagesGenerated) {
-             console.log("📷 No images needed generation based on current state and cache.");
-             setImagesGenerated(true);
         }
-      }
-    }
-    // Bağımlılıkları optimize et: products ve categoryId değiştiğinde veya loading bittiğinde tetiklenmeli.
-    // imagesGenerated'ı kaldırdık çünkü effect kendi içinde bunu set ediyor.
-    // categories listesi değişirse de promptlar için gerekli olabilir.
-  }, [loading, products, categories, categoryId, imageCache]); 
+        return false; // Already has a valid image
+    });
 
-  // Sayfa yeniden yüklendiğinde veya başka bir kategoriye geçildiğinde temizlik yap
+    if (productsNeedingImages.length > 0) {
+      console.log(`🔍 Found ${productsNeedingImages.length} products needing images in category ${categoryId}`);
+
+      // Set module-level flag
+      imageGenerationInProgress = true;
+
+      const generateImages = async () => {
+        try {
+          let processedCount = 0;
+          const productsToProcess: ExtendedProduct[] = [];
+          const promptsToProcess: string[] = [];
+          
+          for (const product of productsNeedingImages) {
+            let productCategory = categories.find((c: Category) => c.categoryID === product.categoryID); 
+            const categoryName = productCategory?.categoryName || 'default';
+            const categoryPrompt = basePrompts[categoryName as CategoryKey] || basePrompts.default;
+            // Prompt oluştururken hata olmaması için kontrol
+            if (!categoryPrompt || typeof categoryPrompt.main !== 'function') {
+              console.warn(`❓ Could not find or use prompt function for category: ${categoryName}, product: ${product.productName}`);
+              continue;
+            }
+            const mainPrompt = categoryPrompt.main(product.productName);
+            
+            // Double check cache and processing status (might have changed)
+            if (imageCache[mainPrompt] || processingPrompts.has(mainPrompt)) {
+              console.log(`⏭️ Skipping product ${product.productID} - already cached or processing`);
+               // If it's in cache but product state doesn't reflect it, update state
+               if(imageCache[mainPrompt] && (!product.image || product.image.includes('placeholder'))) {
+                  setProducts(prevProducts =>
+                    prevProducts.map(p =>
+                      p.productID === product.productID
+                        ? { ...p, image: imageCache[mainPrompt] }
+                        : p
+                    )
+                  );
+               }
+              continue;
+            }
+            
+            productsToProcess.push(product);
+            promptsToProcess.push(mainPrompt);
+            // Add to module-level processing set *before* async call
+            processingPrompts.add(mainPrompt);
+          }
+          
+          console.log(`📊 Will process ${productsToProcess.length} products after filtering`);
+          
+          if (productsToProcess.length === 0) {
+            console.log("✅ No products to process, all are cached or being processed.");
+            imageGenerationInProgress = false; // Reset flag
+            return;
+          }
+          
+          for (let i = 0; i < productsToProcess.length; i++) {
+             // Check flag before each iteration
+             if (!imageGenerationInProgress) {
+                console.log("🛑 Image generation process was stopped externally.");
+                // Clean up prompts added in this run but not processed
+                for (let j = i; j < productsToProcess.length; j++) {
+                    processingPrompts.delete(promptsToProcess[j]);
+                }
+                break;
+              }
+
+            const product = productsToProcess[i];
+            const prompt = promptsToProcess[i];
+            
+            console.log(`🔄 Processing product ${processedCount + 1}/${productsToProcess.length}: ${product.productName} (Prompt: ${prompt})`);
+            setLoadingImages(prev => ({ ...prev, [product.productID]: true }));
+            
+            try {
+              console.log("📡 Sending API request for image generation:", product.productID, "Prompt:", prompt);
+              const response = await fetch('/api/ImageCache', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pageID: 'products', prompt: prompt, checkOnly: false }),
+                // Removed cache: 'no-store' unless specifically needed
+              });
+
+              console.log(`📬 Received API response for product ${product.productID}. Status: ${response.status}, OK: ${response.ok}`);
+
+              if (response.ok) {
+                const data = await response.json();
+                console.log(`📦 Parsed API response data for product ${product.productID}:`, data);
+
+                if (data.success && data.image) {
+                  console.log("✅ Successfully retrieved or generated image for product:", product.productID);
+                  const imageUrl = `data:image/jpeg;base64,${data.image}`;
+                  
+                  // Add to module-level cache *first*
+                  if (typeof imageUrl === 'string' && imageUrl.startsWith('data:image')) {
+                     imageCache[prompt] = imageUrl;
+                     console.log(`💾 Added image to module cache for prompt: ${prompt}`);
+                  }
+
+                  // Update product state
+                  setProducts(prevProducts =>
+                    prevProducts.map(p =>
+                      p.productID === product.productID
+                        ? { ...p, image: imageUrl }
+                        : p
+                    )
+                  );
+                  
+                } else {
+                  console.error(`❌ API reported success=false or missing image for product ${product.productID}. Data:`, data);
+                }
+              } else {
+                // Log response body text for non-OK responses if possible
+                let errorBody = 'Could not read error body';
+                try {
+                    errorBody = await response.text();
+                } catch (e) { console.warn("Could not read error body text", e); }
+                console.error(`❌ API Error for product ${product.productID}: Status ${response.status}. Body:`, errorBody);
+              }
+            } catch (error) {
+              // Log the caught error object itself
+              console.error(`❌ Exception during fetch for product ${product.productID}:`, error);
+            } finally {
+              setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
+              // Remove from module-level processing set *after* attempt
+              processingPrompts.delete(prompt);
+            }
+            
+            processedCount++;
+            console.log(`📊 Processed ${processedCount}/${productsToProcess.length} products`);
+            // Keep delay
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+
+          console.log("🎉 Image generation loop finished for this batch");
+        } catch (error) {
+          console.error("❌ Error in image generation process:", error);
+        } finally {
+          // Reset module-level flag
+          imageGenerationInProgress = false;
+          console.log("🏁 Image generation process ended.");
+        }
+      };
+      
+      generateImages();
+    } else {
+        // No images needed generation based on current state and cache
+        console.log("📷 No images need generation based on current state and cache.");
+        // Ensure flag is false if no generation was triggered
+        if (imageGenerationInProgress) {
+            imageGenerationInProgress = false;
+        }
+    }
+    // Dependencies: Run when loading finishes, products change, or categories change (for prompt generation)
+  }, [loading, products, categories, categoryId]);
+
+  // Cleanup useEffect (Updated)
   useEffect(() => {
     return () => {
       console.log("🧹 Cleaning up image generation state for category", categoryId);
-      // Component unmount olduğunda veya categoryId değiştiğinde işlemi durdur
-      imageGenerationInProgressRef.current = false;
-      // İşlemdeki promptları temizle (opsiyonel, belki devam etmesi gereken durumlar olabilir? Şimdilik temizleyelim)
-      processingPromptsRef.current.clear();
-      // imagesGenerated state'ini sıfırla ki yeni kategori için tekrar başlasın
-      setImagesGenerated(false); 
+      // Signal the running process to stop if component unmounts
+      imageGenerationInProgress = false;
+      // We generally don't clear processingPrompts here,
+      // as another component instance might be processing the same prompt.
+      // The check at the beginning of the loop handles this.
+      // We also don't clear the imageCache here, as it's meant to persist.
     };
   }, [categoryId]);
 
@@ -385,7 +410,7 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
       <div className="flex flex-col md:flex-row gap-6">
         {/* Sol Sidebar - Kategoriler ve Filtreler */}
         <div className="w-full md:w-1/4 bg-white p-4 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-4">Kategoriler</h2>
+          <h2 className="text-lg font-semibold mb-4">Categories</h2>
           <ul className="space-y-2">
             {categories.map((cat) => (
               <li key={cat.categoryID} className="border-b pb-2">
@@ -561,21 +586,24 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
                           unoptimized={product.image.startsWith('data:')}
                         />
                       ) : (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-gray-400">No Image</span>
-                        </div>
+                        // Placeholder when no image or loading finished without image
+                        !loadingImages[product.productID] && (
+                             <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs px-2 text-center">
+                              <span>Görsel Yok</span> {/* No Image */}
+                             </div>
+                         )
                       )}
                     </div>
                     <div className="p-4">
-                      <h3 className="text-sm font-medium text-gray-900 line-clamp-2 h-10">
+                      <h3 className="text-sm font-medium text-gray-900 line-clamp-2 h-10 mb-1" title={product.productName}> {/* Added title attribute */}
                         {product.productName}
                       </h3>
-                      <div className="mt-2 flex justify-between items-center">
+                      <div className="mt-1 flex justify-between items-center">
                         <span className="text-lg font-bold text-blue-600">
-                          {product.price ? `${product.price.toFixed(2)} TL` : 'Price not available'}
+                          {product.price ? `${product.price.toFixed(2)} TL` : <span className="text-sm text-gray-500">Fiyat Yok</span>}
                         </span>
-                        <span className="text-xs text-gray-500">
-                          {product.storeName || 'Unknown Store'}
+                        <span className="text-xs text-gray-500 truncate" title={product.storeName || 'Unknown Store'}> {/* Added title attribute */}
+                          {product.storeName || 'Mağaza Yok'}
                         </span>
                       </div>
                     </div>
@@ -588,9 +616,9 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
                   <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
-                  <p className="text-xl font-semibold text-gray-700 mb-2">No products found</p>
+                  <p className="text-xl font-semibold text-gray-700 mb-2">Hiç ürün bulunamadı</p>
                   <p className="text-gray-500 max-w-md text-center">
-                    We couldn't find any products in this category. Please try selecting a different category or check back later.
+                    Seçili filtrelerle eşleşen ürün bulunamadı. Filtrelerinizi değiştirmeyi veya başka bir kategoriyi kontrol etmeyi deneyin.
                   </p>
                 </div>
               </div>

@@ -14,6 +14,7 @@ import { productDetails as productDescriptionData } from './data/productDescript
 import Link from 'next/link';
 import { useCartStore } from '@/app/stores/cartStore';
 import { useFavoritesStore, FavoriteProduct } from '@/app/stores/favoritesStore';
+import { toast } from 'react-hot-toast';
 
 // Ürün detayları için geçici veri
 const productDetailsStatic = {
@@ -532,7 +533,7 @@ export default function ProductPage() {
                                 });
                                 foundProduct.additionalImages = (await Promise.all(additionalImagesPromises)).filter((img): img is string => img !== null);
                                 console.log("PP: Generated additional images count:", foundProduct.additionalImages?.length || 0);
-                            } else {
+                    } else {
                                 console.log("PP: Skipping additional images due to main image failure.");
                                 foundProduct.additionalImages = [];
                             }
@@ -594,10 +595,10 @@ export default function ProductPage() {
                     });
                     setSimilarProducts(sameCategoryProducts); 
 
-                } else {
+                                } else {
                      console.error("Product not found for ID:", productId);
-                }
-            } catch (error) {
+                            }
+                        } catch (error) {
                 console.error('Error fetching product data:', error);
             } finally {
                 setLoading(false);
@@ -625,7 +626,7 @@ export default function ProductPage() {
     const handleToggleFavorite = () => {
         if (!product) return;
         const favProduct: FavoriteProduct = {
-            id: productId,
+            id: product.productID,
             name: product.productName,
             price: product.price,
             image: product.image || '/placeholder.png',
@@ -633,12 +634,13 @@ export default function ProductPage() {
             inStock: (product.stockQuantity ?? 0) > 0,
             selected: false,
             listId: undefined
-         };
-         console.log("Toggling favorite:", favProduct.name, "Current status:", productIsFavorite);
-        if (productIsFavorite) {
-            removeFromFavorites(productId);
+        };
+        if (isFavorite(product.productID)) {
+            removeFromFavorites(product.productID);
+            toast.success(`${product.productName} removed from favorites!`);
         } else {
             addToFavorites(favProduct);
+            toast.success(`${product.productName} added to favorites!`);
         }
     };
 
@@ -785,12 +787,12 @@ export default function ProductPage() {
                             </button>
 
                             <button
-                                onClick={handleToggleFavorite}
+                                onClick={handleToggleFavorite} // <<<<<< BU SATIR ÇOK ÖNEMLİ
                                 onMouseEnter={() => setIsHoveringFavorite(true)}
                                 onMouseLeave={() => setIsHoveringFavorite(false)}
                                 className={`w-14 flex items-center justify-center rounded-lg transition-colors ${
-                                    productIsFavorite ? 'bg-red-500 text-white' : 
-                                    isHoveringFavorite ? 'bg-red-100 text-red-500' : 
+                                    productIsFavorite ? 'bg-red-500 text-white' :
+                                    isHoveringFavorite ? 'bg-red-100 text-red-500' :
                                     'bg-gray-200 text-gray-600 hover:bg-red-100'
                                 }`}
                                 title={productIsFavorite ? "Remove from Favorites" : "Add to Favorites"}

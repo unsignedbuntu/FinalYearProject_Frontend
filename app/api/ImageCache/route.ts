@@ -162,8 +162,7 @@ export async function POST(req: Request) {
                 const cacheResponse = await axios.post(`${API_URL}/api/ImageCache`, {
                     PageID: pageID,
                     Prompt: prompt,
-                    Image: base64Image,
-                    Status: true
+                    Base64Image: base64Image
                 }, {
                     headers: { 'Content-Type': 'application/json' },
                     httpsAgent: new https.Agent({ rejectUnauthorized: false })

@@ -719,3 +719,33 @@ export const createOrder = async (orderData: OrderPayloadDTO) => {
      throw error; // Re-throw for the component to handle
   }
 };
+
+// Add function to get details of a single order
+export const getOrderDetails = async (orderId: number) => {
+  try {
+    // Adjust the endpoint path if necessary (e.g., /api/orders/details/{orderId})
+    const response = await fetch(`${getApiUrl()}/api/Orders/${orderId}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+      mode: 'cors',
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+       const errorText = await response.text();
+       try {
+         const errorJson = JSON.parse(errorText);
+         throw new Error(errorJson.message || `HTTP error! status: ${response.status}, message: ${errorText}`);
+       } catch {
+         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+       }
+    }
+    // Expecting a single order object with orderItems array
+    return await response.json(); 
+  } catch (error) {
+     console.error(`Error fetching details for order ${orderId}:`, error);
+     throw error; 
+  }
+};

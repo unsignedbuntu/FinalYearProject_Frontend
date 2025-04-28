@@ -151,13 +151,17 @@ export default function CartPage() {
       const createdOrder = await createOrder(orderPayload)
       console.log('Order created successfully:', createdOrder)
       removeSelectedItems()
-      toast.success('Order placed successfully! Redirecting to payment...')
-      if (createdOrder && createdOrder.orderId) {
-        router.push(`/payment?orderId=${createdOrder.orderId}`)
+      
+      // Check for possible variations of the order ID key
+      const orderIdFromResponse = createdOrder?.orderId || createdOrder?.id || createdOrder?.orderID;
+
+      if (orderIdFromResponse) { 
+           toast.success('Order placed successfully! Redirecting to payment...');
+           router.push(`/payment?orderId=${orderIdFromResponse}`);
       } else {
-        console.error('Order created but orderId not found in response. Cannot redirect to payment.')
-        toast.error('Order created, but failed to proceed to payment. Please check My Orders.')
-        router.push('/my-orders')
+          console.error('Order created but a valid orderId (orderId, id, orderID) was not found in the response. Response was:', createdOrder);
+          toast.error('Order created, but failed to proceed to payment. Please check My Orders.');
+          router.push('/my-orders'); 
       }
     } catch (err: any) {
       console.error('Error creating order:', err)

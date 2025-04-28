@@ -1,72 +1,66 @@
 "use client"
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import Sidebar from '@/components/sidebar/Sidebar'
 import Image from 'next/image'
 import Shipped from '@/components/icons/Shipped'
 import Delivered from '@/components/icons/Delivered'
 import { useUserStore } from '@/app/stores/userStore'
-import { getUserOrders } from '@/services/API_Service'
-
-interface Order {
-  orderId: number;
-  orderDate: string;
-  status: string;
-  totalAmount: number;
-}
+import { useOrdersStore } from '@/app/stores/ordersStore'
+import React from 'react'
 
 export default function MyOrdersPage() {
   const router = useRouter()
   const { user } = useUserStore()
   const userId = user?.id
 
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedTab, setSelectedTab] = useState('All')
-  const [orders, setOrders] = useState<Order[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const ordersPerPage = 10
-  
+  const {
+    orders,
+    isLoading,
+    error,
+    searchTerm,
+    selectedTab,
+    currentPage,
+    ordersPerPage,
+    fetchOrders,
+    setSearchTerm,
+    setSelectedTab,
+    setCurrentPage,
+  } = useOrdersStore()
+
+  const [expandedIndex, setExpandedIndex] = React.useState<number | null>(null);
+  const handleToggleExpansion = (index: number) => {
+      setExpandedIndex(prev => prev === index ? null : index);
+  };
+
   useEffect(() => {
     if (userId !== null && userId !== undefined) {
-      setIsLoading(true)
-      setError(null)
-      getUserOrders(userId)
-        .then(data => {
-          setOrders(data || [])
-        })
-        .catch(err => {
-          console.error("Error fetching orders:", err)
-          setError(err.message || 'Failed to load orders.')
-        })
-        .finally(() => {
-          setIsLoading(false)
-        })
+       fetchOrders(userId)
     } else {
-      setError('Please log in to view your orders.')
-      setIsLoading(false)
-      setOrders([])
+      console.warn("User not logged in, cannot fetch orders.")
     }
-  }, [userId])
+  }, [userId, fetchOrders])
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.orderId.toString().includes(searchTerm) || 
-                         (order.status && order.status.toLowerCase().includes(searchTerm.toLowerCase()))
+    if (!order) return false;
     
-    let matchesTab = true
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    const matchesSearch = (order.status && order.status.toLowerCase().includes(lowerSearchTerm)) ||
+                         (order.totalAmount && order.totalAmount.toString().includes(lowerSearchTerm));
+    
+    let matchesTab = true;
     if (selectedTab !== 'All') {
+       const lowerStatus = order.status?.toLowerCase();
        if (selectedTab === 'Ongoing orders') {
-          matchesTab = order.status?.toLowerCase() === 'pending' || order.status?.toLowerCase() === 'processing' || order.status?.toLowerCase() === 'shipped'
+          matchesTab = lowerStatus === 'pending' || lowerStatus === 'processing' || lowerStatus === 'shipped';
        } else if (selectedTab === 'Returns') {
-          matchesTab = order.status?.toLowerCase() === 'returning' || order.status?.toLowerCase() === 'returned'
+          matchesTab = lowerStatus === 'returning' || lowerStatus === 'returned';
        } else if (selectedTab === 'Cancellations') {
-          matchesTab = order.status?.toLowerCase() === 'cancelled'
+          matchesTab = lowerStatus === 'cancelled';
        }
     }
-
-    return matchesSearch && matchesTab
-  })
+    return matchesSearch && matchesTab;
+  });
 
   const totalPages = Math.ceil(filteredOrders.length / ordersPerPage)
   const indexOfLastOrder = currentPage * ordersPerPage
@@ -155,50 +149,72 @@ export default function MyOrdersPage() {
             <div className="text-center py-10">Loading orders...</div>
           ) : error ? (
             <div className="text-center py-10 text-red-500">Error: {error}</div>
-          ) : currentOrders.length === 0 ? (
-            <div className="text-center py-10 text-gray-500">No orders found.</div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="text-center py-10 text-gray-500">No orders found{searchTerm || selectedTab !== 'All' ? ' matching your criteria' : ''}.</div>
           ) : (
             <div className="space-y-4">
-              {currentOrders.map((order) => (
-                <div key={order.orderId} className="bg-[#D9D9D9] rounded-lg p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Image 
-                      src={'/placeholder.png'}
-                      alt={`Order ${order.orderId}`}
-                      width={80} 
-                      height={80}
-                      className="rounded-lg"
-                    />
-                    <div>
-                      <div className="font-raleway text-[16px]">Order no: {order.orderId}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-[200px]">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(order.status)}
-                      <span className={getStatusColor(order.status)}>
-                        {order.status}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <div className="text-gray-500">{formatDate(order.orderDate)}</div>
-                        <div className="font-bold text-[#12B51D]">{order.totalAmount.toFixed(2)} TL</div>
+              {currentOrders.map((order, index) => {
+                 const actualIndex = indexOfFirstOrder + index;
+                 return (
+                    <React.Fragment key={`order-${actualIndex}`}>
+                      <div className="bg-[#D9D9D9] rounded-lg p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <Image 
+                            src={'/placeholder.png'}
+                            alt={`Order from ${formatDate(order.orderDate)}`}
+                            width={80} 
+                            height={80}
+                            className="rounded-lg"
+                          />
+                          <div>
+                            <div className="font-raleway text-[16px]">Order Date: {formatDate(order.orderDate)}</div>
+                            <div className="font-raleway text-sm">Status: {order.status}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-[200px]">
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(order.status)}
+                            <span className={getStatusColor(order.status)}>
+                              {order.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <div className="text-gray-500">{formatDate(order.orderDate)}</div>
+                              <div className="font-bold text-[#12B51D]">{order.totalAmount.toFixed(2)} TL</div>
+                            </div>
+                            <button 
+                              onClick={() => handleToggleExpansion(actualIndex)}
+                              className="focus:outline-none"
+                            >
+                              <svg 
+                                className={`w-6 h-6 cursor-pointer transition-transform duration-200 ${expandedIndex === actualIndex ? 'rotate-180' : ''}`}
+                                fill="none" 
+                                stroke="currentColor" 
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <svg className="w-6 h-6 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                      {expandedIndex === actualIndex && (
+                        <div className="bg-gray-100 p-4 rounded-b-lg -mt-2 mb-2 border-t border-gray-300">
+                          <h4 className="font-semibold mb-2">Order Details (Date: {formatDate(order.orderDate)})</h4>
+                          <p className="text-sm text-gray-600">Product details will be shown here once the API is updated.</p>
+                        </div>
+                      )}
+                    </React.Fragment>
+                 );
+              })}
             </div>
           )}
 
-          {totalPages > 1 && !isLoading && !error && currentOrders.length > 0 && (
+          {totalPages > 1 && !isLoading && !error && filteredOrders.length > 0 && (
               <div className="flex justify-center items-center gap-4 mt-8">
                 <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
                   disabled={currentPage === 1}
                   className="px-4 py-2 bg-[#D9D9D9] rounded-lg font-raleway disabled:opacity-50"
                 >
@@ -218,7 +234,7 @@ export default function MyOrdersPage() {
                   ))}
                 </div>
                 <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
                   disabled={currentPage === totalPages}
                   className="px-4 py-2 bg-[#D9D9D9] rounded-lg font-raleway disabled:opacity-50"
                 >

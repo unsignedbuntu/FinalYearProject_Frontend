@@ -1,12 +1,14 @@
 "use client"
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Sidebar from '@/components/sidebar/Sidebar'
 import Review from '@/components/icons/Review'
 import ReviewsMessage from '@/components/messages/ReviewsMessage'
-import { useReviewsStore, ReviewableProduct, SelectedTab } from '@/app/stores/reviewsStore'
+import { useReviewsStore, ReviewableProduct } from '@/app/stores/reviewsStore'
 import { useUserStore } from '@/app/stores/userStore'
+
+type SelectedTab = 'Pending reviews' | 'Completed reviews';
 
 const ratingTexts: Record<number, string> = {
   1: 'Very Poor',
@@ -18,6 +20,7 @@ const ratingTexts: Record<number, string> = {
 
 export default function MyReviewsPage() {
   const router = useRouter()
+  const [redirectCheckComplete, setRedirectCheckComplete] = useState(false)
 
   const {
     productsToReview,
@@ -42,20 +45,42 @@ export default function MyReviewsPage() {
   const userId = user?.id
 
   useEffect(() => {
-    if (userId !== null && userId !== undefined) {
-      fetchReviewsAndOrders(userId).then(isEmpty => {
-        console.log(`DEBUG: Checking redirection condition: isEmpty=${isEmpty}, isLoading=${isLoading}, error=${error}`);
-        if (isEmpty && !isLoading && !error) {
-          console.log("No reviewable products found, redirecting to /my-orders")
-          router.push('/my-orders?showReviewPrompt=true')
-        } else {
-          console.log("Redirection skipped.", { isEmpty, isLoading, error });
-        }
-      })
-    } else {
-      console.warn("User ID not found, cannot fetch reviews.")
+    // Redirect check should only run ONCE per component mount/userId change IF user exists
+    if (userId !== null && userId !== undefined && !redirectCheckComplete) {
+      console.log("MyReviewsPage: useEffect running, check complete?", redirectCheckComplete);
+      
+      // Set check in progress immediately to prevent re-entry before async finishes
+      setRedirectCheckComplete(true); 
+      
+      console.log("MyReviewsPage: Fetching reviews...");
+      fetchReviewsAndOrders(userId)
+        .then(isEmpty => {
+          // Re-fetch the latest state directly from the store *after* the fetch logic is done
+          const latestState = useReviewsStore.getState();
+          console.log(`DEBUG: Redirect check post-fetch: isEmpty=${isEmpty}, isLoading=${latestState.isLoading}, error=${latestState.error}`);
+          
+          // Perform the check using the *latest* state
+          if (isEmpty && !latestState.isLoading && !latestState.error) {
+            console.log("No reviewable products found, redirecting to /my-orders");
+            // Use replace instead of push to prevent back button going back to the brief reviews page view
+            router.replace('/my-orders?showReviewPrompt=true'); 
+          } else {
+            console.log("Redirection skipped or not needed.", { isEmpty, isLoading: latestState.isLoading, error: latestState.error });
+          }
+        })
+        .catch(err => {
+           console.error("Error during fetchReviewsAndOrders in useEffect:", err);
+           // Keep redirectCheckComplete as true even on error
+        });
+    } else if (!userId) {
+      console.warn("User ID not found, cannot fetch reviews or check redirect.");
+      // Prevent check if user logs out and then back in without full remount
+      if (!redirectCheckComplete) {
+         setRedirectCheckComplete(true);
+      }
     }
-  }, [userId, fetchReviewsAndOrders, router, isLoading, error])
+    // Add fetchReviewsAndOrders to dependency array if it's not stable (though it should be from Zustand)
+  }, [userId, fetchReviewsAndOrders, router, redirectCheckComplete]);
 
   const filteredProducts = productsToReview.filter(product => 
     selectedTab === 'Completed reviews' ? product.isReviewed : !product.isReviewed
@@ -308,4 +333,4 @@ export default function MyReviewsPage() {
       )}
     </div>
   )
-} 
+}
