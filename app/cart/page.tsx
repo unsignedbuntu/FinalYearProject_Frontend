@@ -101,14 +101,10 @@ export default function CartPage() {
   }
 
   const handleQuantityChange = (productId: number, change: number) => {
-    const product = products.find(p => p.id === productId)
+    const product = products.find(p => p.productId === productId)
     if (product) {
-        const newQuantity = product.quantity + change
-      if (newQuantity > 0) {
-        updateQuantity(productId, newQuantity)
-      } else {
-          handleRemoveProduct(productId)
-      }
+      const newQuantity = product.quantity + change
+      updateQuantity(productId, newQuantity)
     }
   }
 
@@ -175,6 +171,9 @@ export default function CartPage() {
   const selectedTotalPrice = getSelectedTotalPrice()
   const itemCount = getItemCount()
 
+  // Store'dan gelen ürünleri konsola yazdır
+  console.log('CartPage products state:', JSON.stringify(products, null, 2));
+
   return (
     <div className="min-h-screen pt-[40px] relative">
       <Sidebar />
@@ -235,7 +234,7 @@ export default function CartPage() {
                   type="checkbox" 
                   className="w-[32px] h-[32px] absolute left-[6px] top-[36px]"
                   checked={selectedItems.includes(product.id)}
-                  onChange={() => toggleItemSelection(product.id)}
+                  onChange={() => toggleItemSelection(product.productId)}
                 />
                 <div className="ml-[36px] flex items-center">
                   <Image 
@@ -254,42 +253,22 @@ export default function CartPage() {
                 </div>
               </div>
 
-              <div className="absolute right-6 top-[45px] flex items-center gap-4">
-                {product.quantity === 1 ? (
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleQuantityChange(product.id, 1)}
-                            className="w-[30px] h-[30px] bg-white rounded-full flex items-center justify-center">
-                      +
-                    </button>
-                    <button 
-                      onClick={() => handleRemoveProduct(product.id)}
-                      className="cursor-pointer">
-                      <Bin width={24} height={24} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleQuantityChange(product.id, -1)}
-                            className="w-[30px] h-[30px] bg-white rounded-full flex items-center justify-center">
-                      -
-                    </button>
-                    <span>{product.quantity}</span>
-                    <button onClick={() => handleQuantityChange(product.id, 1)}
-                            className="w-[30px] h-[30px] bg-white rounded-full flex items-center justify-center">
-                      +
-                    </button>
-                    <button 
-                      onClick={() => handleRemoveProduct(product.id)}
-                      className="cursor-pointer ml-2">
-                      <Bin width={24} height={24} />
-                    </button>
-                  </div>
-                )}
-                
-                <div className="w-[95px] h-[30px] bg-white rounded-[16px] flex items-center justify-center">
-                  <span className="font-raleway text-[16px]">{product.price.toFixed(2)} TL</span>
-                </div>
+              <div className="absolute right-[150px] top-[75px] flex items-center">
+                <button onClick={() => handleQuantityChange(product.productId, -1)}
+                        className="w-[30px] h-[30px] bg-[#F0F0F0] rounded-full flex items-center justify-center text-xl font-bold">
+                    -
+                </button>
+                <span className="mx-3 font-raleway text-[20px]">{product.quantity}</span>
+                <button onClick={() => handleQuantityChange(product.productId, 1)}
+                        className="w-[30px] h-[30px] bg-[#F0F0F0] rounded-full flex items-center justify-center text-xl font-bold">
+                    +
+                </button>
               </div>
+
+              <button className="absolute right-[20px] top-[110px]"
+                      onClick={() => handleRemoveProduct(product.productId)}>
+                <Bin width={20} height={20} />
+              </button>
             </div>
           ))}
         </div>

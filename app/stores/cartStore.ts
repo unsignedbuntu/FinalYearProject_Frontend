@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 
 interface CartItem {
   id: number
+  productId: number
   name: string
   supplier: string
   price: number
@@ -16,11 +17,11 @@ interface CartState {
   totalPrice: number
   shippingCost: number
   lastRemovedItems: CartItem[] | null
-  addItem: (item: Omit<CartItem, 'id'>) => void
-  removeItem: (id: number) => void
+  addItem: (itemData: Omit<CartItem, 'id' | 'quantity'> & { quantity?: number }) => void
+  removeItem: (productId: number) => void
   undoRemove: () => void
-  updateQuantity: (id: number, quantity: number) => void
-  toggleItemSelection: (id: number) => void
+  updateQuantity: (productId: number, quantity: number) => void
+  toggleItemSelection: (productId: number) => void
   selectAllItems: (select: boolean) => void
   clearCart: () => void
   getSelectedTotalPrice: () => number
@@ -37,74 +38,117 @@ export const useCartStore = create<CartState>()(
       shippingCost: 49.99,
       lastRemovedItems: null,
 
-      addItem: (item) => {
-        const newItem = { ...item, id: Date.now() }
-        set((state) => ({
-          items: [...state.items, newItem],
-          totalPrice: state.totalPrice + (newItem.price * newItem.quantity),
-          lastRemovedItems: null,
-        }))
+      addItem: (itemData) => {
+        set((state) => {
+          const existingItem = state.items.find(i => i.productId === itemData.productId);
+          const quantityToAdd = itemData.quantity ?? 1;
+
+          if (existingItem) {
+            console.log(`CartStore: Updating quantity for productId: ${itemData.productId}`);
+            const newQuantity = existingItem.quantity + quantityToAdd;
+            const oldTotal = existingItem.price * existingItem.quantity;
+            const newTotal = existingItem.price * newQuantity;
+
+            return {
+              items: state.items.map(i =>
+                i.id === existingItem.id ? { ...i, quantity: newQuantity } : i
+              ),
+              totalPrice: state.totalPrice - oldTotal + newTotal,
+              lastRemovedItems: null,
+            };
+          } else {
+            console.log(`CartStore: Adding new item for productId: ${itemData.productId}`);
+            const newItem: CartItem = {
+              ...itemData,
+              id: Date.now(),
+              quantity: quantityToAdd,
+            };
+            return {
+              items: [...state.items, newItem],
+              totalPrice: state.totalPrice + (newItem.price * newItem.quantity),
+              lastRemovedItems: null,
+            };
+          }
+        });
       },
 
-      removeItem: (id) => {
+      removeItem: (productId) => {
         set((state) => {
-          const itemToRemove = state.items.find(i => i.id === id)
-          if (!itemToRemove) return state
-          
+          const itemToRemove = state.items.find(i => i.productId === productId);
+          if (!itemToRemove) return state;
+
           return {
-            items: state.items.filter(i => i.id !== id),
-            selectedItems: state.selectedItems.filter(itemId => itemId !== id),
+            items: state.items.filter(i => i.productId !== productId),
+            selectedItems: state.selectedItems.filter(itemId => itemId !== itemToRemove.id),
             totalPrice: state.totalPrice - (itemToRemove.price * itemToRemove.quantity),
             lastRemovedItems: [itemToRemove],
-          }
-        })
+          };
+        });
       },
 
       undoRemove: () => {
         set((state) => {
-          if (!state.lastRemovedItems || state.lastRemovedItems.length === 0) return state
+          if (!state.lastRemovedItems || state.lastRemovedItems.length === 0) return state;
 
-          const itemsToRestore = state.lastRemovedItems
-          const restoredTotalPrice = itemsToRestore.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+          const itemsToRestore = state.lastRemovedItems;
+          const restoredTotalPrice = itemsToRestore.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+          const restoredItemsWithNewIds = itemsToRestore.map(item => ({ ...item, id: Date.now() + Math.random() }));
 
           return {
-            items: [...state.items, ...itemsToRestore],
+            items: [...state.items, ...restoredItemsWithNewIds],
             totalPrice: state.totalPrice + restoredTotalPrice,
             lastRemovedItems: null,
-          }
-        })
+          };
+        });
       },
 
-      updateQuantity: (id, quantity) => {
+      updateQuantity: (productId, quantity) => {
         set((state) => {
-          const item = state.items.find(i => i.id === id)
-          if (!item) return state
+          const item = state.items.find(i => i.productId === productId);
+          if (!item) return state;
 
-          const oldTotal = item.price * item.quantity
-          const newTotal = item.price * quantity
-          
+          if (quantity <= 0) {
+            console.log(`CartStore: Removing item due to zero quantity: productId ${productId}`);
+            const itemToRemove = item;
+            return {
+              items: state.items.filter(i => i.productId !== productId),
+              selectedItems: state.selectedItems.filter(itemId => itemId !== itemToRemove.id),
+              totalPrice: state.totalPrice - (itemToRemove.price * itemToRemove.quantity),
+              lastRemovedItems: [itemToRemove],
+            };
+          }
+
+          const oldTotal = item.price * item.quantity;
+          const newTotal = item.price * quantity;
+
           return {
-            items: state.items.map(i => 
-              i.id === id ? { ...i, quantity } : i
+            items: state.items.map(i =>
+              i.productId === productId ? { ...i, quantity } : i
             ),
             totalPrice: state.totalPrice - oldTotal + newTotal,
             lastRemovedItems: null,
-          }
-        })
+          };
+        });
       },
 
-      toggleItemSelection: (id) => {
-        set((state) => ({
-          selectedItems: state.selectedItems.includes(id)
-            ? state.selectedItems.filter(itemId => itemId !== id)
-            : [...state.selectedItems, id]
-        }))
+      toggleItemSelection: (productId) => {
+        set((state) => {
+          const item = state.items.find(i => i.productId === productId);
+          if (!item) return state;
+          const uniqueItemId = item.id;
+          return {
+            selectedItems: state.selectedItems.includes(uniqueItemId)
+              ? state.selectedItems.filter(itemId => itemId !== uniqueItemId)
+              : [...state.selectedItems, uniqueItemId]
+          };
+        });
       },
 
       selectAllItems: (select) => {
         set((state) => ({
           selectedItems: select ? state.items.map(item => item.id) : []
-        }))
+        }));
       },
 
       clearCart: () => {
@@ -113,7 +157,7 @@ export const useCartStore = create<CartState>()(
           selectedItems: [],
           totalPrice: 0,
           lastRemovedItems: state.items,
-        }))
+        }));
       },
 
       getSelectedTotalPrice: () => {
@@ -148,8 +192,8 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
-      partialize: (state) => ({ 
-        items: state.items, 
+      partialize: (state) => ({
+        items: state.items,
         selectedItems: state.selectedItems
       })
     }

@@ -7,6 +7,7 @@ import CartFavorites from '@/components/icons/CartFavorites';
 import FavoriteIcon from '@/components/icons/FavoriteIcon';
 import FavoritesPageHover from '@/components/icons/FavoritesPageHover';
 import CartSuccessMessage from '@/components/messages/CartSuccessMessage';
+import FavoritesAddedMessage from '@/components/messages/FavoritesAddedMessage';
 import { categoryReviews } from './data/categoryReviews';
 import { Product, ProductSupplier, Store, Category, Review } from './types/Product';
 import { basePrompts, CategoryKey } from './data/basePrompts';
@@ -253,18 +254,18 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
                                             ? 'bg-blue-100 text-blue-500' 
                                                 : 'bg-white text-gray-500 hover:bg-blue-100'
                                     }`}
-                                    title="Sepete Ekle"
+                                    title="Add to Cart"
                                     onMouseEnter={() => setHoveredCarts(prev => ({ ...prev, [similarProduct.productID]: true }))}
                                     onMouseLeave={() => setHoveredCarts(prev => ({ ...prev, [similarProduct.productID]: false }))}
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                             addToCart({ 
-                                                name: similarProduct.productName, 
-                                                supplier: similarProduct.supplierName || 'GamerGear', 
-                                                price: similarProduct.price, 
-                                                image: similarProduct.image || '/placeholder.png', 
-                                                quantity: 1 
+                                                productId: similarProduct.productID,
+                                                name: similarProduct.productName,
+                                                supplier: similarProduct.supplierName || 'GamerGear',
+                                                price: similarProduct.price,
+                                                image: '/placeholder.png'
                                             });
                                         console.log('Sepete eklendi:', similarProduct.productName);
                                     }}
@@ -309,6 +310,7 @@ export default function ProductPage() {
     const [store, setStore] = useState<Store | null>(null);
     const [loading, setLoading] = useState(true);
     const [showCartNotification, setShowCartNotification] = useState(false);
+    const [showFavoriteNotification, setShowFavoriteNotification] = useState(false);
     const [isFollowingStore, setIsFollowingStore] = useState(false);
     const [activeTab, setActiveTab] = useState<TabType>('description');
     const [isHoveringFavorite, setIsHoveringFavorite] = useState(false);
@@ -611,13 +613,14 @@ export default function ProductPage() {
 
     const handleAddToCart = () => {
         if (!product) return;
-        console.log("Adding to cart:", product.productName);
+        // addToCart çağrılmadan önce product nesnesini logla
+        console.log("Adding product to cart (page - product object):", JSON.stringify(product, null, 2)); 
         addToCart({
+            productId: product.productID, 
             name: product.productName,
             supplier: product.supplierName || 'GamerGear',
             price: product.price,
-            image: product.image || '/placeholder.png',
-            quantity: 1
+            image: '/placeholder.png',
         });
         setShowCartNotification(true);
         setTimeout(() => setShowCartNotification(false), 3000);
@@ -629,10 +632,10 @@ export default function ProductPage() {
             id: product.productID,
             name: product.productName,
             price: product.price,
-            image: product.image || '/placeholder.png',
+            image: '/placeholder.png', 
             date: new Date(),
             inStock: (product.stockQuantity ?? 0) > 0,
-            selected: false,
+            selected: false, 
             listId: undefined
         };
         if (isFavorite(product.productID)) {
@@ -640,7 +643,7 @@ export default function ProductPage() {
             toast.success(`${product.productName} removed from favorites!`);
         } else {
             addToFavorites(favProduct);
-            toast.success(`${product.productName} added to favorites!`);
+            setShowFavoriteNotification(true);
         }
     };
 
@@ -660,6 +663,7 @@ export default function ProductPage() {
     return (
         <div className="flex-1">
             {showCartNotification && <CartSuccessMessage onClose={() => setShowCartNotification(false)} />}
+            {showFavoriteNotification && <FavoritesAddedMessage onClose={() => setShowFavoriteNotification(false)} />}
             
             <div className="max-w-7xl mx-auto px-4 py-8 bg-gray-50">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -787,7 +791,7 @@ export default function ProductPage() {
                             </button>
 
                             <button
-                                onClick={handleToggleFavorite} // <<<<<< BU SATIR ÇOK ÖNEMLİ
+                                onClick={handleToggleFavorite}
                                 onMouseEnter={() => setIsHoveringFavorite(true)}
                                 onMouseLeave={() => setIsHoveringFavorite(false)}
                                 className={`w-14 flex items-center justify-center rounded-lg transition-colors ${

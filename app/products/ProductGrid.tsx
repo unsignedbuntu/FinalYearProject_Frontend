@@ -4,6 +4,8 @@ import Menu from '@/components/icons/Menu'
 import CartFavorites from '@/components/icons/CartFavorites'
 import MenuOverlay from '@/components/overlay/MenuOverlay'
 import CartSuccessMessage from '@/components/messages/CartSuccessMessage'
+import { useCartStore } from '@/app/stores/cartStore'
+import { useFavoritesStore } from '@/app/stores/favoritesStore'
 
 interface Product {
   id: number;
@@ -11,6 +13,7 @@ interface Product {
   price: number;
   image: string;
   inStock?: boolean;
+  supplier?: string;
 }
 
 interface ProductGridProps {
@@ -41,19 +44,13 @@ export default function ProductGrid({ products, showInStock }: ProductGridProps)
   const [showCartSuccess, setShowCartSuccess] = useState(false)
   const productsPerPage = 8
 
-  // 16 örnek ürün oluştur
-  const dummyProducts = Array.from({ length: 16 }, (_, i) => ({
-    id: i + 1,
-    name: i < 2 ? products[i]?.name || `Nike Air Max 270 React` : `Adidas Superstar`,
-    price: i < 2 ? products[i]?.price || 299.99 : 399.99,
-    image: i < 2 ? products[i]?.image : '/placeholder.jpg',
-    inStock: i < 8,
-    rating: Math.floor(Math.random() * 2) + 3
-  }))
+  const { addItem: addToCart } = useCartStore()
+  const { removeProduct: removeFromFavorites } = useFavoritesStore()
 
-  const filteredProducts = dummyProducts.filter(p => 
+  // Prop olarak gelen products dizisini doğrudan filtrele
+  const filteredProducts = products.filter(p => 
     showInStock ? p.inStock : !p.inStock
-  )
+  );
 
   // Sayfalama için ürünleri böl
   const indexOfLastProduct = currentPage * productsPerPage
@@ -61,6 +58,23 @@ export default function ProductGrid({ products, showInStock }: ProductGridProps)
   const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct)
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
   
+  // Sepete Ekleme Fonksiyonu
+  const handleAddToCart = (product: Product) => {
+    console.log("Adding product to cart (grid - product object):", JSON.stringify(product, null, 2));
+    addToCart({
+      productId: product.id,
+      name: product.name,
+      supplier: product.supplier || 'Unknown',
+      price: product.price,
+      image: '/placeholder.png',
+    });
+    setShowCartSuccess(true);
+
+    // Favorilerden de kaldır
+    console.log("ProductGrid: Removing from favorites:", product.name);
+    removeFromFavorites(product.id);
+  };
+
   return (
     <div className="flex flex-col items-center">
       <div className="grid grid-cols-4 gap-6 mt-8">
@@ -91,9 +105,8 @@ export default function ProductGrid({ products, showInStock }: ProductGridProps)
               <h3 className="font-poppins text-[14px] font-bold text-[#223263] truncate w-full">
                 {product.name}
               </h3>
-              <RatingStars rating={product.rating} />
               <div className="absolute bottom-1 right-1">
-                <button onClick={() => setShowCartSuccess(true)}>
+                <button onClick={() => handleAddToCart(product)}>
                   <CartFavorites />
                 </button>
               </div>
@@ -121,7 +134,7 @@ export default function ProductGrid({ products, showInStock }: ProductGridProps)
             disabled={currentPage === 1}
             className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
           >
-            Önceki
+            Previous
           </button>
           {Array.from({ length: totalPages }, (_, i) => (
             <button
@@ -139,7 +152,7 @@ export default function ProductGrid({ products, showInStock }: ProductGridProps)
             disabled={currentPage === totalPages}
             className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
           >
-            Sonraki
+            Next
           </button>
         </div>
       )}
