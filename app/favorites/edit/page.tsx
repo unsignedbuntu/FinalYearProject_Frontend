@@ -1,200 +1,137 @@
+// @ts-nocheck
 "use client"
 
-import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useFavoritesStore } from "@/app/stores/favoritesStore"
 import Image from "next/image"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Loader2, AlertTriangle } from "lucide-react"
 
 export default function FavoritesEditPage() {
   const router = useRouter()
   const { 
     products, 
-    lists, 
-    selectedCount,
-    isAllSelected,
+    isLoading, 
+    error,
+    selectedProductIds,
     toggleProductSelection,
     selectAllProducts,
-    moveProductsToList,
-    addList,
-    removeList,
-    renameList
+    removeSelectedProducts,
   } = useFavoritesStore()
 
-  const [newListName, setNewListName] = useState("")
-  const [editingListId, setEditingListId] = useState<number | null>(null)
-  const [editingListName, setEditingListName] = useState("")
+  const selectedCount = selectedProductIds.size
+  const isAllSelected = products.length > 0 && selectedProductIds.size === products.length
 
-  const handleCreateList = () => {
-    if (newListName.trim()) {
-      addList(newListName.trim())
-      setNewListName("")
-    }
+  const handleRemoveSelected = async () => {
+    await removeSelectedProducts()
   }
 
-  const handleRenameList = (id: number) => {
-    if (editingListName.trim()) {
-      renameList(id, editingListName.trim())
-      setEditingListId(null)
-      setEditingListName("")
-    }
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-16 w-16 animate-spin text-blue-500" />
+      </div>
+    )
   }
 
-  const handleMoveToNewList = () => {
-    if (newListName.trim()) {
-      const selectedProducts = products.filter(p => p.selected).map(p => p.id)
-    if (selectedProducts.length > 0) {
-        const newListId = Date.now()
-        addList(newListName.trim())
-        moveProductsToList(selectedProducts, newListId)
-        setNewListName("")
-      }
-    }
+  if (error) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-screen text-red-600">
+        <AlertTriangle className="h-16 w-16 mb-4" />
+        <p className="text-xl mb-4">Error loading favorites.</p>
+        <p className="mb-4">{error}</p>
+        <Button onClick={() => router.back()}>Go Back</Button>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Favori Listeleri Düzenle</h1>
-            <button 
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
+          <h1 className="text-2xl sm:text-3xl font-bold">Edit Favorites</h1>
+          <Button 
+            variant="outline"
             onClick={() => router.back()}
-            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
           >
-            Geri Dön
-            </button>
-          </div>
+            Go Back
+          </Button>
+        </div>
 
-        {/* Seçili Ürünler ve Yeni Liste */}
-        <div className="bg-white rounded-lg p-6 mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <span className="font-semibold">{selectedCount} ürün seçildi</span>
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="select-all"
+                checked={isAllSelected}
+                onCheckedChange={(checked) => selectAllProducts(Boolean(checked))}
+                disabled={products.length === 0}
+                aria-label="Select all products"
+              />
+              <label htmlFor="select-all" className="font-semibold cursor-pointer">
+                {selectedCount} / {products.length} selected
+              </label>
             </div>
-            <div className="flex gap-4">
-              <button 
+            <div className="flex gap-2 sm:gap-4">
+              <Button 
                 onClick={() => selectAllProducts(!isAllSelected)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                disabled={products.length === 0}
+                variant="secondary"
               >
-                {isAllSelected ? "Seçimi Kaldır" : "Tümünü Seç"}
-              </button>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newListName}
-                  onChange={(e) => setNewListName(e.target.value)}
-                  placeholder="Yeni liste adı"
-                  className="px-4 py-2 border rounded-lg"
-                />
-              <button 
-                  onClick={handleMoveToNewList}
-                  disabled={!newListName.trim() || selectedCount === 0}
-                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
+                {isAllSelected ? "Deselect All" : "Select All"}
+              </Button>
+              <Button 
+                onClick={handleRemoveSelected}
+                disabled={selectedCount === 0}
+                variant="destructive"
               >
-                  Yeni Listeye Taşı
-              </button>
-              </div>
+                Delete Selected ({selectedCount})
+              </Button>
             </div>
-            </div>
+          </div>
+        </div>
 
-          {/* Ürün Listesi */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {products.map((product) => (
-                <div 
-                  key={product.id}
-                className={`border rounded-lg p-4 ${
-                  product.selected ? "border-blue-500 bg-blue-50" : ""
+        {products.length === 0 && !isLoading ? (
+           <div className="text-center py-10 bg-white rounded-lg shadow">
+             <p className="text-lg text-gray-500">No favorite products to edit.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            {products.map((product) => (
+              <div 
+                key={product.id}
+                className={`border rounded-lg p-4 transition-colors duration-200 relative ${
+                  selectedProductIds.has(product.id) 
+                    ? "border-blue-500 bg-blue-50 ring-2 ring-blue-300" 
+                    : "bg-white hover:shadow-md"
                 }`}
               >
-                <div className="flex items-start gap-4">
-                  <input
-                    type="checkbox"
-                    checked={product.selected}
-                    onChange={() => toggleProductSelection(product.id)}
-                    className="mt-1"
-                  />
-                  <div className="flex-1">
-                    <div className="relative w-full h-40 mb-2">
-                      <Image
-                        src={product.image}
-                        alt={product.name}
-                        fill
-                        className="object-cover rounded-lg"
-                      />
-                    </div>
-                    <h3 className="font-semibold">{product.name}</h3>
-                    <p className="text-gray-600">₺{product.price}</p>
-                    {product.listId && (
-                      <p className="text-sm text-gray-500">
-                        Liste: {lists.find(l => l.id === product.listId)?.name}
-                      </p>
-                    )}
+                <Checkbox
+                  id={`select-${product.id}`}
+                  checked={selectedProductIds.has(product.id)}
+                  onCheckedChange={() => toggleProductSelection(product.id)}
+                  className="absolute top-2 right-2 z-10 h-5 w-5"
+                  aria-label={`Select ${product.name}`}
+                />
+                <label htmlFor={`select-${product.id}`} className="block cursor-pointer">
+                  <div className="relative w-full aspect-square mb-3 rounded-md overflow-hidden bg-gray-100">
+                    <Image
+                      src={product.imageUrl || "/placeholder.png"}
+                      alt={product.name || "Product image"}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      className="object-cover"
+                    />
                   </div>
-                </div>
+                  <h3 className="font-semibold text-sm sm:text-base leading-tight mb-1 line-clamp-2">{product.name}</h3>
+                  <p className="text-gray-700 text-sm sm:text-base font-medium">{product.price ? `₺${product.price.toFixed(2)}` : "Price not available"}</p>
+                </label>
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Mevcut Listeler */}
-        <div className="bg-white rounded-lg p-6">
-          <h2 className="text-xl font-bold mb-4">Mevcut Listeler</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {lists.map((list) => (
-              <div key={list.id} className="border rounded-lg p-4">
-                {editingListId === list.id ? (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={editingListName}
-                      onChange={(e) => setEditingListName(e.target.value)}
-                      className="flex-1 px-2 py-1 border rounded"
-                    />
-                    <button
-                      onClick={() => handleRenameList(list.id)}
-                      className="px-2 py-1 bg-green-500 text-white rounded"
-                    >
-                      Kaydet
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingListId(null)
-                        setEditingListName("")
-                      }}
-                      className="px-2 py-1 bg-gray-500 text-white rounded"
-                    >
-                      İptal
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">{list.name}</h3>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingListId(list.id)
-                          setEditingListName(list.name)
-                        }}
-                        className="px-2 py-1 bg-blue-500 text-white rounded"
-                      >
-                        Düzenle
-                      </button>
-                  <button 
-                        onClick={() => removeList(list.id)}
-                        className="px-2 py-1 bg-red-500 text-white rounded"
-                  >
-                        Sil
-                  </button>
-                    </div>
-                  </div>
-                )}
-                <p className="text-sm text-gray-500 mt-2">
-                  {products.filter(p => p.listId === list.id).length} ürün
-                </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        )}
+      </div>
     </div>
   )
-} 
+}

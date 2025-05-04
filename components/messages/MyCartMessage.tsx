@@ -2,13 +2,13 @@ import { useEffect } from 'react';
 import Information from '../icons/Information';
 import Image from 'next/image';
 
-
 interface MyCartMessageProps {
+  productName: string;
   onClose: () => void;
   onUndo: () => void;
 }
 
-export default function MyCartMessage({ onClose, onUndo }: MyCartMessageProps) {
+export default function MyCartMessage({ productName, onClose, onUndo }: MyCartMessageProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -49,7 +49,7 @@ export default function MyCartMessage({ onClose, onUndo }: MyCartMessageProps) {
                    font-inter text-[16px] text-black leading-tight max-w-[230px]
                    animate-fade-in"
         >
-          The product has been removed from your cart.
+          {productName} removed from cart.
         </div>
 
         <span

@@ -7,6 +7,7 @@ import NavigationBar from "@/components/navigation/NavigationBar";
 import { usePathname } from "next/navigation";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
+import StoreInitializer from "@/components/providers/StoreInitializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,6 +45,7 @@ export default function RootLayout({
     <html lang="en" className="h-full">
       <body className={bodyClassName}>
         <AuthProvider>
+          <StoreInitializer />
           {!isAuthPage && (
             <>
               <Header />

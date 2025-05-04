@@ -6,19 +6,35 @@ import MenuOverlay from '@/components/overlay/MenuOverlay'
 import CartSuccessMessage from '@/components/messages/CartSuccessMessage'
 import { useCartStore } from '@/app/stores/cartStore'
 import { useFavoritesStore } from '@/app/stores/favoritesStore'
+import Link from 'next/link'
+import { useCartActions } from '@/app/stores/cartStore'
+import { useFavoritesActions } from '@/app/stores/favoritesStore'
+import { toast } from 'react-hot-toast'
+import FavoriteIcon from '@/components/icons/FavoriteIcon'
+import CartIcon from '@/components/icons/CartIcon'
+import { FavoriteProduct } from '@/app/stores/favoritesStore'
+import { useUserStore } from '@/app/stores/userStore'
 
-interface Product {
-  id: number;
-  name: string;
+interface GridProduct {
+  productId: number;
+  productName: string;
+  name?: string;
   price: number;
-  image: string;
+  imageUrl?: string;
   inStock?: boolean;
-  supplier?: string;
+  supplierName?: string;
+  id?: number;
+  storeId?: number;
+  categoryId?: number;
+  stockQuantity?: number;
+  barcode?: string;
+  status?: boolean;
 }
 
 interface ProductGridProps {
-  products: Product[];
-  showInStock: boolean;
+  products: GridProduct[];
+  isLoading?: boolean;
+  context?: 'products' | 'favorites' | 'search';
 }
 
 const RatingStars = ({ rating }: { rating: number }) => {
@@ -38,124 +54,140 @@ const RatingStars = ({ rating }: { rating: number }) => {
   )
 }
 
-export default function ProductGrid({ products, showInStock }: ProductGridProps) {
+export default function ProductGrid({ products, isLoading, context = 'products' }: ProductGridProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null)
   const [showCartSuccess, setShowCartSuccess] = useState(false)
   const productsPerPage = 8
 
-  const { addItem: addToCart } = useCartStore()
-  const { removeProduct: removeFromFavorites } = useFavoritesStore()
+  const { addItem: addToCart } = useCartActions()
+  const { addProduct: addToFavorites, removeProduct: removeFromFavorites } = useFavoritesActions()
+  const { isFavorite } = useFavoritesStore()
+  const { user } = useUserStore()
 
-  // Prop olarak gelen products dizisini doğrudan filtrele
-  const filteredProducts = products.filter(p => 
-    showInStock ? p.inStock : !p.inStock
-  );
-
-  // Sayfalama için ürünleri böl
-  const indexOfLastProduct = currentPage * productsPerPage
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage
-  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct)
-  const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
-  
-  // Sepete Ekleme Fonksiyonu
-  const handleAddToCart = (product: Product) => {
-    console.log("Adding product to cart (grid - product object):", JSON.stringify(product, null, 2));
+  const handleAddToCart = (product: GridProduct) => {
+    if (!user) {
+      toast.error("Sepete eklemek için giriş yapmalısınız.")
+      return
+    }
     addToCart({
-      productId: product.id,
-      name: product.name,
-      supplier: product.supplier || 'Unknown',
-      price: product.price,
-      image: '/placeholder.png',
-    });
-    setShowCartSuccess(true);
+      productId: product.productId,
+      quantity: 1
+    })
+  }
 
-    // Favorilerden de kaldır
-    console.log("ProductGrid: Removing from favorites:", product.name);
-    removeFromFavorites(product.id);
-  };
+  const handleToggleFavorite = (product: GridProduct) => {
+    if (!user) {
+      toast.error("Favorilere eklemek için giriş yapmalısınız.")
+      return
+    }
+    const currentIsFavorite = isFavorite(product.productId)
+    if (currentIsFavorite) {
+      removeFromFavorites(product.productId)
+    } else {
+      addToFavorites(product.productId)
+    }
+  }
 
-  return (
-    <div className="flex flex-col items-center">
-      <div className="grid grid-cols-4 gap-6 mt-8">
-        {currentProducts.map((product) => (
-          <div 
-            key={product.id} 
-            className="w-[200px] h-[200px] rounded-lg relative"
-          >
-            <div className="h-[140px] relative overflow-hidden rounded-t-lg bg-[#D9D9D9]">
-              {product.image === '/placeholder.jpg' ? (
-                <div className="w-full h-full" />
-              ) : (
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  fill
-                  className="object-cover"
-                />
-              )}
-              <button 
-                className="absolute top-2 right-2 z-10"
-                onClick={() => setSelectedProduct(product.id)}
-              >
-                <Menu />
-              </button>
-            </div>
-            <div className="p-2 flex flex-col items-start bg-white rounded-b-lg">
-              <h3 className="font-poppins text-[14px] font-bold text-[#223263] truncate w-full">
-                {product.name}
-              </h3>
-              <div className="absolute bottom-1 right-1">
-                <button onClick={() => handleAddToCart(product)}>
-                  <CartFavorites />
-                </button>
-              </div>
-              <div className="font-poppins text-[14px] font-bold text-[#40BFFF] mt-1">
-                {product.price.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-              </div>
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <div key={index} className="border rounded-lg overflow-hidden shadow animate-pulse">
+            <div className="h-48 bg-gray-200"></div>
+            <div className="p-4 space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
             </div>
           </div>
         ))}
       </div>
+    )
+  }
 
-      {selectedProduct && (
-        <MenuOverlay onClose={() => setSelectedProduct(null)} />
-      )}
+  if (!products || products.length === 0) {
+    return (
+      <div className="text-center py-10 text-gray-500">
+        Gösterilecek ürün bulunamadı.
+      </div>
+    )
+  }
 
-      {showCartSuccess && (
-        <CartSuccessMessage onClose={() => setShowCartSuccess(false)} />
-      )}
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      {products.map((product) => {
+        const effectiveId = product.productId
+        const productName = product.name || product.productName
+        const productIsFavorite = isFavorite(effectiveId)
 
-      {/* Sayfalama */}
-      {totalPages > 1 && (
-        <div className="flex gap-2 mt-6">
-          <button
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
-          >
-            Previous
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => (
-            <button
-              key={i + 1}
-              onClick={() => setCurrentPage(i + 1)}
-              className={`px-4 py-2 rounded-lg ${
-                currentPage === i + 1 ? 'bg-[#40BFFF] text-white' : 'bg-gray-200'
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-            className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
-      )}
+        return (
+          <div key={effectiveId} className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow group relative bg-white">
+            <Link href={`/product/${effectiveId}`} className="block">
+              <div className="aspect-square overflow-hidden bg-gray-100 relative">
+                {product.imageUrl ? (
+                  <Image
+                    src={product.imageUrl}
+                    alt={productName}
+                    fill
+                    className="object-contain group-hover:scale-105 transition-transform duration-300 p-2"
+                    sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    priority={false}
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    Görsel Yok
+                  </div>
+                )}
+                {product.inStock === false && (
+                  <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded z-10">
+                    Tükendi
+                  </span>
+                )}
+              </div>
+              <div className="p-4">
+                <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 h-10 mb-1" title={productName}>
+                  {productName}
+                </h3>
+                <div className="flex justify-between items-center mt-2">
+                  <p className="text-lg font-bold text-blue-600">
+                    {product.price ? `${product.price.toFixed(2)} TL` : '-'}
+                  </p>
+                  <span className="text-xs text-gray-500 truncate" title={product.supplierName || 'Bilinmeyen'}>
+                    {product.supplierName || ''}
+                  </span>
+                </div>
+              </div>
+            </Link>
+            <div className="absolute top-2 right-2 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleToggleFavorite(product)
+                }}
+                className={`p-2 rounded-full transition-colors shadow ${productIsFavorite ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-500 hover:bg-red-100 hover:text-red-500'}`}
+                title={productIsFavorite ? "Favorilerden Kaldır" : "Favorilere Ekle"}
+                disabled={isLoading}
+              >
+                <FavoriteIcon className="w-5 h-5" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleAddToCart(product)
+                }}
+                className="p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Sepete Ekle"
+                disabled={product.inStock === false || isLoading}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 } 

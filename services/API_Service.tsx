@@ -3,15 +3,60 @@ import https from 'https';
 
 // Create an Axios instance
 const api = axios.create({
-  baseURL: process.env.URL,
-  httpsAgent: new https.Agent({ rejectUnauthorized: false }),
-  withCredentials: true
+  baseURL: process.env.URL || 'https://localhost:7296', // Backend URL'nizi buraya ekleyin veya environment'tan alın
+  httpsAgent: new https.Agent({ rejectUnauthorized: false }), // Development için
+  withCredentials: true // Oturum/Cookie tabanlı kimlik doğrulama için önemli
 });
 
 // Request interceptor removed as cookies handle auth
 
 // Export the configured Axios instance
 export { api };
+
+// Ensure fetch calls use the correct environment variable or default
+const getApiUrl = () => process.env.URL || 'https://localhost:7296';
+
+// --- DTO Arayüzleri ---
+// (Backend'deki DTO'larla eşleşmeli - Gerekirse alanları güncelleyin)
+export interface CartItemDto {
+  productId: number;
+  productName: string; // Backend DTO'sunda productName olmalı
+  supplierName?: string; // Backend DTO'sunda varsa
+  price: number;
+  quantity: number;
+  imageUrl?: string; // Backend DTO'sundan gelen görsel yolu
+  // Örnek: UserCartItemID ekleyebilirsiniz, frontend'de unique key için gerekebilir
+  userCartItemId?: number; // Backend DTO'sunda varsa
+}
+
+export interface FavoriteDto {
+  productId: number;
+  productName: string; // Backend DTO'sunda productName olmalı
+  price: number;
+  imageUrl?: string; // Backend DTO'sundan gelen görsel yolu
+  // Örnek: UserFavoriteID eklenebilir
+  userFavoriteId?: number; // Backend DTO'sunda varsa
+  supplierName?: string; // supplierName eklendi
+  inStock?: boolean; // inStock eklendi
+  // dateAdded?: string; // Backend DTO'sunda varsa
+}
+
+export interface AddOrUpdateCartItemRequestDto {
+  productId: number;
+  quantity: number;
+}
+
+export interface AddFavoriteRequestDto {
+  productId: number;
+}
+
+// Backend'den gelen genel bir başarı/hata yanıtı için
+interface ApiResponse<T = any> {
+    success: boolean;
+    message?: string;
+    data?: T;
+    errors?: string[]; // Hata detayları için
+}
 
 // Refactored function using Axios instance
 export const getStores = async () => {
@@ -50,7 +95,7 @@ export const getAuthMe = async () => {
     } else {
         // Handle cases where the API returns 200 OK but no valid user data
         console.error('getAuthMe returned success status but no user data:', response.data);
-        throw new Error('User data not found in /me response.');
+        return null; // Indicate not logged in
     }
   } catch (error: any) {
     // Handle specific errors like 401 Unauthorized (not logged in)
@@ -59,49 +104,32 @@ export const getAuthMe = async () => {
       return null; // Indicate not logged in
     } else {
       console.error('Error fetching /api/Auth/me:', error);
-      throw error; // Re-throw other errors
+      return null; // Re-throw other errors
     }
   }
 };
 
 // Example: getCategoriesById using fetch (needs NEXT_PUBLIC_API_URL in env)
 export const getCategoriesById = async (id: number) => {
-  const apiUrl = process.env.URL;
-  const response = await fetch(`${apiUrl}/api/Categories/${id}`, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    },
-    mode: 'cors',
-    cache: 'no-store'
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+  try {
+    const response = await api.get(`/api/Categories/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching category ${id}:`, error);
+    throw error;
   }
-  return response.json();
 };
-
-// Ensure fetch calls use the correct environment variable or default
-const getApiUrl = () => process.env.URL;
 
 // Example update for createCategory
 export const createCategory = async (data: any) => {
-  const response = await fetch(`${getApiUrl()}/api/Categories`, {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    },
-    mode: 'cors',
-    cache: 'no-store',
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+  try {
+    const response = await api.post('/api/Categories', data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error creating category:', error);
+    const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Kategori oluşturulamadı.';
+    throw new Error(errorMessage);
   }
-  return response.json();
 };
 
 // Remember to update other fetch calls similarly...
@@ -132,21 +160,8 @@ export const deleteCategory = async (id: number) => {
 //Products
 export const getProducts = async () => {
   try {
-    const result = await fetch(`${getApiUrl()}/api/Products`, { 
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      mode: 'cors',
-      cache: 'no-store'
-    });
-    
-    if (!result.ok) {
-      throw new Error(`HTTP error! status: ${result.status}`);
-    }
-    const data = await result.json();
-    return data;
+    const result = await api.get('/api/Products'); // Axios kullanıldı
+    return result.data;
   } catch (error) {
     console.error('Error fetching products:', error);
     return [];
@@ -154,16 +169,13 @@ export const getProducts = async () => {
 }; 
 
 export const getProductById = async (id: number) => {
-  const response = await fetch(`${getApiUrl()}/api/Products/${id}`, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    },
-    mode: 'cors',
-    cache: 'no-store'
-  });
-  return response.json();
+  try {
+      const response = await api.get(`/api/Products/${id}`);
+      return response.data;
+  } catch (error) {
+      console.error(`Error fetching product ${id}:`, error);
+      throw error;
+  }
 };
 
 export const getProductsByCategoryId = async (categoryId: number) => {
@@ -233,31 +245,24 @@ export const deleteProduct = async (id: number) => {
 
 //Stores
 export const getStoreById = async (id: number) => {
-  const response = await fetch(`${getApiUrl()}/api/Stores/${id}`, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    },
-    mode: 'cors',
-    cache: 'no-store'
-  });
-  return response.json();
+  try {
+      const response = await api.get(`/api/Stores/${id}`);
+      return response.data;
+  } catch (error) {
+      console.error(`Error fetching store ${id}:`, error);
+      throw error;
+  }
 };
 
 export const createStore = async (data: any) => {
-  const response = await fetch(`${getApiUrl()}/api/Stores`, {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    },
-    mode: 'cors',
-    cache: 'no-store',
-    body: JSON.stringify(data),
-  });
-  
-  return response.json();
+  try {
+      const response = await api.post('/api/Stores', data);
+      return response.data;
+  } catch (error: any) {
+      console.error('Error creating store:', error);
+      const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Mağaza oluşturulamadı.';
+      throw new Error(errorMessage);
+  }
 };
 
 export const updateStore = async (id: number, data: any) => {
@@ -286,23 +291,10 @@ export const deleteStore = async (id: number) => {
 // Suppliers
 export const getProductSuppliers = async () => {
   try {
-    const response = await fetch(`${getApiUrl()}/api/ProductSuppliers`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      mode: 'cors',
-      cache: 'no-store'
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return await response.json();
+    const response = await api.get('/api/ProductSuppliers'); // Axios kullanıldı
+    return response.data;
   } catch (error) {
-    console.error('Error fetching suppliers:', error);
+    console.error('Error fetching product suppliers:', error);
     return [];
   }
 };
@@ -360,21 +352,8 @@ export const deleteProductSupplier = async (id: number) => {
 
 export const getSuppliers = async () => {
   try {
-    const response = await fetch(`${getApiUrl()}/api/Suppliers`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      mode: 'cors',
-      cache: 'no-store'
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return await response.json();
+    const response = await api.get('/api/Suppliers'); // Axios kullanıldı
+    return response.data;
   } catch (error) {
     console.error('Error fetching suppliers:', error);
     return [];
@@ -650,102 +629,180 @@ export const submitReviewApi = async (reviewData: {
   }
 };
 
-// Order creation DTO structure (adjust based on your actual backend DTO)
+// Backend DTO'suna uygun payload oluştur
 interface OrderItemPayload {
   productID: number;
   quantity: number;
-  priceAtPurchase: number; // Use the price at the time of checkout
-  // Add other fields if needed by backend (e.g., size, color)
+  priceAtPurchase: number;
 }
 
-interface OrderPayloadDTO {
+// OrderPayloadDTO interface'inin sadece bir kere tanımlandığından emin olalım
+// Eğer başka bir yerde tanımlıysa onu kaldırıp bunu export edelim.
+export interface OrderPayloadDTO {
   userID: number;
   totalAmount: number;
-  shippingAddress?: string; // Optional or fetched elsewhere
+  shippingAddress?: string;
   orderItems: OrderItemPayload[];
-  // Add other fields if needed (e.g., couponCode)
 }
 
 //Orders
 export const getUserOrders = async (userId: number) => {
   try {
-    const response = await fetch(`${getApiUrl()}/api/Orders/ByUser/${userId}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      mode: 'cors',
-      cache: 'no-store'
-    });
-    if (!response.ok) {
-      if (response.status === 404) return []; // Sipariş yoksa boş dizi
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
+    // Axios kullanıldı
+    const response = await api.get(`/api/Orders/ByUser/${userId}`);
+    return response.data;
+  } catch (error: any) {
+    if (error.response && error.response.status === 404) return [];
     console.error(`Error fetching orders for user ${userId}:`, error);
-    return []; // Hata durumunda boş dizi
+    return [];
   }
 };
 
 // Add function to create an order
+// Parametre tipi olarak export edilen OrderPayloadDTO'yu kullan
 export const createOrder = async (orderData: OrderPayloadDTO) => {
   try {
-    const response = await fetch(`${getApiUrl()}/api/Orders`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      mode: 'cors',
-      cache: 'no-store',
-      body: JSON.stringify(orderData),
-    });
-
-    if (!response.ok) {
-       const errorText = await response.text();
-       // Try to parse error if JSON
-       try {
-         const errorJson = JSON.parse(errorText);
-         throw new Error(errorJson.message || `HTTP error! status: ${response.status}, message: ${errorText}`);
-       } catch {
-         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-       }
-    }
-    return await response.json(); // Return the created order details
-  } catch (error) {
+    // Axios kullanıldı
+    const response = await api.post('/api/Orders', orderData);
+    return response.data; // Return the created order details
+  } catch (error: any) {
      console.error('Error creating order:', error);
-     throw error; // Re-throw for the component to handle
+     // Daha detaylı hata mesajı fırlat
+     const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Sipariş oluşturulamadı.';
+     throw new Error(errorMessage);
   }
 };
 
 // Add function to get details of a single order
 export const getOrderDetails = async (orderId: number) => {
   try {
-    // Adjust the endpoint path if necessary (e.g., /api/orders/details/{orderId})
-    const response = await fetch(`${getApiUrl()}/api/Orders/${orderId}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-      mode: 'cors',
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-       const errorText = await response.text();
-       try {
-         const errorJson = JSON.parse(errorText);
-         throw new Error(errorJson.message || `HTTP error! status: ${response.status}, message: ${errorText}`);
-       } catch {
-         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-       }
-    }
-    // Expecting a single order object with orderItems array
-    return await response.json(); 
-  } catch (error) {
+    // Axios kullanıldı
+    const response = await api.get(`/api/Orders/${orderId}`);
+    return response.data;
+  } catch (error: any) {
      console.error(`Error fetching details for order ${orderId}:`, error);
-     throw error; 
+     const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Sipariş detayları alınamadı.';
+     throw new Error(errorMessage);
+  }
+};
+
+// --- YENİ SEPET API FONKSİYONLARI ---
+
+/** Kullanıcının sepetindeki ürünleri getirir */
+export const getUserCart = async (): Promise<CartItemDto[]> => {
+  try {
+    // Backend'in doğrudan List<CartItemDto> döndürdüğünü varsayıyoruz
+    const response = await api.get<CartItemDto[]>('/api/Cart');
+    console.log("getUserCart response:", response.data);
+    // Backend'den gelen yanıtta `productId` gibi alan adları frontend ile uyuşmuyorsa burada map'leme yapın
+    // Örnek map'leme:
+    // return response.data.map(item => ({
+    //   userCartItemId: item.userCartItemID, // Backend'den gelen
+    //   productId: item.productID,         // Backend'den gelen
+    //   productName: item.product?.productName || 'Unknown Product', // Join ile geliyorsa
+    //   price: item.product?.price || 0,                       // Join ile geliyorsa
+    //   quantity: item.quantity,
+    //   imageUrl: item.product?.imageUrl,                     // Join ile geliyorsa
+    //   supplierName: item.product?.supplier?.supplierName     // Join ile geliyorsa
+    // }));
+    return response.data || []; // Boş dizi döndür eğer data yoksa
+  } catch (error: any) {
+    if (error.response && error.response.status === 401) {
+      console.warn('Kullanıcı sepeti alınamadı (Yetkisiz 401)');
+      return [];
+    }
+    console.error('Kullanıcı sepeti alınırken hata:', error);
+    return []; // Hata durumunda boş dizi döndür
+  }
+};
+
+/** Sepete ürün ekler veya mevcut ürünün miktarını günceller */
+export const addOrUpdateCartItem = async (item: AddOrUpdateCartItemRequestDto): Promise<CartItemDto | null> => {
+  try {
+    // Backend'in güncellenmiş veya eklenmiş CartItemDto döndürdüğünü varsayıyoruz
+    const response = await api.post<CartItemDto>('/api/Cart', item);
+    return response.data;
+  } catch (error: any) {
+    console.error('Sepete öğe eklerken/güncellerken hata:', error);
+    // Hata mesajını backend'den almaya çalışalım
+    const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Sepete eklenemedi.';
+    throw new Error(errorMessage);
+  }
+};
+
+/** Sepetten belirli bir ürünü kaldırır */
+export const removeCartItem = async (productId: number): Promise<boolean> => {
+  try {
+    // Backend'in başarı durumunda 200 OK veya 204 No Content döndürdüğünü varsayıyoruz
+    await api.delete(`/api/Cart/${productId}`);
+    return true;
+  } catch (error: any) {
+    console.error(`Sepetten ürün ${productId} kaldırılırken hata:`, error);
+    const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Ürün sepetten kaldırılamadı.';
+    throw new Error(errorMessage);
+  }
+};
+
+/** Kullanıcının tüm sepetini temizler */
+export const clearUserCart = async (): Promise<boolean> => {
+  try {
+    // Backend'in başarı durumunda 200 OK veya 204 No Content döndürdüğünü varsayıyoruz
+    await api.delete('/api/Cart');
+    return true;
+  } catch (error: any) {
+    console.error('Sepet temizlenirken hata:', error);
+    const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Sepet temizlenemedi.';
+    throw new Error(errorMessage);
+  }
+};
+
+// --- YENİ FAVORİLER API FONKSİYONLARI ---
+
+/** Kullanıcının favori ürünlerini getirir */
+export const getUserFavorites = async (): Promise<FavoriteDto[]> => {
+  try {
+    // Backend'in doğrudan List<FavoriteDto> döndürdüğünü varsayıyoruz
+    const response = await api.get<FavoriteDto[]>('/api/Favorites');
+    console.log("getUserFavorites response:", response.data);
+    // Gerekirse backend DTO alan adlarıyla map'leme yapın (productId, productName, imageUrl vb.)
+    return response.data || [];
+  } catch (error: any) {
+     if (error.response && error.response.status === 401) {
+      console.warn('Kullanıcı favorileri alınamadı (Yetkisiz 401)');
+      return [];
+    }
+    console.error('Kullanıcı favorileri alınırken hata:', error);
+    return [];
+  }
+};
+
+/** Kullanıcının favorilerine ürün ekler */
+export const addUserFavorite = async (productId: number): Promise<FavoriteDto | null> => {
+  try {
+    const requestBody: AddFavoriteRequestDto = { productId };
+    // Backend'in eklenen FavoriteDto'yu döndürdüğünü varsayıyoruz
+    const response = await api.post<FavoriteDto>('/api/Favorites', requestBody);
+    return response.data;
+  } catch (error: any) {
+    console.error(`Favorilere ürün ${productId} eklenirken hata:`, error);
+    const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Ürün favorilere eklenemedi.';
+    // Check for specific conflict error (already favorited)
+    if (error.response?.status === 409 || errorMessage.toLowerCase().includes('already exists') || errorMessage.toLowerCase().includes('zaten mevcut')) {
+        throw new Error('Bu ürün zaten favorilerinizde.');
+    }
+    throw new Error(errorMessage);
+  }
+};
+
+/** Kullanıcının favorilerinden ürünü kaldırır */
+export const removeUserFavorite = async (productId: number): Promise<boolean> => {
+  try {
+    // Backend'in başarı durumunda 200 OK veya 204 No Content döndürdüğünü varsayıyoruz
+    await api.delete(`/api/Favorites/${productId}`);
+    return true;
+  } catch (error: any) {
+    console.error(`Favorilerden ürün ${productId} kaldırılırken hata:`, error);
+    const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Ürün favorilerden kaldırılamadı.';
+    throw new Error(errorMessage);
   }
 };

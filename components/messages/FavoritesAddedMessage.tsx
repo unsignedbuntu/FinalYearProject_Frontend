@@ -11,7 +11,7 @@ export default function FavoritesAddedMessage({ onClose }: FavoritesAddedMessage
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
-    }, 3000); // 3 saniye görünür kalsın
+    }, 3000); // Keep visible for 3 seconds
 
     return () => clearTimeout(timer);
   }, [onClose]);
@@ -22,10 +22,13 @@ export default function FavoritesAddedMessage({ onClose }: FavoritesAddedMessage
       <div 
         className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" // z-index'i CartSuccess'dan düşük olabilir
         onClick={onClose} 
+        aria-hidden="true"
       />
       
       {/* Mesaj Kutusu */}
       <div
+        role="alert"
+        aria-live="assertive"
         className="fixed top-24 right-8 w-[350px] h-[150px] bg-[#FFE0E6] rounded-[20px] z-50
                  animate-slide-in shadow-lg overflow-hidden border border-red-200" // Renk ve stil favorilere göre ayarlandı
       >
@@ -33,18 +36,19 @@ export default function FavoritesAddedMessage({ onClose }: FavoritesAddedMessage
         <button 
           onClick={onClose}
           className="absolute right-[14px] top-[14px] hover:opacity-80 transition-opacity
-                   active:scale-95 transform duration-150"
+                   active:scale-95 transform duration-150 p-1"
+          aria-label="Close notification"
         >
           <Image src="/icons/Close.png" alt="Close Icon" width={12} height={12} />
         </button>
 
         {/* Renkli Şerit */}
-        <div className="absolute left-0 top-0 w-[20px] h-full bg-[#F4717F]"> 
+        <div className="absolute left-0 top-0 w-[20px] h-full bg-[#F4717F]" aria-hidden="true"> 
           <div className="w-full h-full rounded-l-[20px]" />
         </div>
 
         {/* İkon */}
-        <div className="absolute left-[36px] top-[40px] animate-bounce-in text-red-500">
+        <div className="absolute left-[36px] top-[40px] animate-bounce-in text-red-500" aria-hidden="true">
           <FavoriteIcon width={28} height={28} /> 
         </div>
 

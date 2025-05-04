@@ -1,5 +1,5 @@
 "use client"
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from '@/components/sidebar/Sidebar'
 import EmptyFavorites from '@/app/favorites/EmptyFavorites'
 import FavoritesHeader from '@/components/messages/FavoritesHeader'
@@ -11,7 +11,8 @@ import { useRouter } from 'next/navigation'
 import CartSuccessMessage from '@/components/messages/CartSuccessMessage'
 import ListSelectionOverlay from '@/components/overlay/ListSelectionOverlay'
 import FavoriteLists from '@/components/messages/FavoriteLists'
-import { useFavoritesStore } from '@/app/stores/favoritesStore'
+import { useFavoritesStore, useFavoritesActions } from '@/app/stores/favoritesStore'
+import Image from 'next/image'
 
 export default function FavoritesPage() {
   const router = useRouter()
@@ -19,45 +20,68 @@ export default function FavoritesPage() {
     products: favoriteProducts,
     sortType,
     showInStock,
+    isLoading,
+    error: favoritesError
+  } = useFavoritesStore()
+  
+  const {
+    initializeFavorites,
     setSortType,
     setShowInStock,
-    sortProducts,
-  } = useFavoritesStore()
+  } = useFavoritesActions()
 
   const [isSortOpen, setIsSortOpen] = useState(false)
-  const [showMoveToList, setShowMoveToList] = useState(false)
-  const [showListSelection, setShowListSelection] = useState(false)
   const [showCartSuccess, setShowCartSuccess] = useState(false)
 
+  useEffect(() => {
+    initializeFavorites();
+  }, [initializeFavorites]);
+
   const handleSort = (type: string) => {
-    sortProducts(type)
     setSortType(type)
+    setIsSortOpen(false)
   }
 
-  const handleCartSuccess = () => {
-    setShowCartSuccess(true)
-    setTimeout(() => {
-      setShowCartSuccess(false)
-      setShowListSelection(true)
-    }, 2000)
+  const filteredProducts = favoriteProducts.filter(product => {
+    if (showInStock && !(product.inStock ?? true)) {
+         return false;
+    }
+     if (!showInStock && (product.inStock ?? false)) {
+         return false;
+     }
+    return true;
+  });
+
+  if (isLoading && favoriteProducts.length === 0) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <span className="ml-4">Loading your favorites...</span>
+      </div>
+    );
   }
 
-  const handleMoveToList = (productId: number, listId: number) => {
-    // Ürünü eski listeden kaldır
-    useFavoritesStore.getState().removeProduct(productId)
-    
-    // Ürünü yeni listeye ekle
-    // Bu işlem FavoriteLists komponenti içinde yapılacak
+  if (favoritesError) {
+     return (
+       <div className="flex flex-col justify-center items-center min-h-screen text-red-500">
+         <p>Error: {favoritesError}</p>
+         <button onClick={() => initializeFavorites()} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+           Retry
+         </button>
+       </div>
+     );
   }
 
   return (
     <div className="min-h-screen pt-[160px] relative">
       <Sidebar />
-      {favoriteProducts.length > 0 ? (
+      {filteredProducts.length === 0 && !isLoading ? (
+        <EmptyFavorites />
+      ) : (
         <div className="ml-[480px]">
           <div className="mt-[30px]">
             <div className="flex justify-between items-center">
-              <FavoritesHeader productCount={favoriteProducts.length} />
+              <FavoritesHeader productCount={filteredProducts.length} />
               
               <div className="flex items-center gap-8 mr-[470px]">
                 <span className="font-inter text-[36px] font-normal">
@@ -70,7 +94,12 @@ export default function FavoritesPage() {
                     className="flex items-center bg-[#D9D9D9] w-[200px] h-[75px] rounded-lg px-4 justify-between"
                   >
                     <span className="font-inter text-[32px] font-normal text-[#FF8800]">
-                      {sortType}
+                      { sortType === 'price-desc' ? 'Price (High-Low)' : 
+                        sortType === 'price-asc' ? 'Price (Low-High)' : 
+                        sortType === 'name-asc' ? 'Name (A-Z)' : 
+                        sortType === 'name-desc' ? 'Name (Z-A)' : 
+                        'Date Added'
+                      }
                     </span>
                     <div className="w-[13px] h-[8px]">
                       <Arrowdown className="text-[#FF8800]" />
@@ -86,29 +115,27 @@ export default function FavoritesPage() {
               </div>
             </div>
             
-            {/* Ana içerik alanı */}
-            <div className="w-[1000px] h-[750px] bg-[#FFFFFF] mt-4 p-6 rounded-lg">
-              {/* Filtre butonları */}
-              <div className="flex items-center gap-4">
+            <div className="w-[1000px] h-auto bg-[#FFFFFF] mt-4 p-6 rounded-lg min-h-[750px]">
+              <div className="flex items-center gap-4 mb-6">
                 <button 
-                  className={`w-[140px] h-[50px] border border-gray-300 rounded-lg font-inter text-[16px] 
-                            transition-colors ${showInStock ? 'text-[#FF8800] border-[#FF8800]' : 'hover:text-[#FF8800]'}`}
+                  className={`w-[140px] h-[50px] border rounded-lg font-inter text-[16px] 
+                            transition-colors ${showInStock ? 'text-[#FF8800] border-[#FF8800]' : 'border-gray-300 hover:text-[#FF8800]'}`}
                   onClick={() => setShowInStock(true)}
                 >
-                  In stock
+                  In Stock
                 </button>
                 
                 <button 
-                  className={`w-[160px] h-[50px] border border-gray-300 rounded-lg font-inter text-[16px] 
-                            transition-colors ${!showInStock ? 'text-[#FF8800] border-[#FF8800]' : 'hover:text-[#FF8800]'} ml-4`}
+                  className={`w-[160px] h-[50px] border rounded-lg font-inter text-[16px] 
+                            transition-colors ${!showInStock ? 'text-[#FF8800] border-[#FF8800]' : 'border-gray-300 hover:text-[#FF8800]'} ml-4`}
                   onClick={() => setShowInStock(false)}
                 >
-                  Out of stock
+                  Out of Stock
                 </button>
 
                 <button 
-                  className="w-[200px] h-[75px] bg-[#00EEFF] rounded-lg font-inter text-[32px] 
-                            text-black ml-[110px] transition-colors hover:text-[#8CFF75]"
+                  className="w-[120px] h-[50px] bg-blue-500 text-white rounded-lg font-inter text-[16px] 
+                            transition-colors hover:bg-blue-600 active:bg-blue-700 ml-auto"
                   onClick={() => router.push('/favorites/edit')}
                 >
                   Edit
@@ -116,28 +143,16 @@ export default function FavoritesPage() {
               </div>
 
               <ProductGrid 
-                products={favoriteProducts}
-                showInStock={showInStock}
+                products={filteredProducts}
+                context="favorites"
               />
             </div>
           </div>
-          
-          <FavoriteLists />
         </div>
-      ) : (
-        <EmptyFavorites />
-      )}
-
-      {showMoveToList && (
-        <MoveToListOverlay onBack={() => setShowMoveToList(false)} />
       )}
 
       {showCartSuccess && (
         <CartSuccessMessage onClose={() => setShowCartSuccess(false)} />
-      )}
-
-      {showListSelection && (
-        <ListSelectionOverlay onBack={() => setShowListSelection(false)} />
       )}
     </div>
   )
