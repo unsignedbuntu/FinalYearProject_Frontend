@@ -67,18 +67,19 @@ export default function ProductGrid({ products, isLoading, context = 'products' 
 
   const handleAddToCart = (product: GridProduct) => {
     if (!user) {
-      toast.error("Sepete eklemek için giriş yapmalısınız.")
+      toast.error("You must be logged in to add items to the cart.")
       return
     }
     addToCart({
       productId: product.productId,
       quantity: 1
     })
+    toast.success(`${product.name || product.productName} added to cart.`)
   }
 
   const handleToggleFavorite = (product: GridProduct) => {
     if (!user) {
-      toast.error("Favorilere eklemek için giriş yapmalısınız.")
+      toast.error("You must be logged in to manage favorites.")
       return
     }
     const currentIsFavorite = isFavorite(product.productId)
@@ -108,7 +109,7 @@ export default function ProductGrid({ products, isLoading, context = 'products' 
   if (!products || products.length === 0) {
     return (
       <div className="text-center py-10 text-gray-500">
-        Gösterilecek ürün bulunamadı.
+        No products found.
       </div>
     )
   }
@@ -136,12 +137,12 @@ export default function ProductGrid({ products, isLoading, context = 'products' 
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    Görsel Yok
+                    No Image
                   </div>
                 )}
                 {product.inStock === false && (
                   <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded z-10">
-                    Tükendi
+                    Out of Stock
                   </span>
                 )}
               </div>
@@ -153,7 +154,7 @@ export default function ProductGrid({ products, isLoading, context = 'products' 
                   <p className="text-lg font-bold text-blue-600">
                     {product.price ? `${product.price.toFixed(2)} TL` : '-'}
                   </p>
-                  <span className="text-xs text-gray-500 truncate" title={product.supplierName || 'Bilinmeyen'}>
+                  <span className="text-xs text-gray-500 truncate" title={product.supplierName || 'Unknown'}>
                     {product.supplierName || ''}
                   </span>
                 </div>
@@ -166,8 +167,9 @@ export default function ProductGrid({ products, isLoading, context = 'products' 
                   handleToggleFavorite(product)
                 }}
                 className={`p-2 rounded-full transition-colors shadow ${productIsFavorite ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-500 hover:bg-red-100 hover:text-red-500'}`}
-                title={productIsFavorite ? "Favorilerden Kaldır" : "Favorilere Ekle"}
+                title={productIsFavorite ? "Remove from Favorites" : "Add to Favorites"}
                 disabled={isLoading}
+                aria-label={productIsFavorite ? "Remove from favorites" : "Add to favorites"}
               >
                 <FavoriteIcon className="w-5 h-5" />
               </button>
@@ -177,8 +179,9 @@ export default function ProductGrid({ products, isLoading, context = 'products' 
                   handleAddToCart(product)
                 }}
                 className="p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Sepete Ekle"
+                title="Add to Cart"
                 disabled={product.inStock === false || isLoading}
+                aria-label="Add to cart"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />

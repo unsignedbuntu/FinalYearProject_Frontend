@@ -2,7 +2,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useFavoritesStore } from "@/app/stores/favoritesStore"
+import { useFavoritesStore, useFavoritesActions } from "@/app/stores/favoritesStore"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -10,15 +10,19 @@ import { Loader2, AlertTriangle } from "lucide-react"
 
 export default function FavoritesEditPage() {
   const router = useRouter()
-  const { 
-    products, 
-    isLoading, 
+  const {
+    products,
+    isLoading,
     error,
     selectedProductIds,
+  } = useFavoritesStore()
+
+  const {
     toggleProductSelection,
     selectAllProducts,
     removeSelectedProducts,
-  } = useFavoritesStore()
+    initializeFavorites
+  } = useFavoritesActions()
 
   const selectedCount = selectedProductIds.size
   const isAllSelected = products.length > 0 && selectedProductIds.size === products.length
@@ -27,7 +31,7 @@ export default function FavoritesEditPage() {
     await removeSelectedProducts()
   }
 
-  if (isLoading) {
+  if (isLoading && products.length === 0) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <Loader2 className="h-16 w-16 animate-spin text-blue-500" />
