@@ -1,8 +1,15 @@
 import React from 'react'
 
-export default function CartFavorites() {
+interface CartFavoritesProps {
+  className?: string;
+  width?: string | number;
+  height?: string | number;
+  // fill prop'u mask kullandığı için doğrudan SVG'ye uygulanamaz, gerekirse mask içindeki path'lere uygulanabilir.
+}
+
+export default function CartFavorites({ className, width = 32, height = 32 }: CartFavoritesProps) {
   return (
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} width={width} height={height} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
       <mask id="mask0_456_976" style={{ maskType: "luminance" }} maskUnits="userSpaceOnUse" x="1" y="3" width="30" height="26">
         <path d="M25.9999 21.3333H8.66659L5.33325 8H29.3333L25.9999 21.3333Z" fill="#555555"/>
         <path d="M2 4H4.33333L5.33333 8M5.33333 8L8.66667 21.3333H26L29.3333 8H5.33333Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

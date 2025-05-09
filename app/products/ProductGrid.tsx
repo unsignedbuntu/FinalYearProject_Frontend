@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import Image from 'next/image'
-import Menu from '@/components/icons/Menu'
-import CartFavorites from '@/components/icons/CartFavorites'
+import MenuIcon from '@/components/icons/Menu'
 import MenuOverlay from '@/components/overlay/MenuOverlay'
 import CartSuccessMessage from '@/components/messages/CartSuccessMessage'
 import { useCartStore } from '@/app/stores/cartStore'
@@ -35,6 +34,8 @@ interface ProductGridProps {
   products: GridProduct[];
   isLoading?: boolean;
   context?: 'products' | 'favorites' | 'search';
+  onProductMenuClick?: (productId: number) => void;
+  onAddToCartClick?: (productId: number) => void;
 }
 
 const RatingStars = ({ rating }: { rating: number }) => {
@@ -54,23 +55,23 @@ const RatingStars = ({ rating }: { rating: number }) => {
   )
 }
 
-export default function ProductGrid({ products, isLoading, context = 'products' }: ProductGridProps) {
+export default function ProductGrid({ products, isLoading, context = 'products', onProductMenuClick, onAddToCartClick }: ProductGridProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null)
   const [showCartSuccess, setShowCartSuccess] = useState(false)
   const productsPerPage = 8
 
-  const { addItem: addToCart } = useCartActions()
+  const { addItem: addToCartStore } = useCartActions()
   const { addProduct: addToFavorites, removeProduct: removeFromFavorites } = useFavoritesActions()
   const { isFavorite } = useFavoritesStore()
   const { user } = useUserStore()
 
-  const handleAddToCart = (product: GridProduct) => {
+  const handleGenericAddToCart = (product: GridProduct) => {
     if (!user) {
       toast.error("You must be logged in to add items to the cart.")
       return
     }
-    addToCart({
+    addToCartStore({
       productId: product.productId,
       quantity: 1
     })
@@ -85,8 +86,10 @@ export default function ProductGrid({ products, isLoading, context = 'products' 
     const currentIsFavorite = isFavorite(product.productId)
     if (currentIsFavorite) {
       removeFromFavorites(product.productId)
+      toast.success(`${product.name || product.productName} removed from favorites.`)
     } else {
       addToFavorites(product.productId)
+      toast.success(`${product.name || product.productName} added to favorites.`)
     }
   }
 
@@ -119,7 +122,7 @@ export default function ProductGrid({ products, isLoading, context = 'products' 
       {products.map((product) => {
         const effectiveId = product.productId
         const productName = product.name || product.productName
-        const productIsFavorite = isFavorite(effectiveId)
+        const productIsFavorite = context !== 'favorites' && isFavorite(effectiveId)
 
         return (
           <div key={effectiveId} className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow group relative bg-white">
@@ -152,7 +155,7 @@ export default function ProductGrid({ products, isLoading, context = 'products' 
                 </h3>
                 <div className="flex justify-between items-center mt-2">
                   <p className="text-lg font-bold text-blue-600">
-                    {product.price ? `${product.price.toFixed(2)} TL` : '-'}
+                    {product.price ? `${product.price.toFixed(2)} TL` : 'Price not available'}
                   </p>
                   <span className="text-xs text-gray-500 truncate" title={product.supplierName || 'Unknown'}>
                     {product.supplierName || ''}
@@ -161,32 +164,64 @@ export default function ProductGrid({ products, isLoading, context = 'products' 
               </div>
             </Link>
             <div className="absolute top-2 right-2 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleToggleFavorite(product)
-                }}
-                className={`p-2 rounded-full transition-colors shadow ${productIsFavorite ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-500 hover:bg-red-100 hover:text-red-500'}`}
-                title={productIsFavorite ? "Remove from Favorites" : "Add to Favorites"}
-                disabled={isLoading}
-                aria-label={productIsFavorite ? "Remove from favorites" : "Add to favorites"}
-              >
-                <FavoriteIcon className="w-5 h-5" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleAddToCart(product)
-                }}
-                className="p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Add to Cart"
-                disabled={product.inStock === false || isLoading}
-                aria-label="Add to cart"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </button>
+              {context === 'favorites' ? (
+                <>
+                  {onProductMenuClick && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onProductMenuClick(effectiveId)
+                      }}
+                      className="p-2 rounded-full bg-white text-gray-500 hover:bg-gray-100 transition-colors shadow"
+                      title="Product actions"
+                      aria-label="Product actions"
+                    >
+                      <MenuIcon className="w-5 h-5" />
+                    </button>
+                  )}
+                  {onAddToCartClick && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAddToCartClick(effectiveId)
+                      }}
+                      className="p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Add to Cart"
+                      disabled={product.inStock === false || isLoading}
+                      aria-label="Add to cart"
+                    >
+                      <CartIcon className="w-5 h-5" />
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleFavorite(product)
+                    }}
+                    className={`p-2 rounded-full transition-colors shadow ${productIsFavorite ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-500 hover:bg-red-100 hover:text-red-500'}`}
+                    title={productIsFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                    disabled={isLoading}
+                    aria-label={productIsFavorite ? "Remove from favorites" : "Add to favorites"}
+                  >
+                    <FavoriteIcon className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleGenericAddToCart(product)
+                    }}
+                    className="p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Add to Cart"
+                    disabled={product.inStock === false || isLoading}
+                    aria-label="Add to cart"
+                  >
+                    <CartIcon className="w-5 h-5" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )

@@ -13,6 +13,7 @@ import { useCartStore, useCartActions } from '@/app/stores/cartStore'
 import { useUserStore } from '@/app/stores/userStore'
 import { createOrder, OrderPayloadDTO } from '@/services/API_Service'
 import { toast } from 'react-hot-toast'
+import EmptyCartPage from './empty/page'
 
 interface Product {
   id: number
@@ -134,7 +135,7 @@ export default function CartPage() {
     }
 
     if (!user || !user.id) {
-      toast.error('Lütfen satın almayı tamamlamak için giriş yapın.')
+      toast.error('Please log in to complete your purchase.')
       router.push('/signin');
       return
     }
@@ -158,23 +159,23 @@ export default function CartPage() {
 
     try {
       const createdOrder = await createOrder(orderPayload)
-      console.log('Sipariş başarıyla oluşturuldu:', createdOrder)
+      console.log('Order created successfully:', createdOrder)
       
       await removeSelectedItems()
       
       const orderIdFromResponse = createdOrder?.orderId || createdOrder?.id || createdOrder?.orderID;
 
       if (orderIdFromResponse) { 
-           toast.success('Sipariş başarıyla oluşturuldu! Ödemeye yönlendiriliyorsunuz...');
+           toast.success('Order created successfully! Redirecting to payment...');
            router.push(`/payment?orderId=${orderIdFromResponse}`);
       } else {
-          console.error('Sipariş oluşturuldu ancak yanıtta geçerli bir orderId (orderId, id, orderID) bulunamadı. Yanıt:', createdOrder);
-          toast.error('Sipariş oluşturuldu ancak ödemeye devam edilemedi. Lütfen Siparişlerim sayfasını kontrol edin.');
+          console.error('Order created but a valid orderId (orderId, id, orderID) was not found in the response. Response:', createdOrder);
+          toast.error('Order created but could not proceed to payment. Please check My Orders.');
           router.push('/my-orders'); 
       }
     } catch (err: any) {
-      console.error('Sipariş oluşturulurken hata:', err)
-      const errorMessage = err.message || 'Sipariş oluşturulamadı. Lütfen tekrar deneyin.'
+      console.error('Error creating order:', err)
+      const errorMessage = err.message || 'Could not create order. Please try again.'
       setOrderError(errorMessage)
       toast.error(errorMessage)
     } finally {
@@ -191,7 +192,7 @@ export default function CartPage() {
      return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        <span className="ml-4">Sepetiniz yükleniyor...</span>
+        <span className="ml-4">Loading your cart...</span>
       </div>
      );
   }
@@ -199,12 +200,16 @@ export default function CartPage() {
   if (cartError) {
      return (
        <div className="flex flex-col justify-center items-center min-h-screen text-red-500">
-         <p>Hata: {cartError}</p>
+         <p>Error: {cartError}</p>
          <button onClick={() => initializeCart()} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-           Tekrar Dene
+           Retry
          </button>
        </div>
      );
+  }
+  
+  if (products.length === 0 && !isLoading) {
+    return <EmptyCartPage />;
   }
 
   return (
@@ -214,14 +219,14 @@ export default function CartPage() {
       <div className="ml-[391px] mt-[87px]">
         <div className="flex justify-between items-center mb-8">
           <h1 className="font-raleway text-[64px] font-normal text-left">
-            Sepetim({currentItemCount} ürün)
+            My Cart ({currentItemCount} {currentItemCount === 1 ? 'item' : 'items'})
           </h1>
           
           <div className="flex items-center gap-2 cursor-pointer" 
                style={{position: 'absolute', left: '983px', top: '179px'}}
                onClick={handleClearCart}
-               title="Sepeti Temizle">
-            <span className="text-[#FFF600] font-raleway text-[24px]">Ürünleri Sil</span>
+               title="Clear Cart">
+            <span className="text-[#FFF600] font-raleway text-[24px]">Clear Cart</span>
             <Bin width={24} height={24} />
           </div>
         </div>
@@ -230,7 +235,7 @@ export default function CartPage() {
              style={{position: 'absolute', left: '391px', top: '225px'}}>
           <div className="flex items-center gap-4">
             <Coupon width={32} height={32} color="#FF9D00" />
-            <span className="font-raleway text-[32px] font-normal text-[#FF9D00]">Kuponlarım</span>
+            <span className="font-raleway text-[32px] font-normal text-[#FF9D00]">My Coupons</span>
             <ArrowRight width={32} height={32} />
           </div>
           
@@ -238,28 +243,25 @@ export default function CartPage() {
                onClick={() => setShowCouponOverlay(true)}>
             <span className="font-raleway text-[32px] font-normal text-[#FF9D00]"
                   style={{position: 'absolute', left: '500px', top: '20px'}}>
-              Kupon kodu ekle +
+              Add coupon code +
             </span>
           </div>
         </div>
 
         <div className="mt-[100px]">
-          {products.length === 0 && !isLoading ? (
-             <p className="text-center text-gray-500 text-xl">Sepetiniz boş.</p>
-          ) : (
-            products.map((product) => (
+          {products.map((product) => (
               <div key={product.productId}
                    className="w-[800px] h-[150px] bg-[#D9D9D9] rounded-lg mb-4 relative">
                 <div className="absolute left-0 top-3 w-full px-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="font-raleway text-[16px]">Tedarikçi: </span>
-                      <span className="font-raleway text-[16px] text-[#00FFB7]">{product.supplierName || 'Bilinmiyor'}</span>
+                      <span className="font-raleway text-[16px]">Supplier: </span>
+                      <span className="font-raleway text-[16px] text-[#00FFB7]">{product.supplierName || 'Unknown'}</span>
                       <ArrowRight width={16} height={16} />
                     </div>
                     {selectedItems.includes(product.productId) && (
                       <span className="font-raleway text-[20px] font-normal text-[#008A09]">
-                        Ücretsiz kargo
+                        Free shipping
                       </span>
                     )}
                   </div>
@@ -312,27 +314,26 @@ export default function CartPage() {
                 <button className="absolute right-[20px] top-[110px] text-gray-600 hover:text-red-500 disabled:opacity-50"
                         onClick={() => handleRemoveProduct(product.productId)}
                          disabled={isLoading}
-                        title="Ürünü Kaldır">
+                        title="Remove Product">
                   <Bin width={20} height={20} />
                 </button>
               </div>
-            ))
-          )}
+            )}
         </div>
 
         {products.length > 0 && (
              <div className="w-[400px] bg-[#D9D9D9] rounded-lg p-6 fixed right-[50px] top-[225px]">
-                 <h2 className="font-raleway text-[32px] font-bold mb-4">Sipariş Özeti</h2>
+                 <h2 className="font-raleway text-[32px] font-bold mb-4">Order Summary</h2>
                 <div className="flex justify-between mb-2">
-                     <span>Seçili Ürünler Toplamı:</span>
+                     <span>Selected Items Total:</span>
                     <span>{currentSelectedTotalPrice.toFixed(2)} TL</span>
                 </div>
                 <div className="flex justify-between mb-4">
-                     <span>Kargo Ücreti:</span>
+                     <span>Shipping Cost:</span>
                     <span>{shippingCost.toFixed(2)} TL</span>
                 </div>
                  <div className="border-t border-gray-400 pt-4 flex justify-between font-bold text-lg">
-                     <span>Genel Toplam:</span>
+                     <span>Grand Total:</span>
                     <span>{(currentSelectedTotalPrice + (currentSelectedTotalPrice > 0 ? shippingCost : 0)).toFixed(2)} TL</span>
                  </div>
                 <button 
@@ -340,7 +341,7 @@ export default function CartPage() {
                      disabled={selectedItems.length === 0 || isLoadingOrder}
                     className="w-full mt-6 bg-[#FF9D00] text-white py-3 rounded-lg font-bold hover:bg-[#FFB84D] transition-colors disabled:opacity-50 flex items-center justify-center"
                  >
-                     {isLoadingOrder ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : 'Alışverişi Tamamla'}
+                     {isLoadingOrder ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : 'Proceed to Checkout'}
                  </button>
                  {orderError && <p className="text-red-500 text-sm mt-2">{orderError}</p>}
              </div>
@@ -349,7 +350,7 @@ export default function CartPage() {
 
       {showUndoMessage && lastRemovedItems && (
         <MyCartMessage 
-           productName={lastRemovedItems[0]?.productName || 'Ürün'}
+           productName={lastRemovedItems[0]?.productName || 'Product'}
            onClose={() => setShowUndoMessage(false)} 
            onUndo={handleUndoRemove} 
         />
@@ -370,7 +371,7 @@ export default function CartPage() {
                style={{ width: '450px', height: '900px', zIndex: 10000 }}>
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="font-raleway text-[24px] font-normal">Kuponlarım</h2>
+                <h2 className="font-raleway text-[24px] font-normal">My Coupons</h2>
                 <button 
                   onClick={() => setShowCouponOverlay(false)}
                   className="text-gray-500 hover:text-gray-700"
@@ -384,14 +385,14 @@ export default function CartPage() {
               <div className="flex gap-2 mb-6">
                 <input
                   type="text"
-                  placeholder="Tedarikçiye göre ara"
+                  placeholder="Search by supplier"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-red-hat-display"
                 />
               </div>
 
-              <h3 className="font-raleway text-[18px] font-normal mb-4">Tanımlı indirim kodları</h3>
+              <h3 className="font-raleway text-[18px] font-normal mb-4">Available discount codes</h3>
 
               <div className="space-y-4 overflow-y-auto max-h-[600px] px-4">
                 {currentCoupons.map((coupon, index) => (
@@ -402,9 +403,9 @@ export default function CartPage() {
                     <div className="relative z-10 p-4">
                       <div className="flex flex-col">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-[24px] font-bold font-red-hat-display text-black">{coupon.amount} TL indirim</span>
+                          <span className="text-[24px] font-bold font-red-hat-display text-black">{coupon.amount} TL discount</span>
                           <button className="px-4 py-1 bg-white rounded-lg text-sm hover:bg-gray-50 font-red-hat-display">
-                            Kullan
+                            Apply
                           </button>
                         </div>
                         <div className="text-sm text-[#5C5C5C]">Minimum limit: {coupon.limit} TL</div>
@@ -412,10 +413,10 @@ export default function CartPage() {
                           <div className="w-full border-b border-dashed border-black"></div>
                         </div>
                         <div className="flex items-center gap-2 mt-2">
-                          <span className="text-sm">12 Ocak 2025'e kadar geçerli</span>
+                          <span className="text-sm">Valid until January 12, 2025</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm">Tedarikçiden tüm ürünlerde geçerli</span>
+                          <span className="text-sm">Valid for all products from supplier</span>
                           <span className="text-sm text-[#00FFB7]">{coupon.supplier}</span>
                         </div>
                       </div>
@@ -430,17 +431,17 @@ export default function CartPage() {
                   disabled={currentPage === 1}
                   className="text-sm text-[#5C5C5C] hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Önceki
+                  Previous
                 </button>
                 <div className="text-sm">
-                  Sayfa {currentPage} / {totalPages}
+                  Page {currentPage} of {totalPages}
                 </div>
                 <button 
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
                   className="text-sm text-[#5C5C5C] hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Sonraki
+                  Next
                 </button>
               </div>
             </div>
