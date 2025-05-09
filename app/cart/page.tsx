@@ -318,7 +318,7 @@ export default function CartPage() {
                   <Bin width={20} height={20} />
                 </button>
               </div>
-            )}
+          ))}
         </div>
 
         {products.length > 0 && (

@@ -211,7 +211,7 @@ export default function FavoritesPage() {
                 </button>
                 
                 <button 
-                  className={`w-[160px] h-[50px] border rounded-lg font-inter text-[16px] 
+                  className={`w-[140px] h-[50px] border rounded-lg font-inter text-[16px] 
                             transition-colors ${!showInStock ? 'text-[#FF8800] border-[#FF8800]' : 'border-gray-300 hover:text-[#FF8800]'} ml-4`}
                   onClick={() => setShowInStock(false)}
                 >
@@ -219,8 +219,7 @@ export default function FavoritesPage() {
                 </button>
 
                 <button 
-                  className="w-[120px] h-[50px] bg-blue-500 text-white rounded-lg font-inter text-[16px] 
-                            transition-colors hover:bg-blue-600 active:bg-blue-700 ml-auto"
+                  className="w-[200px] h-[75px] bg-[#00EEFF] text-black rounded-lg font-inter text-[32px] transition-colors hover:text-[#8CFF75] ml-auto"
                   onClick={() => router.push('/favorites/edit')}
                 >
                   Edit

@@ -11,6 +11,7 @@ import { useFavoritesActions } from '@/app/stores/favoritesStore'
 import { toast } from 'react-hot-toast'
 import FavoriteIcon from '@/components/icons/FavoriteIcon'
 import CartIcon from '@/components/icons/CartIcon'
+import CartFavoritesIcon from '@/components/icons/CartFavorites'
 import { FavoriteProduct } from '@/app/stores/favoritesStore'
 import { useUserStore } from '@/app/stores/userStore'
 
@@ -176,21 +177,7 @@ export default function ProductGrid({ products, isLoading, context = 'products',
                       title="Product actions"
                       aria-label="Product actions"
                     >
-                      <MenuIcon className="w-5 h-5" />
-                    </button>
-                  )}
-                  {onAddToCartClick && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onAddToCartClick(effectiveId)
-                      }}
-                      className="p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Add to Cart"
-                      disabled={product.inStock === false || isLoading}
-                      aria-label="Add to cart"
-                    >
-                      <CartIcon className="w-5 h-5" />
+                      <MenuIcon className="w-6 h-6" />
                     </button>
                   )}
                 </>
@@ -206,7 +193,7 @@ export default function ProductGrid({ products, isLoading, context = 'products',
                     disabled={isLoading}
                     aria-label={productIsFavorite ? "Remove from favorites" : "Add to favorites"}
                   >
-                    <FavoriteIcon className="w-5 h-5" />
+                    <FavoriteIcon width={20} height={20} />
                   </button>
                   <button
                     onClick={(e) => {
@@ -218,11 +205,24 @@ export default function ProductGrid({ products, isLoading, context = 'products',
                     disabled={product.inStock === false || isLoading}
                     aria-label="Add to cart"
                   >
-                    <CartIcon className="w-5 h-5" />
+                    <CartIcon width={20} height={20} />
                   </button>
                 </>
               )}
             </div>
+            {context === 'favorites' && onAddToCartClick && (
+              <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onAddToCartClick(effectiveId); }}
+                  className="p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Add to Cart"
+                  disabled={product.inStock === false || isLoading}
+                  aria-label="Add to cart"
+                >
+                  <CartFavoritesIcon className="w-6 h-6" />
+                </button>
+              </div>
+            )}
           </div>
         )
       })}
