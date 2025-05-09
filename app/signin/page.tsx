@@ -6,7 +6,7 @@ import Visible from "@/components/icons/Visible";
 import Unvisible from "@/components/icons/Unvisible";
 import { useAuth } from "@/contexts/AuthContext";
 import SigninSuccessMessage from "@/components/messages/SigninSuccessMessage";
-import { useUserStore } from "@/app/stores/userStore";
+import { useUserActions } from "@/app/stores/userStore";
 import { getAuthMe } from "@/services/API_Service";
 
 export default function SignInPage() {
@@ -18,7 +18,8 @@ export default function SignInPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  const setUser = useUserStore((state) => state.setUser);
+  const { setUser: actionSetUser } = useUserActions();
+  console.log('DEBUG: actionSetUser from useUserActions:', actionSetUser);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,13 +35,16 @@ export default function SignInPage() {
       const userData = await getAuthMe();
       if (userData) {
         console.log('User data fetched:', userData);
-        setUser({ 
-          id: userData.id.toString(),
-          email: userData.email,
-          name: userData.fullName, 
-          role: 'user'
-        });
-        console.log('User store updated.');
+        if (typeof actionSetUser === 'function') {
+          actionSetUser({ 
+            id: userData.id,
+            email: userData.email,
+            fullName: userData.fullName,
+          });
+          console.log('User store updated via actionSetUser.');
+        } else {
+          console.error('actionSetUser from useUserActions is not a function! Check your Zustand store (userStore.ts) for a `setUser` action.');
+        }
       } else {
         console.error('/me endpoint did not return user data after successful login.');
       }
