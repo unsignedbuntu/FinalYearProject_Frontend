@@ -8,12 +8,14 @@ import SortOverlay from '@/components/overlay/SortOverlay'
 import ProductGrid from '@/app/products/ProductGrid'
 import { useRouter } from 'next/navigation'
 import CartSuccessMessage from '@/components/messages/CartSuccessMessage'
-import { useFavoritesStore, useFavoritesActions, FavoriteProduct } from '@/app/stores/favoritesStore'
+import { useFavoritesStore, useFavoritesActions, FavoriteProduct, FavoriteList } from '@/app/stores/favoritesStore'
 import Image from 'next/image'
+import { toast } from 'react-hot-toast'
 
-// Placeholder for actual overlay components - ensure these are correctly imported and implemented
-const MoveToListOverlay = ({ isOpen, onClose, onMove, onCreateNewList, productId }: any) => isOpen ? <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center"><div className="bg-white p-4 rounded-lg">Move To List (Product ID: {productId}) <button onClick={onCreateNewList}>Create New List</button> <button onClick={onClose}>Close</button></div></div> : null;
-const ListSelectionOverlay = ({ isOpen, onClose, onListCreated, productId }: any) => isOpen ? <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center"><div className="bg-white p-4 rounded-lg">Create New List (Product ID: {productId}) <button onClick={() => onListCreated('new list name')}>Create & Move</button> <button onClick={onClose}>Close</button></div></div> : null;
+// Import actual overlay components
+import MenuOverlay from '@/components/overlay/MenuOverlay'
+import MoveToListRealOverlay from '@/components/overlay/MoveToListOverlay'
+import CreateNewListOverlay, { CreateNewListOverlayProps } from '@/components/overlay/CreateNewListOverlay'
 
 // Placeholder for ProductActionMenu - in a real scenario, use Radix Dropdown or similar
 const ProductActionMenu = ({ isOpen, onClose, onMoveToList, onDelete }: { isOpen: boolean, onClose: () => void, onMoveToList: () => void, onDelete: () => void }) => {
@@ -31,6 +33,7 @@ export default function FavoritesPage() {
   const router = useRouter()
   const {
     products: favoriteProducts,
+    lists: favoriteLists,
     sortType,
     showInStock,
     isLoading,
@@ -42,16 +45,14 @@ export default function FavoritesPage() {
     setSortType,
     setShowInStock,
     removeProduct,
+    createListAndAddProduct,
   } = useFavoritesActions()
 
   const [isSortOpen, setIsSortOpen] = useState(false)
   const [showCartSuccess, setShowCartSuccess] = useState(false)
 
-  // State for product actions
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
-  const [isProductActionMenuOpen, setIsProductActionMenuOpen] = useState(false)
-  const [showMoveToListModal, setShowMoveToListModal] = useState(false)
-  const [showCreateListModal, setShowCreateListModal] = useState(false)
+  const [currentOverlay, setCurrentOverlay] = useState<'menu' | 'moveTo' | 'createList' | null>(null)
 
   useEffect(() => {
     initializeFavorites();
@@ -64,74 +65,68 @@ export default function FavoritesPage() {
 
   const handleProductMenuClick = useCallback((productId: number) => {
     setSelectedProductId(productId)
-    setIsProductActionMenuOpen(true)
+    setCurrentOverlay('menu')
   }, [])
 
-  const handleCloseProductActionMenu = useCallback(() => {
-    setIsProductActionMenuOpen(false)
-    setSelectedProductId(null)
+  const closeAllOverlays = useCallback(() => {
+    setCurrentOverlay(null)
   }, [])
 
-  const handleDeleteFavorite = useCallback(() => {
+  const handleDeleteAction = useCallback(async () => {
     if (selectedProductId !== null) {
-      removeProduct(selectedProductId)
+      try {
+        await removeProduct(selectedProductId);
+        toast.success("Product removed from favorites.")
+      } catch (error) {
+        toast.error("Failed to remove product.")
+        console.error("Delete error:", error)
+      }
     }
-    handleCloseProductActionMenu()
-  }, [selectedProductId, removeProduct, handleCloseProductActionMenu])
+    closeAllOverlays()
+    setSelectedProductId(null);
+  }, [selectedProductId, removeProduct, closeAllOverlays])
 
-  const handleInitiateMoveToList = useCallback(() => {
-    setShowMoveToListModal(true)
-    setIsProductActionMenuOpen(false) // Close the small action menu
+  const handleOpenMoveToList = useCallback(() => {
+    setCurrentOverlay('moveTo')
   }, [])
 
-  const handleCloseMoveToListModal = useCallback(() => {
-    setShowMoveToListModal(false)
-    setSelectedProductId(null) // Clear selected product when closing modals
+  const handleOpenCreateNewList = useCallback(() => {
+    setCurrentOverlay('createList')
   }, [])
 
-  const handleOpenCreateListModal = useCallback(() => {
-    // Assuming MoveToListModal is closed before this is called, or it handles it
-    setShowCreateListModal(true)
-    setShowMoveToListModal(false) 
-  }, [])
+  const handleCreateListAndMoveAction = useCallback(async (productId: number, listName: string, notify: boolean) => {
+    if (createListAndAddProduct) {
+      try {
+        await createListAndAddProduct(productId, listName, notify);
+        toast.success(`Product moved to new list: ${listName}`)
+      } catch (error) {
+        toast.error("Failed to create list and move product.")
+        console.error("Create list error:", error)
+      }
+    }
+    closeAllOverlays()
+    setSelectedProductId(null);
+  }, [closeAllOverlays, createListAndAddProduct])
 
-  const handleCloseCreateListModal = useCallback(() => {
-    setShowCreateListModal(false)
-    setSelectedProductId(null) 
-  }, [])
-
-  const handleListCreatedAndMove = useCallback((newListName: string) => {
+  const handleMoveToExistingListAction = useCallback(async (listId: number) => {
     if (selectedProductId !== null) {
-      // Call your action here e.g.:
-      // createListAndAddFavorite(selectedProductId, newListName);
-      console.log(`Product ${selectedProductId} to be moved to new list: ${newListName}`);
+      console.log(`Placeholder: Move product ${selectedProductId} to list ${listId}`);
     }
-    handleCloseCreateListModal()
-  }, [selectedProductId, handleCloseCreateListModal /*, createListAndAddFavorite */])
-
-  const handleMoveToExistingList = useCallback((listId: string | number) => {
-    if (selectedProductId !== null) {
-      // Call your action here e.g.:
-      // addFavoriteToList(selectedProductId, listId);
-      console.log(`Product ${selectedProductId} to be moved to list ID: ${listId}`);
-    }
-    handleCloseMoveToListModal()
-  }, [selectedProductId, handleCloseMoveToListModal /*, addFavoriteToList */])
+    closeAllOverlays()
+    setSelectedProductId(null);
+  }, [selectedProductId, closeAllOverlays])
   
   const handleAddToCart = useCallback((productId: number) => {
-    console.log(`Add product ${productId} to cart from favorites`);
-    // Implement actual add to cart logic here
-    // For example, call an action: actions.addToCart(productId);
+    toast.success("Product added to cart (placeholder)!"); 
     setShowCartSuccess(true);
-    // Optionally hide after a delay
     setTimeout(() => setShowCartSuccess(false), 3000);
-  }, [/* actions.addToCart */]);
+  }, []);
 
   const filteredProducts = favoriteProducts.filter(product => {
     if (showInStock && !(product.inStock ?? true)) {
          return false;
     }
-     if (!showInStock && (product.inStock ?? false)) {
+     if (!showInStock && (product.inStock === true)) {
          return false;
      }
     return true;
@@ -212,7 +207,7 @@ export default function FavoritesPage() {
                 
                 <button 
                   className={`w-[140px] h-[50px] border rounded-lg font-inter text-[16px] 
-                            transition-colors ${!showInStock ? 'text-[#FF8800] border-[#FF8800]' : 'border-gray-300 hover:text-[#FF8800]'} ml-4`}
+                            transition-colors ${!showInStock ? 'text-[#FF8800] border-[#FF8800]' : 'border-gray-300 hover:text-[#FF8800]'} ml-4`} 
                   onClick={() => setShowInStock(false)}
                 >
                   Out of Stock
@@ -237,29 +232,31 @@ export default function FavoritesPage() {
         </div>
       )}
 
-      {selectedProductId && (
-        <ProductActionMenu 
-          isOpen={isProductActionMenuOpen}
-          onClose={handleCloseProductActionMenu}
-          onMoveToList={handleInitiateMoveToList}
-          onDelete={handleDeleteFavorite}
+      {currentOverlay === 'menu' && selectedProductId !== null && (
+        <MenuOverlay
+          productId={selectedProductId}
+          onClose={closeAllOverlays}
+          onDeleteClick={handleDeleteAction}
+          onMoveToListClick={handleOpenMoveToList}
         />
       )}
 
-      <MoveToListOverlay 
-        isOpen={showMoveToListModal}
-        onClose={handleCloseMoveToListModal}
-        productId={selectedProductId}
-        onMove={handleMoveToExistingList}
-        onCreateNewList={handleOpenCreateListModal} 
-      />
+      {currentOverlay === 'moveTo' && selectedProductId !== null && (
+        <MoveToListRealOverlay
+          productId={selectedProductId}
+          onBack={closeAllOverlays}
+          onOpenCreateNewList={handleOpenCreateNewList}
+        />
+      )}
 
-      <ListSelectionOverlay 
-        isOpen={showCreateListModal}
-        onClose={handleCloseCreateListModal}
-        productId={selectedProductId}
-        onListCreated={handleListCreatedAndMove}
-      />
+      {currentOverlay === 'createList' && selectedProductId !== null && (
+        <CreateNewListOverlay
+          productId={selectedProductId}
+          onBack={() => setCurrentOverlay('moveTo')}
+          onListCreateAndMove={handleCreateListAndMoveAction}
+          existingLists={favoriteLists || []}
+        />
+      )}
 
       {showCartSuccess && (
         <CartSuccessMessage onClose={() => setShowCartSuccess(false)} />

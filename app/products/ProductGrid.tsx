@@ -211,7 +211,7 @@ export default function ProductGrid({ products, isLoading, context = 'products',
               )}
             </div>
             {context === 'favorites' && onAddToCartClick && (
-              <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+              <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
                 <button
                   onClick={(e) => { e.stopPropagation(); onAddToCartClick(effectiveId); }}
                   className="p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"

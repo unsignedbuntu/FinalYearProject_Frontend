@@ -5,7 +5,10 @@ import {
     FavoriteDto, 
     getUserFavorites,
     addUserFavorite,
-    removeUserFavorite
+    removeUserFavorite,
+    // Varsayımsal API servisleri (gerçek isimler farklı olabilir)
+    // createNewFavoriteList as apiCreateNewFavoriteList,
+    // addProductToFavoriteList as apiAddProductToFavoriteList
 } from '@/services/API_Service'
 
 // Frontend'de kullanılan FavoriteProduct yapısı (API DTO'suna göre güncellendi)
@@ -20,18 +23,19 @@ export interface FavoriteProduct extends FavoriteDto {
     supplierName?: string // supplierName eklendi (opsiyonel)
 }
 
-/* // Liste yönetimi sonraya bırakıldı
-interface FavoriteList {
-  id: number
-  name: string
-  products: number[] // product ids
+// Liste yönetimi için FavoriteList interface'ini aktif hale getiriyoruz
+export interface FavoriteList {
+  id: number; // Benzersiz liste ID'si (backend'den veya frontend'de üretilebilir)
+  name: string;
+  isPrivate: boolean; // Listenin gizli olup olmadığını belirtir
+  productIds: number[]; // Bu listedeki ürünlerin ID'leri
+  // createdAt?: Date; // Opsiyonel: oluşturulma tarihi
 }
-*/
 
 interface FavoritesState {
   products: FavoriteProduct[]
   selectedProductIds: Set<number> // Seçili ürün ID'lerini tutmak için Set
-  // lists: FavoriteList[]
+  lists: FavoriteList[] // Aktif hale getirildi
   sortType: string
   showInStock: boolean
   isLoading: boolean
@@ -51,6 +55,9 @@ interface FavoritesState {
     toggleProductSelection: (productId: number) => void
     selectAllProducts: (select: boolean) => void
     removeSelectedProducts: () => Promise<void> // Seçili olanları silme
+    // Yeni liste ve ürün taşıma eylemleri
+    createListAndAddProduct: (productId: number, listName: string, isPrivate: boolean) => Promise<void>
+    // addProductToExistingList: (productId: number, listId: number) => Promise<void> // İleride eklenebilir
   }
 }
 
@@ -58,7 +65,7 @@ interface FavoritesState {
 const initialState: Omit<FavoritesState, 'actions'> = {
   products: [],
   selectedProductIds: new Set(), // Başlangıçta boş Set
-  // lists: [],
+  lists: [], // Başlangıçta boş liste dizisi
   sortType: 'date-desc', // Varsayılan sıralama
   showInStock: true, // Varsayılan filtre
   isLoading: false,
@@ -72,10 +79,13 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
   actions: {
     // --- API Tabanlı Action'lar ---
     initializeFavorites: async () => {
-      set({ isLoading: true, error: null, selectedProductIds: new Set() }) // Seçimi de sıfırla
+      set({ isLoading: true, error: null, selectedProductIds: new Set() })
       try {
-        const favoritesDto = await getUserFavorites()
+        const favoritesDto = await getUserFavorites() // Bu sadece ana favori listesini getiriyor olabilir
+        // TODO: Eğer backend listeleri de destekliyorsa, listeler için ayrı bir API çağrısı gerekebilir.
+        // Şimdilik listeleri boş başlatıyoruz veya dummy data ile doldurabiliriz.
         get().actions._setFavoriteProducts(favoritesDto)
+        // set({ lists: [] }); // Veya dummy listeler: set({ lists: [{id: 1, name: "My Wishlist", productIds: favoritesDto.map(p=>p.productId), isPrivate: false}] });
         console.log('Favorites loaded successfully.')
       } catch (error: any) {
         console.error('Error loading favorites:', error)
@@ -88,29 +98,29 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
     },
 
     addProduct: async (productId) => {
-      if (get().products.some(p => p.productId === productId)) {
-        toast.error("Product is already in favorites.");
+      if (get().products.some(p => p.productId === productId && p.listId === undefined)) { // Ana favori listesinde kontrol
+        toast.error("Product is already in main favorites.");
         return;
       }
       set({ isLoading: true, error: null })
       try {
-        const addedFavoriteDto = await addUserFavorite(productId)
+        const addedFavoriteDto = await addUserFavorite(productId) // Bu API sadece ana favorilere ekliyor olabilir
         if (addedFavoriteDto) {
           const newFavorite: FavoriteProduct = {
             ...addedFavoriteDto,
             id: addedFavoriteDto.productId,
             name: addedFavoriteDto.productName || 'Unnamed Product',
-            // selected: false, // Artık state'de tutulmuyor
             supplierName: addedFavoriteDto.supplierName,
             inStock: addedFavoriteDto.inStock,
-            imageUrl: addedFavoriteDto.imageUrl // imageUrl ekle
+            imageUrl: addedFavoriteDto.imageUrl,
+            listId: undefined // Ana favoriler listesine eklendiğini belirtir
           }
           set(state => {
             const updatedProducts = [...state.products, newFavorite]
             const sorted = state.actions.sortProductsInternal(updatedProducts, state.sortType)
             return { products: sorted, error: null }
           })
-           toast.success(`${newFavorite.name} added to favorites!`)
+           toast.success(`${newFavorite.name} added to main favorites!`)
         } else {
           throw new Error('Failed to get response from backend when adding favorite.')
         }
@@ -131,10 +141,16 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
 
       set({ isLoading: true, error: null })
       try {
-        await removeUserFavorite(productId)
+        // Eğer ürün bir listeye aitse, backend'de o listeden silme API'ı çağrılmalı.
+        // Şimdilik sadece genel favorilerden silme varsayılıyor.
+        await removeUserFavorite(productId) 
         set(state => ({
           products: state.products.filter(p => p.productId !== productId),
-          selectedProductIds: new Set([...state.selectedProductIds].filter(id => id !== productId)), // Seçimden de kaldır
+          selectedProductIds: new Set([...state.selectedProductIds].filter(id => id !== productId)),
+          lists: state.lists.map(list => ({ // Ürünü tüm listelerden de kaldır
+            ...list,
+            productIds: list.productIds.filter(id => id !== productId)
+          })),
           error: null
         }))
         toast.success(`${productToRemove.name || 'Product'} removed from favorites.`)
@@ -196,47 +212,72 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
         toast.error("No products selected to remove.");
         return;
       }
-
-      const productsToRemove = products.filter(p => selectedProductIds.has(p.productId));
-      const productIdsToRemove = Array.from(selectedProductIds);
-
       set({ isLoading: true, error: null });
-      let successCount = 0;
-      let errorOccurred = false;
-
+      // Bu eylem seçili ürünleri hem ana favorilerden hem de ait oldukları listelerden (eğer varsa) silmeli.
+      // Backend'de bu işlemlerin nasıl yapılacağına bağlı.
+      // Şimdilik sadece ana favorilerden silme mantığını basitleştirilmiş olarak tutuyoruz.
+      const productIdsToRemove = Array.from(selectedProductIds);
       try {
-        // Tüm silme isteklerini paralel olarak gönder
-        await Promise.all(productIdsToRemove.map(async (id) => {
-          try {
-            await removeUserFavorite(id);
-            successCount++;
-          } catch (err) {
-            console.error(`Failed to remove favorite product ID: ${id}`, err);
-            errorOccurred = true; // Herhangi bir hata olursa işaretle
-            // Hata mesajını burada göstermek yerine toplu gösterebiliriz
-          }
-        }));
-
-        // State'i güncelle
+        await Promise.all(productIdsToRemove.map(id => removeUserFavorite(id)));
         set(state => ({
-          products: state.products.filter(p => !state.selectedProductIds.has(p.productId)),
-          selectedProductIds: new Set(), // Seçimi temizle
-          error: errorOccurred ? "Some products could not be removed." : null,
+          products: state.products.filter(p => !productIdsToRemove.includes(p.productId)),
+          selectedProductIds: new Set(),
+          lists: state.lists.map(list => ({
+            ...list,
+            productIds: list.productIds.filter(id => !productIdsToRemove.includes(id))
+          })),
+          error: null,
         }));
-
-        if (successCount > 0) {
-          toast.success(`${successCount} product(s) removed from favorites.`);
-        }
-        if (errorOccurred) {
-           toast.error("Failed to remove some selected products. Please check the console.");
-        }
-
-      } catch (error) { // Promise.all dışında beklenmedik bir hata olursa
-        console.error("Unexpected error during bulk removal:", error);
-        set({ error: "An unexpected error occurred while removing products.", isLoading: false });
-        toast.error("An unexpected error occurred.");
+        toast.success(`${productIdsToRemove.length} product(s) removed.`)
+      } catch (error: any) {
+        console.error('Error removing selected favorites:', error)
+        toast.error('Failed to remove some selected products.')
+        set({ error: 'Failed to remove some products.' })
       } finally {
         set({ isLoading: false });
+      }
+    },
+
+    // Yeni liste oluşturma ve ürünü o listeye ekleme eylemi
+    createListAndAddProduct: async (productId, listName, isPrivate) => {
+      set({ isLoading: true, error: null });
+      try {
+        // Varsayımsal: Backend'de yeni liste oluşturma API'ı
+        // const newListFromApi = await apiCreateNewFavoriteList({ name: listName, isPrivate: isPrivate });
+        // const newListId = newListFromApi.id;
+        
+        // Şimdilik frontend'de yeni liste oluşturuyoruz (ID üretimi basitçe)
+        const newListId = Date.now(); // Basit ID üretimi, backend entegrasyonunda değişmeli
+        const newList: FavoriteList = {
+          id: newListId,
+          name: listName,
+          isPrivate: isPrivate,
+          productIds: [productId],
+        };
+
+        // Varsayımsal: Ürünü backend'de bu yeni listeye ekleme API'ı
+        // await apiAddProductToFavoriteList(productId, newListId);
+
+        // Ana favoriler listesinden ürünü kaldır (eğer oradaysa ve listeye özel olacaksa)
+        // Ya da ürünü hem ana favorilerde tutup hem de listeye ekleyebiliriz. Tasarıma bağlı.
+        // Şimdilik, ürünü ana favorilerden kaldırmadan listeye ekliyoruz.
+        // Eğer ürün sadece bir listede olacaksa, aşağıdaki gibi bir filtreleme gerekebilir:
+        // const productOriginal = get().products.find(p => p.productId === productId);
+        // if (productOriginal && productOriginal.listId === undefined) { /* ana favorilerden kaldır */ }
+
+        set(state => ({
+          lists: [...state.lists, newList],
+          // Eğer ürün artık sadece bu listede olacaksa ve ana `products` dizisinden de etkilenecekse:
+          // products: state.products.map(p => 
+          //   p.productId === productId ? { ...p, listId: newListId } : p
+          // ),
+          isLoading: false,
+        }));
+        toast.success(`Product added to new list: ${listName}`);
+      } catch (error: any) {
+        console.error('Error creating list and adding product:', error);
+        toast.error('Failed to create list or add product.');
+        set({ error: 'Failed to create list or add product.', isLoading: false });
       }
     },
 
@@ -270,15 +311,15 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
         name: dto.productName || 'Unnamed Product',
         supplierName: dto.supplierName,
         imageUrl: dto.imageUrl,
-        inStock: dto.inStock
-        // selected property artık burada atanmıyor
+        inStock: dto.inStock,
+        listId:  undefined // Backend DTO'sunda listId varsa maplenir
       }))
       const sorted = get().actions.sortProductsInternal(mappedProducts, get().sortType)
       set({ products: sorted, error: null, isLoading: false })
     },
 
     _clearLocalState: () => {
-      set({...initialState, isFavorite: () => false, selectedProductIds: new Set() })
+      set({...initialState, lists: [], isFavorite: () => false, selectedProductIds: new Set() })
     },
   }
 }))
