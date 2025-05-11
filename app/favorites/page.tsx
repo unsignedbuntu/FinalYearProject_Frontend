@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect, useCallback } from 'react'
 import Sidebar from '@/components/sidebar/Sidebar'
+import ListSidebar from '@/app/favorites/ListSidebar'
 import EmptyFavorites from '@/app/favorites/EmptyFavorites'
 import FavoritesHeader from '@/components/messages/FavoritesHeader'
 import Arrowdown from '@/components/icons/Arrowdown'
@@ -14,7 +15,7 @@ import { toast } from 'react-hot-toast'
 
 // Import actual overlay components
 import MenuOverlay from '@/components/overlay/MenuOverlay'
-import MoveToListRealOverlay from '@/components/overlay/MoveToListOverlay'
+import MoveToListRealOverlay, { MoveToListOverlayProps } from '@/components/overlay/MoveToListOverlay'
 import CreateNewListOverlay, { CreateNewListOverlayProps } from '@/components/overlay/CreateNewListOverlay'
 
 // Placeholder for ProductActionMenu - in a real scenario, use Radix Dropdown or similar
@@ -40,13 +41,7 @@ export default function FavoritesPage() {
     error: favoritesError
   } = useFavoritesStore()
   
-  const {
-    initializeFavorites,
-    setSortType,
-    setShowInStock,
-    removeProduct,
-    createListAndAddProduct,
-  } = useFavoritesActions()
+  const actions = useFavoritesActions()
 
   const [isSortOpen, setIsSortOpen] = useState(false)
   const [showCartSuccess, setShowCartSuccess] = useState(false)
@@ -55,11 +50,11 @@ export default function FavoritesPage() {
   const [currentOverlay, setCurrentOverlay] = useState<'menu' | 'moveTo' | 'createList' | null>(null)
 
   useEffect(() => {
-    initializeFavorites();
-  }, [initializeFavorites]);
+    actions.initializeFavoritesAndLists();
+  }, [actions.initializeFavoritesAndLists]);
 
   const handleSort = (type: string) => {
-    setSortType(type)
+    actions.setSortType(type)
     setIsSortOpen(false)
   }
 
@@ -75,8 +70,8 @@ export default function FavoritesPage() {
   const handleDeleteAction = useCallback(async () => {
     if (selectedProductId !== null) {
       try {
-        await removeProduct(selectedProductId);
-        toast.success("Product removed from favorites.")
+        await actions.removeProductFromMainFavorites(selectedProductId);
+        toast.success("Product removed from main favorites.")
       } catch (error) {
         toast.error("Failed to remove product.")
         console.error("Delete error:", error)
@@ -84,37 +79,51 @@ export default function FavoritesPage() {
     }
     closeAllOverlays()
     setSelectedProductId(null);
-  }, [selectedProductId, removeProduct, closeAllOverlays])
+  }, [selectedProductId, actions, closeAllOverlays])
 
   const handleOpenMoveToList = useCallback(() => {
     setCurrentOverlay('moveTo')
   }, [])
 
-  const handleOpenCreateNewList = useCallback(() => {
+  const handleOpenCreateNewListFromMoveTo = useCallback(() => {
+    if (selectedProductId === null) {
+        toast.error("No product selected to create a list for.");
+        return;
+    }
     setCurrentOverlay('createList')
-  }, [])
+  }, [selectedProductId])
 
-  const handleCreateListAndMoveAction = useCallback(async (productId: number, listName: string, notify: boolean) => {
-    if (createListAndAddProduct) {
+  const handleCreateListAndMoveAction = useCallback(async (productId: number, listName: string, isPrivate: boolean) => {
+    try {
+      const newList = await actions.createFavoriteList(listName, isPrivate);
+      if (newList && newList.id) {
+        await actions.addProductToExistingList(productId, newList.id);
+        toast.success(`Product added to new list: ${listName}`)
+      } else {
+        throw new Error("Failed to create list or list ID not returned.");
+      }
+    } catch (error) {
+      toast.error("Failed to create list and add product.")
+      console.error("Create list and add product error:", error)
+    }
+    closeAllOverlays()
+    setSelectedProductId(null);
+  }, [actions, closeAllOverlays])
+
+  const handleMoveToExistingListAction = useCallback(async (productId: number, listId: number) => {
+    if (productId !== null) {
       try {
-        await createListAndAddProduct(productId, listName, notify);
-        toast.success(`Product moved to new list: ${listName}`)
+        await actions.addProductToExistingList(productId, listId);
+        const list = favoriteLists.find(l => l.id === listId);
+        toast.success(`Product added to list: ${list?.name || 'selected list'}`);
       } catch (error) {
-        toast.error("Failed to create list and move product.")
-        console.error("Create list error:", error)
+        toast.error("Failed to add product to list.");
+        console.error("Move to existing list error:", error);
       }
     }
-    closeAllOverlays()
+    closeAllOverlays();
     setSelectedProductId(null);
-  }, [closeAllOverlays, createListAndAddProduct])
-
-  const handleMoveToExistingListAction = useCallback(async (listId: number) => {
-    if (selectedProductId !== null) {
-      console.log(`Placeholder: Move product ${selectedProductId} to list ${listId}`);
-    }
-    closeAllOverlays()
-    setSelectedProductId(null);
-  }, [selectedProductId, closeAllOverlays])
+  }, [actions, favoriteLists, closeAllOverlays]);
   
   const handleAddToCart = useCallback((productId: number) => {
     toast.success("Product added to cart (placeholder)!"); 
@@ -122,14 +131,14 @@ export default function FavoritesPage() {
     setTimeout(() => setShowCartSuccess(false), 3000);
   }, []);
 
-  const filteredProducts = favoriteProducts.filter(product => {
-    if (showInStock && !(product.inStock ?? true)) {
-         return false;
+  const mainFavoriteProducts = favoriteProducts.filter(product => product.listId === undefined);
+
+  const filteredProductsForGrid = mainFavoriteProducts.filter(product => {
+    if (showInStock) {
+        return product.inStock !== false;
+    } else {
+        return product.inStock === false;
     }
-     if (!showInStock && (product.inStock === true)) {
-         return false;
-     }
-    return true;
   });
 
   if (isLoading && favoriteProducts.length === 0) {
@@ -145,7 +154,7 @@ export default function FavoritesPage() {
      return (
        <div className="flex flex-col justify-center items-center min-h-screen text-red-500">
          <p>Error: {favoritesError}</p>
-         <button onClick={() => initializeFavorites()} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+         <button onClick={() => actions.initializeFavoritesAndLists()} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
            Retry
          </button>
        </div>
@@ -153,84 +162,88 @@ export default function FavoritesPage() {
   }
 
   return (
-    <div className="min-h-screen pt-[160px] relative">
+    <div className="min-h-screen pt-[60px] flex">
       <Sidebar />
-      {filteredProducts.length === 0 && !isLoading ? (
-        <EmptyFavorites />
-      ) : (
-        <div className="ml-[480px]">
-          <div className="mt-[30px]">
-            <div className="flex justify-between items-center">
-              <FavoritesHeader productCount={filteredProducts.length} />
-              
-              <div className="flex items-center gap-8 mr-[470px]">
-                <span className="font-inter text-[36px] font-normal">
-                  Sort
-                </span>
+      <ListSidebar />
+      
+      <div className="flex-1 ml-8 p-6">
+        {filteredProductsForGrid.length === 0 && !isLoading ? (
+          <EmptyFavorites />
+        ) : (
+          <div>
+            <div className="mt-[30px]">
+              <div className="flex justify-between items-center mb-6">
+                <FavoritesHeader productCount={filteredProductsForGrid.length} />
                 
-                <div className="relative">
-                  <button
-                    onClick={() => setIsSortOpen(!isSortOpen)}
-                    className="flex items-center bg-[#D9D9D9] w-[200px] h-[75px] rounded-lg px-4 justify-between"
-                  >
-                    <span className="font-inter text-[32px] font-normal text-[#FF8800]">
-                      { sortType === 'price-desc' ? 'Price (High-Low)' : 
-                        sortType === 'price-asc' ? 'Price (Low-High)' : 
-                        sortType === 'name-asc' ? 'Name (A-Z)' : 
-                        sortType === 'name-desc' ? 'Name (Z-A)' : 
-                        'Date Added'
-                      }
-                    </span>
-                    <div className="w-[13px] h-[8px]">
-                      <Arrowdown className="text-[#FF8800]" />
-                    </div>
-                  </button>
+                <div className="flex items-center gap-4">
+                  <span className="font-inter text-xl font-normal">
+                    Sort
+                  </span>
+                  
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsSortOpen(!isSortOpen)}
+                      className="flex items-center bg-gray-200 w-auto h-10 rounded-md px-3 justify-between text-sm"
+                    >
+                      <span className="font-inter text-sm text-gray-700">
+                        { sortType === 'price-desc' ? 'Price (High-Low)' : 
+                          sortType === 'price-asc' ? 'Price (Low-High)' : 
+                          sortType === 'name-asc' ? 'Name (A-Z)' : 
+                          sortType === 'name-desc' ? 'Name (Z-A)' : 
+                          sortType === 'date-desc' ? 'Date (Newest)' : 
+                          sortType === 'date-asc' ? 'Date (Oldest)' : 
+                          'Relevance'
+                        }
+                      </span>
+                      <Arrowdown className="text-gray-600 w-3 h-3 ml-2" />
+                    </button>
 
-                  <SortOverlay 
-                    isOpen={isSortOpen}
-                    onClose={() => setIsSortOpen(false)}
-                    onSort={handleSort}
-                  />
+                    <SortOverlay 
+                      isOpen={isSortOpen}
+                      onClose={() => setIsSortOpen(false)}
+                      onSort={handleSort}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="w-[1000px] h-auto bg-[#FFFFFF] mt-4 p-6 rounded-lg min-h-[750px]">
-              <div className="flex items-center gap-4 mb-6">
-                <button 
-                  className={`w-[140px] h-[50px] border rounded-lg font-inter text-[16px] 
-                            transition-colors ${showInStock ? 'text-[#FF8800] border-[#FF8800]' : 'border-gray-300 hover:text-[#FF8800]'}`}
-                  onClick={() => setShowInStock(true)}
-                >
-                  In Stock
-                </button>
-                
-                <button 
-                  className={`w-[140px] h-[50px] border rounded-lg font-inter text-[16px] 
-                            transition-colors ${!showInStock ? 'text-[#FF8800] border-[#FF8800]' : 'border-gray-300 hover:text-[#FF8800]'} ml-4`} 
-                  onClick={() => setShowInStock(false)}
-                >
-                  Out of Stock
-                </button>
+              
+              <div className="bg-white mt-4 p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-4 mb-4">
+                  <button 
+                    className={`px-4 py-2 border rounded-md font-inter text-sm 
+                              transition-colors ${showInStock ? 'text-blue-600 border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-blue-500 hover:text-blue-500'}`}
+                    onClick={() => actions.setShowInStock(true)}
+                  >
+                    In Stock
+                  </button>
+                  
+                  <button 
+                    className={`px-4 py-2 border rounded-md font-inter text-sm 
+                              transition-colors ${!showInStock ? 'text-blue-600 border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-blue-500 hover:text-blue-500'}`}
+                    onClick={() => actions.setShowInStock(false)}
+                  >
+                    Out of Stock
+                  </button>
 
-                <button 
-                  className="w-[200px] h-[75px] bg-[#00EEFF] text-black rounded-lg font-inter text-[32px] transition-colors hover:text-[#8CFF75] ml-auto"
-                  onClick={() => router.push('/favorites/edit')}
-                >
-                  Edit
-                </button>
+                  <button 
+                    className="px-4 py-2 bg-blue-500 text-white rounded-md font-inter text-sm transition-colors hover:bg-blue-600 ml-auto"
+                    onClick={() => router.push('/favorites/edit')}
+                  >
+                    Edit Favorites
+                  </button>
+                </div>
+
+                <ProductGrid 
+                  products={filteredProductsForGrid}
+                  context="favorites"
+                  onProductMenuClick={handleProductMenuClick}
+                  onAddToCartClick={handleAddToCart}
+                />
               </div>
-
-              <ProductGrid 
-                products={filteredProducts}
-                context="favorites"
-                onProductMenuClick={handleProductMenuClick}
-                onAddToCartClick={handleAddToCart}
-              />
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {currentOverlay === 'menu' && selectedProductId !== null && (
         <MenuOverlay
@@ -245,7 +258,9 @@ export default function FavoritesPage() {
         <MoveToListRealOverlay
           productId={selectedProductId}
           onBack={closeAllOverlays}
-          onOpenCreateNewList={handleOpenCreateNewList}
+          onOpenCreateNewList={() => handleOpenCreateNewListFromMoveTo()}
+          onMoveToExistingList={handleMoveToExistingListAction}
+          existingLists={favoriteLists || []}
         />
       )}
 
