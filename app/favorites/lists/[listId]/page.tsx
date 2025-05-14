@@ -6,7 +6,11 @@ import ListSidebar from '@/app/favorites/ListSidebar';
 import ProductGrid from '@/app/products/ProductGrid'; 
 import { useFavoritesStore, useFavoritesActions, FavoriteProduct, FavoriteList } from '@/app/stores/favoritesStore';
 import { toast } from 'react-hot-toast';
+import { useUserStore } from '@/app/stores/userStore';
 // import { useCartActions } from '@/app/stores/cartStore'; // Assuming you have a cart store
+
+// Import GridProduct type
+import { type GridProduct } from '@/app/products/ProductGrid';
 
 export default function ListDetailPage() {
   const params = useParams();
@@ -17,6 +21,7 @@ export default function ListDetailPage() {
 
   const { lists, products: allFavoriteProducts, isLoading, isLoadingLists, error } = useFavoritesStore();
   const { initializeFavoritesAndLists, removeProductFromList } = useFavoritesActions();
+  const { user } = useUserStore();
   // const { addItem: addToCartStore } = useCartActions(); // For cart functionality
 
   const [currentList, setCurrentList] = useState<FavoriteList | null | undefined>(undefined); // undefined for loading, null for not found
@@ -24,10 +29,10 @@ export default function ListDetailPage() {
 
   useEffect(() => {
     // Initialize store if lists and products aren't loaded, e.g., on direct navigation
-    if (!isLoading && !isLoadingLists && (lists.length === 0 && allFavoriteProducts.length === 0)) {
-      initializeFavoritesAndLists();
+    if (user?.id && !isLoading && !isLoadingLists && (lists.length === 0 && allFavoriteProducts.length === 0)) {
+      initializeFavoritesAndLists(user.id);
     }
-  }, [lists, allFavoriteProducts, isLoading, isLoadingLists, initializeFavoritesAndLists]);
+  }, [lists, allFavoriteProducts, isLoading, isLoadingLists, initializeFavoritesAndLists, user]);
 
   useEffect(() => {
     if (listId !== null && lists.length > 0) {
@@ -35,7 +40,7 @@ export default function ListDetailPage() {
       setCurrentList(foundList || null); // Set to null if not found after lists are loaded
       if (foundList) {
         const productsFromIds = foundList.productIds
-          .map(pid => allFavoriteProducts.find(p => p.productId === pid))
+          .map(pid => allFavoriteProducts.find(p => p.ProductId === pid))
           .filter(p => p !== undefined) as FavoriteProduct[];
         setProductsInList(productsFromIds);
       } else {
@@ -68,6 +73,16 @@ export default function ListDetailPage() {
     // addToCartStore({ productId, quantity: 1 }); // Example cart action
     toast.success("Product added to cart (placeholder)!");
   };
+
+  // Map productsInList (FavoriteProduct[]) to GridProduct[]
+  const productsForGrid: GridProduct[] = productsInList.map((fp: FavoriteProduct): GridProduct => ({
+    productId: fp.ProductId,
+    productName: fp.name,
+    price: fp.Price,
+    imageUrl: fp.ImageUrl,
+    inStock: fp.inStock,
+    supplierName: fp.supplierName,
+  }));
 
   // Initial loading state for the page before list details are known
   if (currentList === undefined && (isLoading || isLoadingLists)) {
@@ -126,7 +141,7 @@ export default function ListDetailPage() {
 
         {productsInList.length > 0 ? (
           <ProductGrid
-            products={productsInList}
+            products={productsForGrid}
             context="favorites"
             onProductMenuClick={(productId) => {
               // Example: Directly remove or open a confirmation

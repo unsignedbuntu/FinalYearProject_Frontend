@@ -12,11 +12,15 @@ import CartSuccessMessage from '@/components/messages/CartSuccessMessage'
 import { useFavoritesStore, useFavoritesActions, FavoriteProduct, FavoriteList } from '@/app/stores/favoritesStore'
 import Image from 'next/image'
 import { toast } from 'react-hot-toast'
+import { useUserStore } from '@/app/stores/userStore'
 
 // Import actual overlay components
 import MenuOverlay from '@/components/overlay/MenuOverlay'
 import MoveToListRealOverlay, { MoveToListOverlayProps } from '@/components/overlay/MoveToListOverlay'
 import CreateNewListOverlay, { CreateNewListOverlayProps } from '@/components/overlay/CreateNewListOverlay'
+
+// Import GridProduct type
+import { type GridProduct } from '@/app/products/ProductGrid'
 
 // Placeholder for ProductActionMenu - in a real scenario, use Radix Dropdown or similar
 const ProductActionMenu = ({ isOpen, onClose, onMoveToList, onDelete }: { isOpen: boolean, onClose: () => void, onMoveToList: () => void, onDelete: () => void }) => {
@@ -42,6 +46,7 @@ export default function FavoritesPage() {
   } = useFavoritesStore()
   
   const actions = useFavoritesActions()
+  const { user } = useUserStore()
 
   const [isSortOpen, setIsSortOpen] = useState(false)
   const [showCartSuccess, setShowCartSuccess] = useState(false)
@@ -50,8 +55,10 @@ export default function FavoritesPage() {
   const [currentOverlay, setCurrentOverlay] = useState<'menu' | 'moveTo' | 'createList' | null>(null)
 
   useEffect(() => {
-    actions.initializeFavoritesAndLists();
-  }, [actions.initializeFavoritesAndLists]);
+    if (user?.id) {
+      actions.initializeFavoritesAndLists(user.id);
+    }
+  }, [actions, user]);
 
   const handleSort = (type: string) => {
     actions.setSortType(type)
@@ -94,8 +101,12 @@ export default function FavoritesPage() {
   }, [selectedProductId])
 
   const handleCreateListAndMoveAction = useCallback(async (productId: number, listName: string, isPrivate: boolean) => {
+    if (!user?.id) {
+      toast.error("User information is missing. Cannot create list.");
+      return;
+    }
     try {
-      const newList = await actions.createFavoriteList(listName, isPrivate);
+      const newList = await actions.createFavoriteList(user.id, listName, isPrivate);
       if (newList && newList.id) {
         await actions.addProductToExistingList(productId, newList.id);
         toast.success(`Product added to new list: ${listName}`)
@@ -108,7 +119,7 @@ export default function FavoritesPage() {
     }
     closeAllOverlays()
     setSelectedProductId(null);
-  }, [actions, closeAllOverlays])
+  }, [actions, closeAllOverlays, user]);
 
   const handleMoveToExistingListAction = useCallback(async (productId: number, listId: number) => {
     if (productId !== null) {
@@ -133,13 +144,25 @@ export default function FavoritesPage() {
 
   const mainFavoriteProducts = favoriteProducts.filter(product => product.listId === undefined);
 
-  const filteredProductsForGrid = mainFavoriteProducts.filter(product => {
+  const filteredProducts = mainFavoriteProducts.filter(product => {
     if (showInStock) {
         return product.inStock !== false;
     } else {
         return product.inStock === false;
     }
   });
+
+  // Map FavoriteProduct[] to GridProduct[]
+  const productsForGrid = filteredProducts.map((fp: FavoriteProduct): GridProduct => ({
+    productId: fp.ProductId,    // FavoriteProduct.ProductId is number
+    productName: fp.name,       // FavoriteProduct.name is string (derived from ProductName)
+    price: fp.Price,            // FavoriteProduct.Price is number
+    imageUrl: fp.ImageUrl,      // FavoriteProduct.ImageUrl is string | undefined
+    inStock: fp.inStock,        // FavoriteProduct.inStock is boolean | undefined
+    supplierName: fp.supplierName, // FavoriteProduct.supplierName is string | undefined
+    // id: fp.id, // GridProduct also has an optional 'id', could map fp.id if it's distinct from ProductId and useful
+    // name: fp.name, // GridProduct has 'name?: string', already covered by productName.
+  }));
 
   if (isLoading && favoriteProducts.length === 0) {
     return (
@@ -154,7 +177,16 @@ export default function FavoritesPage() {
      return (
        <div className="flex flex-col justify-center items-center min-h-screen text-red-500">
          <p>Error: {favoritesError}</p>
-         <button onClick={() => actions.initializeFavoritesAndLists()} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+         <button 
+           onClick={() => {
+             if (user?.id) {
+               actions.initializeFavoritesAndLists(user.id);
+             } else {
+               toast.error("User information not available to retry.");
+             }
+           }} 
+           className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+         >
            Retry
          </button>
        </div>
@@ -167,13 +199,13 @@ export default function FavoritesPage() {
       <ListSidebar />
       
       <div className="flex-1 ml-8 p-6">
-        {filteredProductsForGrid.length === 0 && !isLoading ? (
+        {productsForGrid.length === 0 && !isLoading ? (
           <EmptyFavorites />
         ) : (
           <div>
             <div className="mt-[30px]">
               <div className="flex justify-between items-center mb-6">
-                <FavoritesHeader productCount={filteredProductsForGrid.length} />
+                <FavoritesHeader productCount={productsForGrid.length} />
                 
                 <div className="flex items-center gap-4">
                   <span className="font-inter text-xl font-normal">
@@ -234,7 +266,7 @@ export default function FavoritesPage() {
                 </div>
 
                 <ProductGrid 
-                  products={filteredProductsForGrid}
+                  products={productsForGrid}
                   context="favorites"
                   onProductMenuClick={handleProductMenuClick}
                   onAddToCartClick={handleAddToCart}

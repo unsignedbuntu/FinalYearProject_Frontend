@@ -30,15 +30,13 @@ export interface CartItemDto {
 }
 
 export interface FavoriteDto {
-  productId: number;
-  productName: string; // Backend DTO'sunda productName olmalı
-  price: number;
-  imageUrl?: string; // Backend DTO'sundan gelen görsel yolu
-  // Örnek: UserFavoriteID eklenebilir
-  userFavoriteId?: number; // Backend DTO'sunda varsa
-  supplierName?: string; // supplierName eklendi
-  inStock?: boolean; // inStock eklendi
-  // dateAdded?: string; // Backend DTO'sunda varsa
+  ProductId: number; // PascalCase olarak güncellendi
+  ProductName?: string; // PascalCase ve opsiyonel olarak güncellendi
+  Price: number; // PascalCase olarak güncellendi
+  ImageUrl?: string; // PascalCase ve opsiyonel olarak güncellendi
+  AddedDate: string; // PascalCase ve string olarak güncellendi (DateTime string olarak serialize edilir)
+  SupplierName?: string; // Backend'den gelmesi beklenen tedarikçi adı
+  InStock?: boolean;     // Backend'den gelmesi beklenen stok durumu
 }
 
 export interface AddOrUpdateCartItemRequestDto {
@@ -48,6 +46,38 @@ export interface AddOrUpdateCartItemRequestDto {
 
 export interface AddFavoriteRequestDto {
   productId: number;
+}
+
+// --- FAVORITE LISTS DTOs (NEW) ---
+export interface FavoriteListDto {
+  ListId: number; // Backend'den gelen ID (PascalCase varsayımı)
+  UserId: number; // Backend'den gelen UserId
+  Name: string;
+  IsPrivate: boolean;
+  ProductIds: number[]; // Bu listedeki ürünlerin ID'leri
+  // CreatedAt gibi ek alanlar backend DTO'sunda varsa eklenebilir
+}
+
+export interface CreateFavoriteListRequestDto {
+  Name: string;
+  IsPrivate: boolean;
+  // UserId backend tarafından token'dan alınır genelde
+}
+
+export interface AddProductToFavoriteListRequestDto {
+  ProductId: number;
+}
+
+// Yeni DTO: Bir favori listesindeki ürünler için (Backend'deki FavoriteListItemResponseDTO'ya karşılık gelmeli)
+export interface ApiFavoriteListItemDto {
+  ProductId: number;
+  ProductName?: string;
+  Price: number;
+  ImageUrl?: string;
+  AddedDate: string; // Öğenin listeye eklendiği tarih
+  SupplierName?: string;
+  InStock?: boolean;
+  // FavoriteListItemID gibi ek alanlar gerekirse eklenebilir
 }
 
 // Backend'den gelen genel bir başarı/hata yanıtı için
@@ -806,3 +836,115 @@ export const removeUserFavorite = async (productId: number): Promise<boolean> =>
     throw new Error(errorMessage);
   }
 };
+
+// --- FAVORITE LISTS API FUNCTIONS (NEW) ---
+
+/** Kullanıcının tüm favori listelerini getirir */
+export const getUserFavoriteLists = async (userId: number): Promise<FavoriteListDto[]> => {
+  try {
+    const response = await api.get<FavoriteListDto[]>(`/api/FavoriteLists/users/${userId}`);
+    console.log(`getUserFavoriteLists for user ${userId} response:`, response.data);
+    return response.data || [];
+  } catch (error: any) {
+    if (error.response && error.response.status === 401) {
+      console.warn(`Kullanıcı ${userId} favori listeleri alınamadı (Yetkisiz 401)`);
+      return [];
+    }
+    console.error(`Kullanıcı ${userId} favori listeleri alınırken hata:`, error);
+    return [];
+  }
+};
+
+/** Yeni bir favori listesi oluşturur */
+export const createFavoriteList = async (userId: number, listData: CreateFavoriteListRequestDto): Promise<FavoriteListDto | null> => {
+  try {
+    // userId'yi URL'e dahil et
+    const response = await api.post<FavoriteListDto>(`/api/FavoriteLists/users/${userId}`, listData);
+    return response.data;
+  } catch (error: any) {
+    console.error(`Kullanıcı ${userId} için favori listesi oluşturulurken hata:`, error);
+    const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Favori listesi oluşturulamadı.';
+    throw new Error(errorMessage);
+  }
+};
+
+/** Belirli bir favori listesini siler */
+export const deleteFavoriteList = async (listId: number): Promise<boolean> => {
+  try {
+    await api.delete(`/api/FavoriteLists/${listId}`);
+    return true;
+  } catch (error: any) {
+    console.error(`Favori listesi ${listId} silinirken hata:`, error);
+    const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Favori listesi silinemedi.';
+    throw new Error(errorMessage);
+  }
+};
+
+/** Bir favori listesine ürün ekler */
+export const addProductToFavoriteList = async (listId: number, productId: number): Promise<void> => {
+  try {
+    const requestBody: AddProductToFavoriteListRequestDto = { ProductId: productId };
+    // Endpoint URL'i backend'e göre değişebilir: /api/FavoriteLists/{listId}/items veya /api/FavoriteLists/{listId}/products
+    await api.post(`/api/FavoriteLists/${listId}/products`, requestBody);
+  } catch (error: any) {
+    console.error(`Ürün ${productId} favori listesi ${listId}'e eklenirken hata:`, error);
+    const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Ürün listeye eklenemedi.';
+    // Check for specific conflict error (already in list)
+    if (error.response?.status === 409 || errorMessage.toLowerCase().includes('already exists') || errorMessage.toLowerCase().includes('zaten mevcut')) {
+        throw new Error('Bu ürün zaten listede.');
+    }
+    throw new Error(errorMessage);
+  }
+};
+
+/** Bir favori listesinden ürünü kaldırır */
+export const removeProductFromFavoriteList = async (listId: number, productId: number): Promise<void> => {
+  try {
+    // Endpoint URL'i backend'e göre değişebilir
+    await api.delete(`/api/FavoriteLists/${listId}/products/${productId}`);
+  } catch (error: any) {
+    console.error(`Ürün ${productId} favori listesi ${listId}'nden kaldırılırken hata:`, error);
+    const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Ürün listeden kaldırılamadı.';
+    throw new Error(errorMessage);
+  }
+};
+
+/** Belirli bir favori listesindeki ürünleri getirir */
+export const getFavoriteListItems = async (listId: number): Promise<ApiFavoriteListItemDto[]> => {
+  try {
+    const response = await api.get<ApiFavoriteListItemDto[]>(`/api/FavoriteLists/${listId}/products`);
+    console.log(`getFavoriteListItems for list ${listId} response:`, response.data);
+    return response.data || [];
+  } catch (error: any) {
+    if (error.response && error.response.status === 401) {
+      console.warn(`Favori listesi ${listId} ürünleri alınamadı (Yetkisiz 401)`);
+      // Kullanıcıya özel bir mesaj gösterilebilir veya login'e yönlendirilebilir.
+    } else if (error.response && error.response.status === 404) {
+      console.warn(`Favori listesi ${listId} bulunamadı veya ürünleri yok.`);
+      // Liste bulunamadı veya boşsa farklı işlem yapılabilir.
+    } else {
+      console.error(`Favori listesi ${listId} ürünleri alınırken hata:`, error);
+    }
+    // Hata durumunda boş dizi döndürmek, UI'da "ürün yok" mesajını tetikleyebilir.
+    // Veya hatayı fırlatıp store/component seviyesinde yakalamak da bir seçenek.
+    // Şimdilik boş dizi dönüyoruz.
+    return [];
+  }
+};
+
+// Opsiyonel: Liste adını veya gizliliğini güncellemek için
+// export interface UpdateFavoriteListRequestDto {
+//   Name?: string;
+//   IsPrivate?: boolean;
+// }
+
+// export const updateFavoriteList = async (listId: number, data: UpdateFavoriteListRequestDto): Promise<FavoriteListDto | null> => {
+//   try {
+//     const response = await api.put<FavoriteListDto>(`/api/FavoriteLists/${listId}`, data);
+//     return response.data;
+//   } catch (error: any) {
+//     console.error(`Favori listesi ${listId} güncellenirken hata:`, error);
+//     const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Liste güncellenemedi.';
+//     throw new Error(errorMessage);
+//   }
+// };

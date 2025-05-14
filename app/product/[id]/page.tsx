@@ -68,7 +68,7 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
 
     // Store hooks
     const { addItem: addToCartAction } = useCartActions();
-    const { addProduct: addToFavoritesAction, removeProduct: removeFromFavoritesAction } = useFavoritesActions();
+    const { addProductToMainFavorites: addToFavoritesAction, removeProductFromMainFavorites: removeFromFavoritesAction } = useFavoritesActions();
     const { isFavorite } = useFavoritesStore();
     const { user } = useUserStore();
 
@@ -340,12 +340,12 @@ export default function ProductPage() {
 
     // Store hooks
     const { items: cartItems } = useCartStore();
-    const { addItem: addToCartAction } = useCartActions();
-    const { addProduct: addToFavoritesAction, removeProduct: removeFromFavoritesAction } = useFavoritesActions();
-    const { isFavorite } = useFavoritesStore();
-    const { user } = useUserStore();
+    const { addItem: addToCartActionToStore } = useCartActions();
+    const { addProductToMainFavorites: addProductToFavoritesAction, removeProductFromMainFavorites: removeProductFromFavoritesAction } = useFavoritesActions();
+    const { isFavorite: getIsFavorite } = useFavoritesStore();
+    const { user: currentUser } = useUserStore();
 
-    const productIsFavorite = isFavorite(productId);
+    const productIsFavorite = getIsFavorite(productId);
     // const productIsInCart = cartItems.some(item => item.id === productId); // If needed for UI
 
     const storeRating = 5.7; // Example static rating
@@ -632,13 +632,13 @@ export default function ProductPage() {
     }, [productId]); // Rerun only when productId changes
 
     const handleAddToCart = () => {
-        if (!user) {
+        if (!currentUser) {
             toast.error("You must be logged in to add items to the cart.");
             return;
         }
         if (!product) return;
         console.log("Adding product to cart (page - product object):", JSON.stringify(product, null, 2));
-        addToCartAction({
+        addToCartActionToStore({
             productId: product.productID,
             quantity: quantity // Use state quantity
         });
@@ -646,17 +646,17 @@ export default function ProductPage() {
     };
 
     const handleToggleFavorite = () => {
-        if (!user) {
-            toast.error("You must be logged in to manage favorites."); // English error
+        if (!currentUser) {
+            toast.error("You must be logged in to manage favorites.");
             return;
         }
         if (!product) return;
 
-        if (isFavorite(product.productID)) {
-            removeFromFavoritesAction(product.productID);
+        if (getIsFavorite(product.productID)) {
+            removeProductFromFavoritesAction(product.productID);
             // Optionally: toast.success("Removed from favorites");
         } else {
-            addToFavoritesAction(product.productID);
+            addProductToFavoritesAction(product.productID);
             setShowFavoriteNotification(true); // Show success notification ONLY when adding
         }
     };

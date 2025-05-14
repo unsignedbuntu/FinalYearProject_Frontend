@@ -3,6 +3,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useFavoritesStore, useFavoritesActions } from '@/app/stores/favoritesStore'
 import { useEffect } from 'react'
 import Add from '@/components/icons/Add'
+import { useUserStore } from '@/app/stores/userStore'
+import { toast } from 'react-hot-toast'
 // import { PlusCircleIcon } from '@heroicons/react/24/outline'; // Example of a different icon library
 
 export default function ListSidebar() {
@@ -11,23 +13,28 @@ export default function ListSidebar() {
 
   const { lists, isLoadingLists } = useFavoritesStore()
   const { createFavoriteList, initializeFavoritesAndLists } = useFavoritesActions()
+  const { user } = useUserStore()
 
   useEffect(() => {
     // This ensures lists are loaded if the sidebar is used on a page 
     // that doesn't already initialize the store, or for direct navigation.
     // If FavoritesPage (or similar parent) always initializes, this might be redundant,
     // but it provides robustness.
-    if (lists.length === 0 && !isLoadingLists) {
-        // initializeFavoritesAndLists(); // Potentially call if lists are empty and not loading
+    // if (lists.length === 0 && !isLoadingLists && user?.id) {
+        // initializeFavoritesAndLists(user.id)
         // Decided to let parent components manage initialization primarily to avoid multiple calls.
-    }
-  }, [lists.length, isLoadingLists, initializeFavoritesAndLists])
+    // }
+  }, [lists.length, isLoadingLists, initializeFavoritesAndLists, user])
 
   const handleCreateNewList = async () => {
+    if (!user?.id) {
+      toast.error("Please log in to create a list.")
+      return
+    }
     const listName = prompt("Enter new list name:")
     if (listName && listName.trim() !== "") {
       // For simplicity, isPrivate is false. A modal/form could offer this option.
-      await createFavoriteList(listName.trim(), false)
+      await createFavoriteList(user.id, listName.trim(), false)
     }
   }
 

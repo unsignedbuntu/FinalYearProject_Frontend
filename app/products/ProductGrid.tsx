@@ -15,7 +15,7 @@ import CartFavoritesIcon from '@/components/icons/CartFavorites'
 import { FavoriteProduct } from '@/app/stores/favoritesStore'
 import { useUserStore } from '@/app/stores/userStore'
 
-interface GridProduct {
+export interface GridProduct {
   productId: number;
   productName: string;
   name?: string;
@@ -63,7 +63,7 @@ export default function ProductGrid({ products, isLoading, context = 'products',
   const productsPerPage = 8
 
   const { addItem: addToCartStore } = useCartActions()
-  const { addProduct: addToFavorites, removeProduct: removeFromFavorites } = useFavoritesActions()
+  const { addProductToMainFavorites: addToFavorites, removeProductFromMainFavorites: removeFromFavorites } = useFavoritesActions()
   const { isFavorite } = useFavoritesStore()
   const { user } = useUserStore()
 

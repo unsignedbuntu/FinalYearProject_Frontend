@@ -10,7 +10,7 @@ import { useFavoritesActions } from '@/app/stores/favoritesStore';
 function StoreInitializer() {
   const { user, hasCheckedAuth } = useUserStore(); // Auth durumunu kontrol et
   const { initializeCart, _clearLocalState: clearCartState } = useCartActions();
-  const { initializeFavorites, _clearLocalState: clearFavoritesState } = useFavoritesActions();
+  const { initializeFavoritesAndLists: initializeFavorites, _clearLocalState: clearFavoritesState } = useFavoritesActions();
   const initialized = useRef(false); // İlk yüklemede çift çağrıyı önlemek için (Strict Mode)
 
   useEffect(() => {
@@ -34,7 +34,7 @@ function StoreInitializer() {
       // Kullanıcı giriş yapmışsa store'ları başlat
       const loadStores = async () => {
         await initializeCart();
-        await initializeFavorites();
+        await initializeFavorites(user.id);
         console.log("Stores initialized.");
       };
       loadStores();

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, AlertTriangle } from "lucide-react"
 import Sidebar from "@/components/sidebar/Sidebar"
+// import { useEffect } from "react" // Eğer initializeFavorites çağrılacaksa eklenebilir
+// import { useUserStore } from "@/app/stores/userStore"; // Eğer initializeFavorites çağrılacaksa eklenebilir
 
 export default function FavoritesEditPage() {
   const router = useRouter()
@@ -22,8 +24,16 @@ export default function FavoritesEditPage() {
     toggleProductSelection,
     selectAllProducts,
     removeSelectedProducts,
-    initializeFavorites
+    initializeFavoritesAndLists: initializeFavorites // MODIFIED: Destructure and alias
   } = useFavoritesActions()
+
+  // const { user } = useUserStore(); // Eğer initializeFavorites çağrılacaksa
+
+  // useEffect(() => { // Eğer bu sayfada favorilerin yüklenmesi gerekiyorsa
+  //   if (user?.id) {
+  //     initializeFavorites(user.id);
+  //   }
+  // }, [initializeFavorites, user]);
 
   const selectedCount = selectedProductIds.size
   const isAllSelected = products.length > 0 && selectedProductIds.size === products.length
