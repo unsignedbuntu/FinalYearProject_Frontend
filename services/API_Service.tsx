@@ -59,7 +59,7 @@ export interface FavoriteListDto {
 }
 
 export interface CreateFavoriteListRequestDto {
-  Name: string;
+  ListName: string;
   IsPrivate: boolean;
   // UserId backend tarafından token'dan alınır genelde
 }
@@ -777,7 +777,7 @@ export const removeCartItem = async (productId: number): Promise<boolean> => {
 export const clearUserCart = async (): Promise<boolean> => {
   try {
     // Backend'in başarı durumunda 200 OK veya 204 No Content döndürdüğünü varsayıyoruz
-    await api.delete('/api/Cart');
+    await api.delete('/api/Cart/clear');
     return true;
   } catch (error: any) {
     console.error('Sepet temizlenirken hata:', error);

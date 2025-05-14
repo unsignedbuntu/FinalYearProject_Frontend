@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 "use client"
 
 import { useRouter } from "next/navigation"
@@ -132,7 +132,7 @@ export default function FavoritesEditPage() {
                   <label htmlFor={`select-${product.id}`} className="block cursor-pointer">
                     <div className="relative w-full aspect-square mb-3 rounded-md overflow-hidden bg-gray-100">
                       <Image
-                        src={product.imageUrl || "/placeholder.png"}
+                        src={product.ImageUrl || "/placeholder.png"}
                         alt={product.name || "Product image"}
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -140,7 +140,7 @@ export default function FavoritesEditPage() {
                       />
                     </div>
                     <h3 className="font-semibold text-sm sm:text-base leading-tight mb-1 line-clamp-2">{product.name}</h3>
-                    <p className="text-gray-700 text-sm sm:text-base font-medium">{product.price ? `₺${product.price.toFixed(2)}` : "Price not available"}</p>
+                    <p className="text-gray-700 text-sm sm:text-base font-medium">{product.Price ? `₺${product.Price.toFixed(2)}` : "Price not available"}</p>
                   </label>
                 </div>
               ))}

@@ -329,12 +329,21 @@ export default function CartPage() {
                     <span>{currentSelectedTotalPrice.toFixed(2)} TL</span>
                 </div>
                 <div className="flex justify-between mb-4">
-                     <span>Shipping Cost:</span>
+                  <span>Shipping Cost:</span>
+                  {currentSelectedTotalPrice > 50 ? (
+                    <span>
+                      <span className="line-through text-gray-500">{shippingCost.toFixed(2)} TL</span>
+                      <span className="ml-2">0.00 TL</span>
+                    </span>
+                  ) : (
                     <span>{shippingCost.toFixed(2)} TL</span>
+                  )}
                 </div>
                  <div className="border-t border-gray-400 pt-4 flex justify-between font-bold text-lg">
                      <span>Grand Total:</span>
-                    <span>{(currentSelectedTotalPrice + (currentSelectedTotalPrice > 0 ? shippingCost : 0)).toFixed(2)} TL</span>
+                    <span>
+                      {(currentSelectedTotalPrice + (currentSelectedTotalPrice > 50 ? 0 : (currentSelectedTotalPrice > 0 ? shippingCost : 0))).toFixed(2)} TL
+                    </span>
                  </div>
                 <button 
                     onClick={handleCompleteShopping}

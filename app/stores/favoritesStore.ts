@@ -28,7 +28,6 @@ export interface FavoriteProduct {
     inStock?: boolean;
     selected?: boolean;
     listId?: number | undefined;
-    supplierName?: string;
 }
 
 export interface FavoriteList {
@@ -131,7 +130,6 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
             ImageUrl: addedFavoriteDto.ImageUrl,
             AddedDate: addedFavoriteDto.AddedDate,
             name: addedFavoriteDto.ProductName || 'Unnamed Product',
-            supplierName: addedFavoriteDto.SupplierName,
             inStock: addedFavoriteDto.InStock,
             listId: undefined
           };
@@ -152,6 +150,7 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
     },
 
     removeProductFromMainFavorites: async (productId) => {
+      console.log("[removeProductFromMainFavorites] Attempting to remove productId:", productId, "Type:", typeof productId);
       const productToRemove = get().products.find(p => p.ProductId === productId && p.listId === undefined);
       if (!productToRemove) {
         toast.error("Product not found in main favorites.");
@@ -248,9 +247,13 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
       }
       set({ isLoading: true, error: null });
       const productIdsToRemove = Array.from(selectedProductIds);
+      console.log("[removeSelectedProducts] productIdsToRemove:", JSON.stringify(productIdsToRemove));
 
       try {
-        await Promise.all(productIdsToRemove.map(id => apiRemoveUserFavorite(id)));
+        await Promise.all(productIdsToRemove.map(id => {
+          console.log("[removeSelectedProducts] Calling apiRemoveUserFavorite for id:", id, "Type:", typeof id);
+          return apiRemoveUserFavorite(id);
+        }));
         
         set(state => ({
           products: state.products.filter(p => !productIdsToRemove.includes(p.ProductId)),
@@ -295,21 +298,50 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
     },
 
     _setFavoriteProducts: (apiProducts: ApiFavoriteDto[]) => {
-      const mappedProducts: FavoriteProduct[] = apiProducts.map(dto => ({
-        id: dto.ProductId,
-        ProductId: dto.ProductId,
-        ProductName: dto.ProductName,
-        Price: dto.Price,
-        ImageUrl: dto.ImageUrl,
-        AddedDate: dto.AddedDate,
-        name: dto.ProductName || 'Unnamed Product',
-        supplierName: dto.SupplierName,
-        inStock: dto.InStock,
-        listId: undefined,
-        selected: false,
-      }));
+      console.log("[_setFavoriteProducts] Received apiProducts:", JSON.stringify(apiProducts));
+      const mappedProducts: FavoriteProduct[] = apiProducts.map((dto, index) => {
+        // DETAILED LOG FOR EACH DTO ITEM
+        console.log(`[_setFavoriteProducts] Mapping DTO item #${index} - ProductId: ${dto.ProductId}, ProductName: '${dto.ProductName}', Price: ${dto.Price}`);
+        
+        if (apiProducts.length > 0 && dto === apiProducts[0]) { 
+          console.log("[_setFavoriteProducts] Mapping first dto (full object):", JSON.stringify(dto));
+        }
+
+        const currentProductName = dto.ProductName;
+        const currentPrice = dto.Price;
+        console.log(`[_setFavoriteProducts] Inside map, currentProductName: '${currentProductName}', currentPrice: ${currentPrice}`);
+
+        return {
+          id: dto.ProductId,
+          ProductId: dto.ProductId,
+          ProductName: currentProductName,
+          Price: currentPrice,
+          name: currentProductName || 'Unnamed Product',
+          ImageUrl: dto.ImageUrl, 
+          AddedDate: dto.AddedDate, 
+          inStock: dto.InStock,           
+          listId: undefined,
+          selected: false,
+        };
+      });
+      console.log("[_setFavoriteProducts] Mapped products (before sort) - Post SupplierName Removal Test:", JSON.stringify(mappedProducts));
       const sorted = get().actions.sortProductsInternal(mappedProducts, get().sortType);
-      set({ products: sorted, error: null, isLoading: false }); 
+
+      const productsToStore = sorted.map(p => ({
+        id: p.id,
+        ProductId: p.ProductId,
+        ProductName: p.ProductName,
+        Price: p.Price,
+        ImageUrl: p.ImageUrl,
+        AddedDate: p.AddedDate,
+        name: p.name,
+        inStock: p.inStock,
+        listId: p.listId,
+        selected: p.selected,
+      }));
+      console.log("[_setFavoriteProducts] Products to store (FINAL - before set state):", JSON.stringify(productsToStore));
+
+      set({ products: productsToStore, error: null, isLoading: false }); 
     },
 
     _setFavoriteLists: (apiLists: ApiFavoriteListDto[]) => {
@@ -376,7 +408,6 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
           ImageUrl: dto.ImageUrl,
           AddedDate: dto.AddedDate,
           name: dto.ProductName || 'Unnamed Product',
-          supplierName: dto.SupplierName,
           inStock: dto.InStock,
           listId: listId,
           selected: false,
@@ -392,7 +423,7 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
     createFavoriteList: async (userId: number, listName: string, isPrivate: boolean): Promise<FavoriteList | null> => {
       set({ isLoadingLists: true, error: null });
       try {
-        const requestBody: CreateFavoriteListRequestDto = { Name: listName, IsPrivate: isPrivate };
+        const requestBody: CreateFavoriteListRequestDto = { ListName: listName, IsPrivate: isPrivate };
         const newListDto = await apiCreateFavoriteList(userId, requestBody);
         if (newListDto) {
           const newList: FavoriteList = {

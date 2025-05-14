@@ -48,6 +48,8 @@ export default function FavoritesPage() {
   const actions = useFavoritesActions()
   const { user } = useUserStore()
 
+  console.log("FavoritesPage - favoriteProducts from store:", JSON.stringify(favoriteProducts));
+
   const [isSortOpen, setIsSortOpen] = useState(false)
   const [showCartSuccess, setShowCartSuccess] = useState(false)
 
@@ -73,7 +75,7 @@ export default function FavoritesPage() {
   const closeAllOverlays = useCallback(() => {
     setCurrentOverlay(null)
   }, [])
-
+  console.log("handleDeleteAction - selectedProductId:", selectedProductId, "Tipi:", typeof selectedProductId);
   const handleDeleteAction = useCallback(async () => {
     if (selectedProductId !== null) {
       try {
@@ -151,15 +153,15 @@ export default function FavoritesPage() {
         return product.inStock === false;
     }
   });
-
+  console.log("FavoritesPage - filteredProducts:", JSON.stringify(filteredProducts));
   // Map FavoriteProduct[] to GridProduct[]
   const productsForGrid = filteredProducts.map((fp: FavoriteProduct): GridProduct => ({
     productId: fp.ProductId,    // FavoriteProduct.ProductId is number
-    productName: fp.name,       // FavoriteProduct.name is string (derived from ProductName)
+    productName: fp.ProductName || fp.name || 'Unnamed Product',
     price: fp.Price,            // FavoriteProduct.Price is number
     imageUrl: fp.ImageUrl,      // FavoriteProduct.ImageUrl is string | undefined
     inStock: fp.inStock,        // FavoriteProduct.inStock is boolean | undefined
-    supplierName: fp.supplierName, // FavoriteProduct.supplierName is string | undefined
+    // supplierName: fp.supplierName, // FavoriteProduct.supplierName is string | undefined
     // id: fp.id, // GridProduct also has an optional 'id', could map fp.id if it's distinct from ProductId and useful
     // name: fp.name, // GridProduct has 'name?: string', already covered by productName.
   }));
@@ -257,11 +259,11 @@ export default function FavoritesPage() {
                     Out of Stock
                   </button>
 
-                  <button 
-                    className="px-4 py-2 bg-blue-500 text-white rounded-md font-inter text-sm transition-colors hover:bg-blue-600 ml-auto"
+                  <button
+                    className="w-[200px] h-[75px] bg-[#00EEFF] text-black rounded-lg font-inter text-[32px] transition-colors hover:text-[#8CFF75] ml-auto"
                     onClick={() => router.push('/favorites/edit')}
                   >
-                    Edit Favorites
+                    Edit
                   </button>
                 </div>
 
