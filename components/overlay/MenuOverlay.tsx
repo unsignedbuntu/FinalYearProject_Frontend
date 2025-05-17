@@ -69,7 +69,7 @@ export default function MenuOverlay({
           >
             <ArrowRight width={18} height={18} className="mr-3 text-gray-600" />
             <span className="font-raleway text-[16px] text-gray-700">
-              Move to another list
+              Move to List
             </span>
           </button>
 

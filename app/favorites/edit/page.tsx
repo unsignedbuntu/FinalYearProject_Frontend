@@ -115,31 +115,31 @@ export default function FavoritesEditPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {products.map((product) => (
                 <div 
-                  key={product.id}
+                  key={product.Id}
                   className={`border rounded-lg p-4 transition-colors duration-200 relative ${
-                    selectedProductIds.has(product.id) 
+                    selectedProductIds.has(product.Id) 
                       ? "border-blue-500 bg-blue-50 ring-2 ring-blue-300" 
                       : "bg-white hover:shadow-md"
                   }`}
                 >
                   <Checkbox
-                    id={`select-${product.id}`}
-                    checked={selectedProductIds.has(product.id)}
-                    onCheckedChange={() => toggleProductSelection(product.id)}
+                    id={`select-${product.Id}`}
+                    checked={selectedProductIds.has(product.  Id)}
+                    onCheckedChange={() => toggleProductSelection(product.Id)}
                     className="absolute top-2 right-2 z-10 h-5 w-5"
-                    aria-label={`Select ${product.name}`}
+                    aria-label={`Select ${product.ProductName}`}
                   />
-                  <label htmlFor={`select-${product.id}`} className="block cursor-pointer">
+                  <label htmlFor={`select-${product.Id}`} className="block cursor-pointer">
                     <div className="relative w-full aspect-square mb-3 rounded-md overflow-hidden bg-gray-100">
                       <Image
                         src={product.ImageUrl || "/placeholder.png"}
-                        alt={product.name || "Product image"}
+                        alt={product.ProductName || "Product image"}
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                         className="object-cover"
                       />
                     </div>
-                    <h3 className="font-semibold text-sm sm:text-base leading-tight mb-1 line-clamp-2">{product.name}</h3>
+                    <h3 className="font-semibold text-sm sm:text-base leading-tight mb-1 line-clamp-2">{product.ProductName}</h3>
                     <p className="text-gray-700 text-sm sm:text-base font-medium">{product.Price ? `₺${product.Price.toFixed(2)}` : "Price not available"}</p>
                   </label>
                 </div>

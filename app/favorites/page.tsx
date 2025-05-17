@@ -48,8 +48,6 @@ export default function FavoritesPage() {
   const actions = useFavoritesActions()
   const { user } = useUserStore()
 
-  console.log("FavoritesPage - favoriteProducts from store:", JSON.stringify(favoriteProducts));
-
   const [isSortOpen, setIsSortOpen] = useState(false)
   const [showCartSuccess, setShowCartSuccess] = useState(false)
 
@@ -75,7 +73,6 @@ export default function FavoritesPage() {
   const closeAllOverlays = useCallback(() => {
     setCurrentOverlay(null)
   }, [])
-  console.log("handleDeleteAction - selectedProductId:", selectedProductId, "Tipi:", typeof selectedProductId);
   const handleDeleteAction = useCallback(async () => {
     if (selectedProductId !== null) {
       try {
@@ -107,6 +104,13 @@ export default function FavoritesPage() {
       toast.error("User information is missing. Cannot create list.");
       return;
     }
+    if (!listName || listName.trim() === "") {
+      toast.error("Please enter a valid list name.");
+      closeAllOverlays();
+      setSelectedProductId(null);
+      return;
+    }
+
     try {
       const newList = await actions.createFavoriteList(user.id, listName, isPrivate);
       if (newList && newList.id) {
@@ -144,26 +148,23 @@ export default function FavoritesPage() {
     setTimeout(() => setShowCartSuccess(false), 3000);
   }, []);
 
-  const mainFavoriteProducts = favoriteProducts.filter(product => product.listId === undefined);
+  const mainFavoriteProducts = favoriteProducts.filter(product => product.ListId === undefined);
 
   const filteredProducts = mainFavoriteProducts.filter(product => {
     if (showInStock) {
-        return product.inStock !== false;
+        return product.InStock !== false;
     } else {
-        return product.inStock === false;
+        return product.InStock === false;
     }
   });
-  console.log("FavoritesPage - filteredProducts:", JSON.stringify(filteredProducts));
   // Map FavoriteProduct[] to GridProduct[]
   const productsForGrid = filteredProducts.map((fp: FavoriteProduct): GridProduct => ({
-    productId: fp.ProductId,    // FavoriteProduct.ProductId is number
-    productName: fp.ProductName || fp.name || 'Unnamed Product',
-    price: fp.Price,            // FavoriteProduct.Price is number
-    imageUrl: fp.ImageUrl,      // FavoriteProduct.ImageUrl is string | undefined
-    inStock: fp.inStock,        // FavoriteProduct.inStock is boolean | undefined
-    // supplierName: fp.supplierName, // FavoriteProduct.supplierName is string | undefined
-    // id: fp.id, // GridProduct also has an optional 'id', could map fp.id if it's distinct from ProductId and useful
-    // name: fp.name, // GridProduct has 'name?: string', already covered by productName.
+    productId: fp.ProductId,    
+    productName: fp.ProductName || 'Unnamed Product',
+    price: fp.Price,            
+    imageUrl: fp.ImageUrl,      
+    inStock: fp.InStock,        // Use PascalCase InStock
+    supplierName: fp.SupplierName, // Use PascalCase SupplierName if available on FavoriteProduct
   }));
 
   if (isLoading && favoriteProducts.length === 0) {
@@ -196,52 +197,57 @@ export default function FavoritesPage() {
   }
 
   return (
-    <div className="min-h-screen pt-[60px] flex">
-      <Sidebar />
-      <ListSidebar />
-      
-      <div className="flex-1 ml-8 p-6">
-        {productsForGrid.length === 0 && !isLoading ? (
-          <EmptyFavorites />
-        ) : (
-          <div>
-            <div className="mt-[30px]">
-              <div className="flex justify-between items-center mb-6">
-                <FavoritesHeader productCount={productsForGrid.length} />
-                
-                <div className="flex items-center gap-4">
-                  <span className="font-inter text-xl font-normal">
-                    Sort
-                  </span>
-                  
-                  <div className="relative">
-                    <button
-                      onClick={() => setIsSortOpen(!isSortOpen)}
-                      className="flex items-center bg-gray-200 w-auto h-10 rounded-md px-3 justify-between text-sm"
-                    >
-                      <span className="font-inter text-sm text-gray-700">
-                        { sortType === 'price-desc' ? 'Price (High-Low)' : 
-                          sortType === 'price-asc' ? 'Price (Low-High)' : 
-                          sortType === 'name-asc' ? 'Name (A-Z)' : 
-                          sortType === 'name-desc' ? 'Name (Z-A)' : 
-                          sortType === 'date-desc' ? 'Date (Newest)' : 
-                          sortType === 'date-asc' ? 'Date (Oldest)' : 
-                          'Relevance'
-                        }
-                      </span>
-                      <Arrowdown className="text-gray-600 w-3 h-3 ml-2" />
-                    </button>
+    // MODIFIED: Root div for layout similar to edit page
+    <div className="min-h-screen pt-[60px] relative">
+      <Sidebar /> {/* Sidebar uses its own absolute positioning */}
 
-                    <SortOverlay 
-                      isOpen={isSortOpen}
-                      onClose={() => setIsSortOpen(false)}
-                      onSort={handleSort}
-                    />
-                  </div>
-                </div>
+      {/* Wrapper for content to the right of Sidebar, including ListSidebar */}
+      {/* Using ml-[480px] for consistency with edit page's content start */}
+      <div className="ml-[480px] flex h-[calc(100vh-60px)]"> {/* Adjusted height for viewport fitting */}
+        
+        {/* Main content area (products, header, sort) */}
+        {/* p-6 for padding around the content column */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          {/* Container for header and sort, pushed down with mt-[30px] */}
+          <div className="flex justify-between items-center mb-6 mt-[30px]">
+            <FavoritesHeader productCount={productsForGrid.length} />
+            <div className="flex items-center gap-4">
+              <span className="font-inter text-xl font-normal">
+                Sort
+              </span>
+              <div className="relative">
+                <button
+                  onClick={() => setIsSortOpen(!isSortOpen)}
+                  className="flex items-center bg-gray-200 w-auto h-10 rounded-md px-3 justify-between text-sm"
+                >
+                  {/* Sort type display logic */}
+                  <span className="font-inter text-sm text-gray-700">
+                    { sortType === 'price-desc' ? 'Price (High-Low)' : 
+                      sortType === 'price-asc' ? 'Price (Low-High)' : 
+                      sortType === 'name-asc' ? 'Name (A-Z)' : 
+                      sortType === 'name-desc' ? 'Name (Z-A)' : 
+                      sortType === 'date-desc' ? 'Date (Newest)' : 
+                      sortType === 'date-asc' ? 'Date (Oldest)' : 
+                      'Relevance'
+                    }
+                  </span>
+                  <Arrowdown className="text-gray-600 w-3 h-3 ml-2" />
+                </button>
+                <SortOverlay 
+                  isOpen={isSortOpen}
+                  onClose={() => setIsSortOpen(false)}
+                  onSort={handleSort}
+                />
               </div>
-              
-              <div className="bg-white mt-4 p-4 rounded-lg shadow-sm">
+            </div>
+          </div>
+          
+          {/* Content panel with max-width, p-6, and shadow-lg like edit page */}
+          <div className="bg-white mt-4 p-6 rounded-lg shadow-lg max-w-[1000px]">
+            {productsForGrid.length === 0 && !isLoading ? (
+              <EmptyFavorites />
+            ) : (
+              <>
                 <div className="flex items-center gap-4 mb-4">
                   <button 
                     className={`px-4 py-2 border rounded-md font-inter text-sm 
@@ -250,7 +256,6 @@ export default function FavoritesPage() {
                   >
                     In Stock
                   </button>
-                  
                   <button 
                     className={`px-4 py-2 border rounded-md font-inter text-sm 
                               transition-colors ${!showInStock ? 'text-blue-600 border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-blue-500 hover:text-blue-500'}`}
@@ -258,27 +263,28 @@ export default function FavoritesPage() {
                   >
                     Out of Stock
                   </button>
-
-                  <button
+                  <button 
                     className="w-[200px] h-[75px] bg-[#00EEFF] text-black rounded-lg font-inter text-[32px] transition-colors hover:text-[#8CFF75] ml-auto"
                     onClick={() => router.push('/favorites/edit')}
                   >
                     Edit
                   </button>
                 </div>
-
                 <ProductGrid 
                   products={productsForGrid}
                   context="favorites"
                   onProductMenuClick={handleProductMenuClick}
                   onAddToCartClick={handleAddToCart}
                 />
-              </div>
-            </div>
+              </>
+            )}
           </div>
-        )}
+        </div>
+        
+        <ListSidebar /> {/* ListSidebar takes its own defined width */}
       </div>
 
+      {/* Overlays will use favoriteLists from store state for existingLists prop */}
       {currentOverlay === 'menu' && selectedProductId !== null && (
         <MenuOverlay
           productId={selectedProductId}
@@ -287,7 +293,6 @@ export default function FavoritesPage() {
           onMoveToListClick={handleOpenMoveToList}
         />
       )}
-
       {currentOverlay === 'moveTo' && selectedProductId !== null && (
         <MoveToListRealOverlay
           productId={selectedProductId}
@@ -297,7 +302,6 @@ export default function FavoritesPage() {
           existingLists={favoriteLists || []}
         />
       )}
-
       {currentOverlay === 'createList' && selectedProductId !== null && (
         <CreateNewListOverlay
           productId={selectedProductId}
@@ -306,7 +310,6 @@ export default function FavoritesPage() {
           existingLists={favoriteLists || []}
         />
       )}
-
       {showCartSuccess && (
         <CartSuccessMessage onClose={() => setShowCartSuccess(false)} />
       )}

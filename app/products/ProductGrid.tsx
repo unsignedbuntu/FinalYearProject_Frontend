@@ -4,16 +4,15 @@ import MenuIcon from '@/components/icons/Menu'
 import MenuOverlay from '@/components/overlay/MenuOverlay'
 import CartSuccessMessage from '@/components/messages/CartSuccessMessage'
 import { useCartStore } from '@/app/stores/cartStore'
-import { useFavoritesStore } from '@/app/stores/favoritesStore'
 import Link from 'next/link'
 import { useCartActions } from '@/app/stores/cartStore'
-import { useFavoritesActions } from '@/app/stores/favoritesStore'
 import { toast } from 'react-hot-toast'
 import FavoriteIcon from '@/components/icons/FavoriteIcon'
 import CartIcon from '@/components/icons/CartIcon'
 import CartFavoritesIcon from '@/components/icons/CartFavorites'
-import { FavoriteProduct } from '@/app/stores/favoritesStore'
+import TrashIcon from '@/components/icons/Trash'
 import { useUserStore } from '@/app/stores/userStore'
+import { useFavoritesStore, useFavoritesActions } from '@/app/stores/favoritesStore'
 
 export interface GridProduct {
   productId: number;
@@ -34,9 +33,10 @@ export interface GridProduct {
 interface ProductGridProps {
   products: GridProduct[];
   isLoading?: boolean;
-  context?: 'products' | 'favorites' | 'search';
+  context?: 'products' | 'favorites' | 'search' | 'favorite-list-detail';
   onProductMenuClick?: (productId: number) => void;
   onAddToCartClick?: (productId: number) => void;
+  onDirectDeleteClick?: (productId: number) => void;
 }
 
 const RatingStars = ({ rating }: { rating: number }) => {
@@ -56,7 +56,7 @@ const RatingStars = ({ rating }: { rating: number }) => {
   )
 }
 
-export default function ProductGrid({ products, isLoading, context = 'products', onProductMenuClick, onAddToCartClick }: ProductGridProps) {
+export default function ProductGrid({ products, isLoading, context = 'products', onProductMenuClick, onAddToCartClick, onDirectDeleteClick }: ProductGridProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null)
   const [showCartSuccess, setShowCartSuccess] = useState(false)
@@ -119,23 +119,35 @@ export default function ProductGrid({ products, isLoading, context = 'products',
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    <div className={`grid grid-cols-1 gap-6 ${context === 'favorites' ? 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}`}>
       {products.map((product) => {
         const effectiveId = product.productId
         const productName = product.name || product.productName
-        const productIsFavorite = context !== 'favorites' && isFavorite(effectiveId)
+        // const productIsFavorite = context !== 'favorites' && isFavorite(effectiveId) // Not strictly needed for styling based on context
+
+        const isFavoritesContext = context === 'favorites';
+        const isFavoriteListDetailContext = context === 'favorite-list-detail';
 
         return (
-          <div key={effectiveId} className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow group relative bg-white">
-            <Link href={`/product/${effectiveId}`} className="block">
-              <div className="aspect-square overflow-hidden bg-gray-100 relative">
+          <div 
+            key={effectiveId} 
+            className={`border rounded-lg overflow-hidden group relative bg-white flex flex-col 
+                        ${isFavoritesContext 
+                          ? 'p-4 shadow-md hover:shadow-lg hover:border-blue-500 hover:bg-blue-50 hover:ring-2 hover:ring-blue-300 transition-all duration-200' 
+                          : 'shadow-sm hover:shadow-md transition-shadow'}`}
+          >
+            <Link href={`/product/${effectiveId}`} className="block flex flex-col flex-grow">
+              {/* Favorites context: Image styling to match edit page */}
+              <div className={`relative w-full overflow-hidden bg-gray-100 rounded-md ${isFavoritesContext ? 'aspect-square mb-3' : 'aspect-square'}`}>
                 {product.imageUrl ? (
                   <Image
                     src={product.imageUrl}
                     alt={productName}
                     fill
-                    className="object-contain group-hover:scale-105 transition-transform duration-300 p-2"
-                    sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    className={`object-cover ${!isFavoritesContext ? 'group-hover:scale-105 transition-transform duration-300' : ''}`}
+                    sizes={isFavoritesContext 
+                            ? "(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw" 
+                            : "(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"}
                     priority={false}
                     loading="lazy"
                   />
@@ -144,84 +156,91 @@ export default function ProductGrid({ products, isLoading, context = 'products',
                     No Image
                   </div>
                 )}
-                {product.inStock === false && (
+                {product.inStock === false && !isFavoritesContext && (
                   <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded z-10">
                     Out of Stock
                   </span>
                 )}
               </div>
-              <div className="p-4">
-                <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 h-10 mb-1" title={productName}>
+              {/* Favorites context: Text styling to match edit page */}
+              <div className={`flex flex-col flex-grow ${isFavoritesContext ? 'mt-1' : 'p-3'}`}>
+                <h3 
+                  className={`line-clamp-2 ${isFavoritesContext 
+                                ? 'font-semibold text-sm sm:text-base leading-tight mb-1' 
+                                : 'text-sm font-semibold text-gray-800 h-10 mb-1'}`}
+                  title={productName}
+                >
                   {productName}
                 </h3>
-                <div className="flex justify-between items-center mt-2">
-                  <p className="text-lg font-bold text-blue-600">
-                    {product.price ? `${product.price.toFixed(2)} TL` : 'Price not available'}
-                  </p>
-                  <span className="text-xs text-gray-500 truncate" title={product.supplierName || 'Unknown'}>
-                    {product.supplierName || ''}
-                  </span>
+                <div className={`${isFavoritesContext ? 'mt-0' : 'mt-auto'}`}>
+                  <div className={`flex justify-between items-center ${isFavoritesContext ? 'mt-0' : 'mt-1'}`}>
+                    <p className={`font-bold text-blue-600 ${isFavoritesContext ? 'text-sm sm:text-base' : 'text-base'}`}>
+                      {product.price ? `${product.price.toFixed(2)} TL` : 'Price not available'}
+                    </p>
+                    { !isFavoritesContext && product.supplierName && (
+                       <span className="text-xs text-gray-500 truncate" title={product.supplierName}>
+                         {product.supplierName}
+                       </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </Link>
-            <div className="absolute top-2 right-2 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-              {context === 'favorites' ? (
-                <>
-                  {onProductMenuClick && (
+            {/* Action buttons: Keep original logic for favorites context, but adjust positioning/size if needed */}
+            {(isFavoritesContext || isFavoriteListDetailContext) && (
+              <>
+                {isFavoritesContext && onProductMenuClick && (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onProductMenuClick(effectiveId)
-                      }}
-                      className="p-2 rounded-full bg-white text-gray-500 hover:bg-gray-100 transition-colors shadow"
+                      onClick={(e) => { e.stopPropagation(); onProductMenuClick(effectiveId); }}
+                      className={`absolute top-2 right-2 p-1.5 sm:p-2 rounded-full bg-white text-gray-500 hover:bg-gray-100 transition-colors shadow z-20`}
                       title="Product actions"
                       aria-label="Product actions"
                     >
-                      <MenuIcon className="w-6 h-6" />
+                      <MenuIcon className="w-5 h-5" />
                     </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleToggleFavorite(product)
-                    }}
-                    className={`p-2 rounded-full transition-colors shadow ${productIsFavorite ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-500 hover:bg-red-100 hover:text-red-500'}`}
-                    title={productIsFavorite ? "Remove from Favorites" : "Add to Favorites"}
-                    disabled={isLoading}
-                    aria-label={productIsFavorite ? "Remove from favorites" : "Add to favorites"}
-                  >
-                    <FavoriteIcon width={20} height={20} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleGenericAddToCart(product)
-                    }}
-                    className="p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Add to Cart"
-                    disabled={product.inStock === false || isLoading}
-                    aria-label="Add to cart"
-                  >
-                    <CartIcon width={20} height={20} />
-                  </button>
-                </>
-              )}
-            </div>
-            {context === 'favorites' && onAddToCartClick && (
-              <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onAddToCartClick(effectiveId); }}
-                  className="p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Add to Cart"
-                  disabled={product.inStock === false || isLoading}
-                  aria-label="Add to cart"
-                >
-                  <CartFavoritesIcon className="w-6 h-6" />
-                </button>
-              </div>
+                )}
+                {isFavoriteListDetailContext && onDirectDeleteClick && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); 
+                            if (window.confirm("Are you sure you want to remove this product from the list?")) {
+                                onDirectDeleteClick(effectiveId); 
+                            }
+                        }}
+                        className={`absolute top-2 right-2 p-1.5 sm:p-2 rounded-full bg-white text-red-500 hover:bg-red-100 transition-colors shadow z-20`}
+                        title="Remove from list"
+                        aria-label="Remove from list"
+                    >
+                        <TrashIcon className="w-5 h-5" /> 
+                    </button>
+                )}
+                
+                {/* Common AddToCart for both favorites and favorite-list-detail contexts if onAddToCartClick is provided */}
+                {(isFavoritesContext || isFavoriteListDetailContext) && onAddToCartClick && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onAddToCartClick(effectiveId); }}
+                      className="absolute bottom-2 right-2 p-1.5 sm:p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow z-20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Add to Cart"
+                      disabled={product.inStock === false || isLoading}
+                      aria-label="Add to cart"
+                    >
+                      <CartFavoritesIcon className="w-5 h-5" />
+                    </button>
+                )}
+              </>
+            )}
+            {/* Original buttons for non-favorites context (e.g., general products page) */}
+            {!isFavoritesContext && (
+                <div className="absolute top-2 right-2 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleGenericAddToCart(product); }}
+                        className="p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Add to Cart"
+                        disabled={product.inStock === false || isLoading}
+                        aria-label="Add to cart"
+                    >
+                        <CartIcon width={20} height={20} />
+                    </button>
+                </div>
             )}
           </div>
         )

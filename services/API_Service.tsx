@@ -8,7 +8,22 @@ const api = axios.create({
   withCredentials: true // Oturum/Cookie tabanlı kimlik doğrulama için önemli
 });
 
-// Request interceptor removed as cookies handle auth
+// Request interceptor KALDIRILDI. Kimlik doğrulamasının cookie'ler üzerinden
+// ve `withCredentials: true` ile yönetildiği varsayılıyor.
+// import { useUserStore } from '@/app/stores/userStore'; 
+
+// api.interceptors.request.use(
+//   (config) => {
+//     const token = useUserStore.getState().user?.token; // VEYA user?.accessToken veya doğru yol
+//     if (token) {
+//       config.headers.Authorization = `Bearer ${token}`;
+//     }
+//     return config;
+//   },
+//   (error) => {
+//     return Promise.reject(error);
+//   }
+// );
 
 // Export the configured Axios instance
 export { api };
@@ -50,12 +65,13 @@ export interface AddFavoriteRequestDto {
 
 // --- FAVORITE LISTS DTOs (NEW) ---
 export interface FavoriteListDto {
-  ListId: number; // Backend'den gelen ID (PascalCase varsayımı)
-  UserId: number; // Backend'den gelen UserId
-  Name: string;
-  IsPrivate: boolean;
-  ProductIds: number[]; // Bu listedeki ürünlerin ID'leri
-  // CreatedAt gibi ek alanlar backend DTO'sunda varsa eklenebilir
+  favoriteListID: number; // Swagger'a göre camelCase
+  userID: number;         // Swagger'a göre camelCase
+  listName: string;       // Swagger'a göre camelCase
+  isPrivate: boolean;     // Swagger'a göre camelCase
+  productIds?: number[];  // Opsiyonel, API yanıtında yoksa
+  createdAt?: string;     // Opsiyonel, API yanıtında var
+  status?: boolean;       // Opsiyonel, API yanıtında var
 }
 
 export interface CreateFavoriteListRequestDto {
@@ -70,14 +86,15 @@ export interface AddProductToFavoriteListRequestDto {
 
 // Yeni DTO: Bir favori listesindeki ürünler için (Backend'deki FavoriteListItemResponseDTO'ya karşılık gelmeli)
 export interface ApiFavoriteListItemDto {
-  ProductId: number;
-  ProductName?: string;
-  Price: number;
-  ImageUrl?: string;
-  AddedDate: string; // Öğenin listeye eklendiği tarih
-  SupplierName?: string;
-  InStock?: boolean;
-  // FavoriteListItemID gibi ek alanlar gerekirse eklenebilir
+  favoriteListItemID: number; // C# DTO'suna göre camelCase
+  favoriteListID: number;   // C# DTO'suna göre camelCase
+  productID: number;        // C# DTO'suna göre camelCase
+  productName?: string;     // C# DTO'suna göre camelCase
+  productPrice: number;     // C# DTO'suna göre (decimal -> number)
+  productImageUrl?: string; // C# DTO'suna göre camelCase
+  inStock: boolean;         // C# DTO'suna göre camelCase
+  addedDate: string;        // C# DTO'suna göre (DateTime -> string)
+  supplierName?: string;    // C# DTO'suna göre camelCase (opsiyonel olabilir backend'de string? değilse ? kaldırılır)
 }
 
 // Backend'den gelen genel bir başarı/hata yanıtı için

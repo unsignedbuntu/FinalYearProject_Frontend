@@ -7,7 +7,11 @@ import { useUserStore } from '@/app/stores/userStore'
 import { toast } from 'react-hot-toast'
 // import { PlusCircleIcon } from '@heroicons/react/24/outline'; // Example of a different icon library
 
-export default function ListSidebar() {
+interface ListSidebarProps {
+  className?: string;
+}
+
+export default function ListSidebar({ className }: ListSidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -40,8 +44,12 @@ export default function ListSidebar() {
 
   if (pathname === null) return null
 
+  // DEBUG: Log lists received by the component
+  console.log("[ListSidebar Component] Received lists:", JSON.stringify(lists));
+  console.log("[ListSidebar Component] isLoadingLists:", isLoadingLists);
+
   return (
-    <div className="w-[280px] bg-white p-4 border-r border-gray-200 h-full flex flex-col">
+    <div className={`w-[280px] bg-white p-4 border-r border-gray-200 h-full flex flex-col ${className || ''}`}>
       <div className="flex justify-between items-center mb-5">
         <h2 className="font-inter text-xl font-semibold text-gray-700">
           My Lists

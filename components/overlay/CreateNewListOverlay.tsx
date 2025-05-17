@@ -10,7 +10,7 @@ export interface CreateNewListOverlayProps {
   productId: number | null;
   isOpen?: boolean;
   onBack: () => void;
-  onListCreateAndMove: (productId: number, listName: string, notify: boolean) => void;
+  onListCreateAndMove: (productId: number, listName: string, isPrivate: boolean) => void;
   existingLists: FavoriteList[];
 }
 
@@ -21,7 +21,6 @@ export default function CreateNewListOverlay({
   existingLists 
 }: CreateNewListOverlayProps) {
   const [listName, setListName] = useState('');
-  const [isNotificationEnabled, setIsNotificationEnabled] = useState(false);
 
   const handleCreateAndMove = () => {
     if (!listName.trim()) {
@@ -36,7 +35,7 @@ export default function CreateNewListOverlay({
         alert("No product selected to add to the list.");
         return;
     }
-    onListCreateAndMove(productId, listName.trim(), isNotificationEnabled);
+    onListCreateAndMove(productId, listName.trim(), false);
   };
 
   return (
@@ -47,7 +46,7 @@ export default function CreateNewListOverlay({
       />
       
       <div className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
-                    w-[300px] ${isNotificationEnabled ? 'h-[350px]' : 'h-[300px]'}
+                    w-[300px] h-[300px]
                     bg-[#FFFFFF] rounded-lg z-50 p-4 flex flex-col justify-between`}>
         <div className="relative flex items-center justify-center pt-2 pb-4">
           <button 
@@ -77,12 +76,6 @@ export default function CreateNewListOverlay({
             <span className="font-raleway text-[13px] w-4/5">
               Notify me when product prices in this list drop
             </span>
-            <button 
-              onClick={() => setIsNotificationEnabled(!isNotificationEnabled)}
-              className="hover:opacity-90 active:scale-95 transition-all"
-            >
-              {isNotificationEnabled ? <ToggleOn /> : <ToggleOff />}
-            </button>
           </div>
         </div>
 
