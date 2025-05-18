@@ -267,7 +267,7 @@ export default function MyReviewsPage() {
                 disabled={overlayState.isSubmitting}
               >
                 <Image 
-                  src="/icons/Close.png"
+                  src="/Close.png"
                   alt="Close"
                   width={24}
                   height={24}

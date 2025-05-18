@@ -44,9 +44,7 @@ export default function ListSidebar({ className }: ListSidebarProps) {
 
   if (pathname === null) return null
 
-  // DEBUG: Log lists received by the component
-  console.log("[ListSidebar Component] Received lists:", JSON.stringify(lists));
-  console.log("[ListSidebar Component] isLoadingLists:", isLoadingLists);
+  //console.log("[ListSidebar Component] isLoadingLists:", isLoadingLists);
 
   return (
     <div className={`w-[280px] bg-white p-4 border-r border-gray-200 h-full flex flex-col ${className || ''}`}>

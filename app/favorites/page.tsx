@@ -75,17 +75,38 @@ export default function FavoritesPage() {
   }, [])
   const handleDeleteAction = useCallback(async () => {
     if (selectedProductId !== null) {
-      try {
-        await actions.removeProductFromMainFavorites(selectedProductId);
-        toast.success("Product removed from main favorites.")
-      } catch (error) {
-        toast.error("Failed to remove product.")
-        console.error("Delete error:", error)
+      const productToRemove = favoriteProducts.find(p => p.ProductId === selectedProductId);
+      const productName = productToRemove?.ProductName || "Product";
+      let removedFromAnyList = false;
+      const removedFromListsNames: string[] = [];
+
+      for (const list of favoriteLists) {
+        if (list.productIds.includes(selectedProductId)) {
+          try {
+            await actions.removeProductFromList(selectedProductId, list.id);
+            removedFromListsNames.push(list.name);
+            removedFromAnyList = true;
+          } catch (error) {
+            // removeProductFromList already shows a toast on error
+            console.error(`Failed to remove product from list ${list.name}:`, error);
+          }
+        }
+      }
+
+      if (removedFromAnyList) {
+        toast.success(`${productName} removed from list(s): ${removedFromListsNames.join(', ')}.`);
+      } else {
+        // If the product was a main favorite but not in any specific list,
+        // and the "Delete from list" was clicked, it implies the user might still want to remove it from main favorites.
+        // However, per user's request "favoriteste yapmak ıstedıgım favorılerden sılmesı degıl",
+        // we will NOT remove from main favorites here.
+        // We can inform the user if no action was taken regarding lists.
+        toast(`${productName} was not found in any of your specific lists.`);
       }
     }
-    closeAllOverlays()
+    closeAllOverlays();
     setSelectedProductId(null);
-  }, [selectedProductId, actions, closeAllOverlays])
+  }, [selectedProductId, actions, favoriteLists, favoriteProducts, closeAllOverlays]);
 
   const handleOpenMoveToList = useCallback(() => {
     setCurrentOverlay('moveTo')

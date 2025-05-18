@@ -39,7 +39,7 @@ export default function FavoritesAddedMessage({ onClose }: FavoritesAddedMessage
                    active:scale-95 transform duration-150 p-1"
           aria-label="Close notification"
         >
-          <Image src="/icons/Close.png" alt="Close Icon" width={12} height={12} />
+          <Image src="/Close.png" alt="Close Icon" width={12} height={12} />
         </button>
 
         {/* Renkli Şerit */}

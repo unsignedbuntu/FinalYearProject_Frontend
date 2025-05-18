@@ -7,6 +7,17 @@ import { Product, Category, Store } from '@/app/product/[id]/types/Product';
 import { basePrompts } from '@/app/product/[id]/data/basePrompts';
 import { CategoryKey } from '@/app/product/[id]/data/basePrompts';
 
+// Import necessary store hooks and actions, and icons
+import { useCartActions } from '@/app/stores/cartStore';
+import { useFavoritesStore, useFavoritesActions } from '@/app/stores/favoritesStore';
+import { useUserStore } from '@/app/stores/userStore';
+import FavoriteIcon from '@/components/icons/FavoriteIcon';
+import FavoritesPageHover from '@/components/icons/FavoritesPageHover'; // Assuming this is the filled/active favorite icon
+import CartHoverIcon from '@/components/icons/CartHover'; 
+import CartFavoritesIcon from '@/components/icons/CartFavorites'; // Standard cart icon for product grids
+import { toast } from 'react-hot-toast';
+import CartIcon from '@/components/icons/CartIcon';
+
 // Lucide-react yerine SVG ikonları kullanacağız
 const ArrowUpIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -58,6 +69,16 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
   const [sortOption, setSortOption] = useState<string>('popularity');
   const [loadingImages, setLoadingImages] = useState<Record<number, boolean>>({});
+  
+  // States for hover effects on action buttons for each product
+  const [hoveredFavoriteButtons, setHoveredFavoriteButtons] = useState<Record<number, boolean>>({});
+  const [hoveredCartButtons, setHoveredCartButtons] = useState<Record<number, boolean>>({});
+
+  // Store actions
+  const { addItem: addToCartStore } = useCartActions();
+  const { addProductToMainFavorites, removeProductFromMainFavorites } = useFavoritesActions();
+  const { isFavorite } = useFavoritesStore();
+  const { user } = useUserStore();
 
   // Data yükleme işlemi için useEffect
   useEffect(() => {
@@ -568,9 +589,11 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
                 </div>
               ))
             ) : sortedProducts.length > 0 ? (
-              sortedProducts.map((product) => (
-                <div key={product.productID} className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition-shadow">
-                  <Link href={`/product/${product.productID}`}>
+              sortedProducts.map((product) => {
+                const productIsFavorite = isFavorite(product.productID);
+                return (
+                <div key={product.productID} className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition-shadow relative group">
+                  <Link href={`/product/${product.productID}`} className="block">
                     <div className="relative h-48 bg-gray-100">
                       {loadingImages[product.productID] ? (
                         <div className="absolute inset-0 flex items-center justify-center">
@@ -595,21 +618,79 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
                       )}
                     </div>
                     <div className="p-4">
-                      <h3 className="text-sm font-medium text-gray-900 line-clamp-2 h-10 mb-1" title={product.productName}> {/* Added title attribute */}
+                      <h3 className="text-sm font-medium text-gray-900 line-clamp-2 h-10 mb-1" title={product.productName}>
                         {product.productName}
                       </h3>
+                      {/* MODIFIED: Store name moved here */}
+                      {product.storeName && (
+                        <p className="text-xs text-gray-500 mb-1 truncate" title={product.storeName}>
+                          {product.storeName}
+                        </p>
+                      )}
                       <div className="mt-1 flex justify-between items-center">
                         <span className="text-lg font-bold text-blue-600">
                           {product.price ? `${product.price.toFixed(2)} TL` : <span className="text-sm text-gray-500">Fiyat Yok</span>}
                         </span>
-                        <span className="text-xs text-gray-500 truncate" title={product.storeName || 'Unknown Store'}> {/* Added title attribute */}
-                          {product.storeName || 'Mağaza Yok'}
-                        </span>
+                        {/* Store name removed from here */}
                       </div>
                     </div>
                   </Link>
+                  {/* Action Buttons: Favorites and Cart - Added to bottom of card, appear on group hover */}
+                  <div className="absolute bottom-3 right-3 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent link navigation
+                        if (!user) { toast.error("Please log in to manage favorites."); return; }
+                        if (productIsFavorite) {
+                          removeProductFromMainFavorites(product.productID);
+                        } else {
+                          addProductToMainFavorites(product.productID);
+                        }
+                      }}
+                      onMouseEnter={() => setHoveredFavoriteButtons(prev => ({ ...prev, [product.productID]: true }))}
+                      onMouseLeave={() => setHoveredFavoriteButtons(prev => ({ ...prev, [product.productID]: false }))}
+                      className={`p-2 rounded-full transition-colors shadow-sm ${
+                        productIsFavorite 
+                          ? 'bg-red-500 text-white hover:bg-red-600' 
+                          : hoveredFavoriteButtons[product.productID] 
+                            ? 'bg-red-100 text-red-500' 
+                            : 'bg-white text-gray-500 hover:bg-red-100 hover:text-red-500'
+                      }`}
+                      title={productIsFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                    >
+                      {productIsFavorite || hoveredFavoriteButtons[product.productID] ? (
+                        <FavoritesPageHover width={24} height={24} /> 
+                      ) : (
+                        <FavoriteIcon width={24} height={24} />
+                      )}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent link navigation
+                        if (!user) { toast.error("Please log in to add to cart."); return; }
+                        addToCartStore({ productId: product.productID, quantity: 1 });
+                        toast.success(`${product.productName} added to cart.`);
+                      }}
+                      onMouseEnter={() => setHoveredCartButtons(prev => ({ ...prev, [product.productID]: true }))}
+                      onMouseLeave={() => setHoveredCartButtons(prev => ({ ...prev, [product.productID]: false }))}
+                      className={`p-2 rounded-full transition-colors shadow-sm ${
+                        hoveredCartButtons[product.productID]
+                          ? 'bg-blue-100 text-blue-500'
+                          : 'bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500'
+                      }`}
+                      disabled={(product.stockQuantity ?? 0) === 0}
+                      title={(product.stockQuantity ?? 0) === 0 ? "Out of stock" : "Add to Cart"}
+                    >
+                      {hoveredCartButtons[product.productID] ? (
+                        <CartHoverIcon width={32} height={32} />
+                      ) : (
+                        <CartIcon width={24} height={24} />
+                      )}
+                    </button>
+                  </div>
                 </div>
-              ))
+                )
+              })
             ) : (
               <div className="col-span-full text-center py-12">
                 <div className="flex flex-col items-center justify-center">

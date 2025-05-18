@@ -17,6 +17,7 @@ import { useCartStore, useCartActions } from '@/app/stores/cartStore';
 import { useFavoritesStore, FavoriteProduct, useFavoritesActions } from '@/app/stores/favoritesStore';
 import { toast } from 'react-hot-toast';
 import { useUserStore } from '@/app/stores/userStore';
+import CartIcon from '@/components/icons/Cart';
 
 // Temporary data for product details
 const productDetailsStatic = {
@@ -334,6 +335,7 @@ export default function ProductPage() {
     const [isFollowingStore, setIsFollowingStore] = useState(false);
     const [activeTab, setActiveTab] = useState<TabType>('description');
     const [isHoveringFavorite, setIsHoveringFavorite] = useState(false);
+    const [isHoveringCart, setIsHoveringCart] = useState(false); // New state for cart button hover
     const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
     const [category, setCategory] = useState<Category | null>(null);
     const [quantity, setQuantity] = useState(1); // Quantity state (if needed)
@@ -840,14 +842,16 @@ export default function ProductPage() {
                         <div className="flex flex-col sm:flex-row gap-4 mt-auto"> {/* mt-auto pushes buttons down */}
                             <button
                                 onClick={handleAddToCart}
+                                onMouseEnter={() => setIsHoveringCart(true)}
+                                onMouseLeave={() => setIsHoveringCart(false)}
                                 disabled={(product.stockQuantity ?? 0) === 0}
-                                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg transition-colors text-base font-medium ${ // Added padding, font size/weight
+                                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg transition-colors text-base font-medium ${
                                     (product.stockQuantity ?? 0) === 0
-                                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed' // Adjusted disabled style
-                                        : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800' // Added active state
+                                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                        : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
                                 }`}
                             >
-                                <CartFavorites /> {/* Assuming this is the cart icon */}
+                                {isHoveringCart ? <CartIcon width={24} height={24} /> : <CartFavorites width={24} height={24} />}
                                 <span>{(product.stockQuantity ?? 0) === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
                             </button>
 

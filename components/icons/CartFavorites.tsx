@@ -4,10 +4,11 @@ interface CartFavoritesProps {
   className?: string;
   width?: string | number;
   height?: string | number;
+  fill?: string;
   // fill prop'u mask kullandığı için doğrudan SVG'ye uygulanamaz, gerekirse mask içindeki path'lere uygulanabilir.
 }
 
-export default function CartFavorites({ className, width = 32, height = 32 }: CartFavoritesProps) {
+export default function CartFavorites({ className, width = 20, height = 20, fill = 'currentColor' }: CartFavoritesProps) {
   return (
     <svg className={className} width={width} height={height} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
       <mask id="mask0_456_976" style={{ maskType: "luminance" }} maskUnits="userSpaceOnUse" x="1" y="3" width="30" height="26">
@@ -18,7 +19,7 @@ export default function CartFavorites({ className, width = 32, height = 32 }: Ca
         <path d="M14.6667 14.6667H20.0001M17.3334 17.3333V12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       </mask>
       <g mask="url(#mask0_456_976)">
-        <path d="M0 0H32V32H0V0Z" fill="black"/>
+        <path d="M0 0H32V32H0V0Z" fill={fill}/>
       </g>
     </svg>
   )

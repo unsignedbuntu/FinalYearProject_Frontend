@@ -34,7 +34,7 @@ export default function DeleteMessageFavorites({ onClose }: DeleteMessageFavorit
           className="absolute right-[14px] top-[14px] hover:opacity-80 transition-opacity
                    active:scale-95 transform duration-150"
         >
-          <Image src="/icons/Close.png" alt="Close Icon" width={12} height={12} />
+          <Image src="/Close.png" alt="Close Icon" width={12} height={12} />
         </button>
 
         {/* Success line */}

@@ -39,7 +39,7 @@ export default function CartSuccessMessage({ onClose }: CartSuccessMessageProps)
                    active:scale-95 transform duration-150 p-1" // Added padding for easier click
           aria-label="Close notification"
         >
-          <Image src="/icons/Close.png" alt="Close Icon" width={12} height={12} />
+          <Image src="/Close.png" alt="Close Icon" width={12} height={12} />
         </button>
 
         {/* Color Strip */}

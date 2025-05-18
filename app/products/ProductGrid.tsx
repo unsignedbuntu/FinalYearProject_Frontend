@@ -60,6 +60,7 @@ export default function ProductGrid({ products, isLoading, context = 'products',
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null)
   const [showCartSuccess, setShowCartSuccess] = useState(false)
+  const [hoveredCartButton, setHoveredCartButton] = useState<number | null>(null); // State for cart button hover
   const productsPerPage = 8
 
   const { addItem: addToCartStore } = useCartActions()
@@ -218,18 +219,26 @@ export default function ProductGrid({ products, isLoading, context = 'products',
                 {(isFavoritesContext || isFavoriteListDetailContext) && onAddToCartClick && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onAddToCartClick(effectiveId); }}
+                      onMouseEnter={() => setHoveredCartButton(effectiveId)}
+                      onMouseLeave={() => setHoveredCartButton(null)}
                       className="absolute bottom-2 right-2 p-1.5 sm:p-2 rounded-full bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500 transition-colors shadow z-20 disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Add to Cart"
                       disabled={product.inStock === false || isLoading}
                       aria-label="Add to cart"
                     >
-                      <CartFavoritesIcon className="w-5 h-5" />
+                      {isFavoriteListDetailContext ? (
+                        hoveredCartButton === effectiveId ? <CartFavoritesIcon className="w-5 h-5" /> : <CartIcon width={20} height={20} />
+                      ) : isFavoritesContext ? (
+                        hoveredCartButton === effectiveId ? <CartFavoritesIcon className="w-5 h-5" /> : <CartIcon width={20} height={20} />
+                      ) : (
+                        hoveredCartButton === effectiveId ? <CartIcon width={20} height={20} /> : <CartFavoritesIcon className="w-5 h-5" />
+                      )}
                     </button>
                 )}
               </>
             )}
             {/* Original buttons for non-favorites context (e.g., general products page) */}
-            {!isFavoritesContext && (
+            {!isFavoritesContext && !isFavoriteListDetailContext && (
                 <div className="absolute top-2 right-2 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
                     <button
                         onClick={(e) => { e.stopPropagation(); handleGenericAddToCart(product); }}

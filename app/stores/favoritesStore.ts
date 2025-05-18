@@ -178,25 +178,23 @@ export const useFavoritesStore = create<FavoritesState>()(
           try {
             await apiRemoveUserFavorite(productId);
             set(state => {
-              const updatedProducts = state.products.filter(p => p.ProductId !== productId || p.ListId !== undefined);
+              // Only filter out from the main products array (where ListId is undefined)
+              const updatedProducts = state.products.filter(p => !(p.ProductId === productId && p.ListId === undefined));
+              
               const updatedSelectedIds = new Set(state.selectedProductIds);
               updatedSelectedIds.delete(productId);
               
-              // Also remove the product from any list it might be in
-              const updatedLists = state.lists.map(list => ({
-                ...list,
-                productIds: list.productIds.filter(id => id !== productId)
-              }));
+              // DO NOT modify state.lists here for this specific action
 
               return {
                 products: updatedProducts,
                 selectedProductIds: updatedSelectedIds,
-                lists: updatedLists, // Include updated lists in the new state
+                lists: state.lists, // Keep lists as they are
                 error: null,
                 isLoading: false
               };
             });
-            toast.success(`${productToRemove.ProductName || 'Product'} removed from main favorites and all lists.`);
+            toast.success(`${productToRemove.ProductName || 'Product'} removed from main favorites.`); // Corrected toast
           } catch (error: any) {
             const errorMessage = error.response?.data?.message || 'Failed to remove product from main favorites.';
             set({ error: errorMessage, isLoading: false });
@@ -250,7 +248,7 @@ export const useFavoritesStore = create<FavoritesState>()(
               isLoadingLists: false,
             }));
             const targetList = get().lists.find(l => l.id === listId);
-            toast.success(`Product removed from list: ${targetList?.name || 'selected list'}`);
+            toast.success(`DEBUG: Product successfully removed ONLY from list: ${targetList?.name || 'selected list'}. ID: ${listId}`);
           } catch (error: any) {
             const errorMessage = error.message || 'Failed to remove product from list.';
             set({ error: errorMessage, isLoadingLists: false });
@@ -393,7 +391,6 @@ export const useFavoritesStore = create<FavoritesState>()(
             const mappedLists = await Promise.all(listsWithProductIdsPromises);
             
             set({ lists: mappedLists, isLoadingLists: false });
-            console.log("[Store Action: _setFavoriteLists] Lists set in store (with fetched productIds):", JSON.stringify(get().lists)); 
         },
 
         _clearLocalState: () => {
@@ -489,8 +486,6 @@ export const useFavoritesStore = create<FavoritesState>()(
                 isLoadingLists: false,
               }));
               toast.success(`List "${newList.name}" created.`);
-              console.log("[Store Action: createFavoriteList] New list added to store:", JSON.stringify(newList)); // DEBUG
-              console.log("[Store Action: createFavoriteList] All lists in store after add:", JSON.stringify(get().lists)); // DEBUG
               return newList;
             } else {
               throw new Error('Failed to get response from backend when creating list.');
