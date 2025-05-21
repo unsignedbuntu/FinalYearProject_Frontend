@@ -51,8 +51,10 @@ const productDetailsStatic = {
 // Type definition for tab types
 type TabType = 'description' | 'specifications' | 'reviews' | 'shipping' | 'returnPolicy';
 
-// Global cache to track all processed prompts (if needed outside component, otherwise keep local)
-// const globalImageCache: Record<string, string> = {}; // If needed globally
+// Global cache and control variables (similar to CategoryDetailsPage)
+const imageCache: Record<string, string> = {}; // Used for main product, additional views, and similar products
+const processingPrompts = new Set<string>();
+let imageGenerationInProgressThisPage = false; // Page-specific flag to avoid conflicts if multiple instances were possible
 
 // Similar Products component
 const SimilarProducts = ({ products, containerId = "similar-products-container", categoryName = "" }: { products: Product[], containerId?: string, categoryName?: string }) => {
@@ -61,97 +63,115 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
     const [hoveredProducts, setHoveredProducts] = useState<Record<number, boolean>>({});
     const [hoveredFavorites, setHoveredFavorites] = useState<Record<number, boolean>>({});
     const [hoveredCarts, setHoveredCarts] = useState<Record<number, boolean>>({});
-    const [loadingImages, setLoadingImages] = useState<Record<number, boolean>>({});
-    const [imagesGenerated, setImagesGenerated] = useState(false);
-    const [showCartNotificationSP, setShowCartNotificationSP] = useState(false); // Separate state for SP notifications
-    const [showFavoriteNotificationSP, setShowFavoriteNotificationSP] = useState(false); // Separate state for SP notifications
+    const [loadingSimilarProductImages, setLoadingSimilarProductImages] = useState<Record<number, boolean>>({});
 
-
-    // Store hooks
     const { addItem: addToCartAction } = useCartActions();
     const { addProductToMainFavorites: addToFavoritesAction, removeProductFromMainFavorites: removeFromFavoritesAction } = useFavoritesActions();
     const { isFavorite } = useFavoritesStore();
     const { user } = useUserStore();
 
-    // Image generation function - Frontend cache control removed
-    const generateProductImage = useCallback(async (product: Product) => {
-        if (product.image && product.image.length > 0 && !product.image.includes('placeholder') && product.image !== '/placeholder.png') {
+    useEffect(() => {
+        if (imageGenerationInProgressThisPage || products.length === 0) {
             return;
         }
 
-        console.log("SP: Attempting to get/generate image for:", product.productID, product.productName);
-            setLoadingImages(prev => ({ ...prev, [product.productID]: true }));
+        const generateSimilarProductImages = async () => {
+            const initialLoadingState: Record<number, boolean> = {};
+            products.forEach(p => { initialLoadingState[p.productID] = false; });
+            setLoadingSimilarProductImages(initialLoadingState);
+
+            for (const similarProduct of products) {
+                 if (!imageGenerationInProgressThisPage) {
+                    // Allow finishing current product then stop
+                }
+
+                if (similarProduct.image && !similarProduct.image.includes('placeholder') && similarProduct.image !== '/placeholder.png') {
+                    continue;
+                }
 
         try {
             const categories = await getCategories();
-            const productCategory = categories.find((c: any) => c.categoryID === product.categoryID);
-            const categoryName = productCategory?.categoryName || 'default';
-            const categoryPrompt = basePrompts[categoryName as CategoryKey] || basePrompts.default;
-            const mainPrompt = categoryPrompt.main(product.productName);
+                    const productCategory = categories.find((c: any) => c.categoryID === similarProduct.categoryID);
+                    const spCategoryName = productCategory?.categoryName || 'default';
+                    const categoryPromptDef = basePrompts[spCategoryName as CategoryKey] || basePrompts.default;
 
-            // Directly call API - Backend handles caching
+                    if (!categoryPromptDef || typeof categoryPromptDef.main !== 'function') {
+                        console.warn(`❓ SP: Could not find or use prompt function for category: ${spCategoryName}, product: ${similarProduct.productName}`);
+                        continue;
+                    }
+                    const mainPrompt = categoryPromptDef.main(similarProduct.productName);
+
+                    if (imageCache[mainPrompt]) {
+                        similarProduct.image = imageCache[mainPrompt];
+                        setLoadingSimilarProductImages(prev => ({ ...prev, [similarProduct.productID]: false }));
+                        continue;
+                    }
+
+                    if (processingPrompts.has(mainPrompt)) {
+                        continue;
+                    }
+
+                    setLoadingSimilarProductImages(prev => ({ ...prev, [similarProduct.productID]: true }));
+                    processingPrompts.add(mainPrompt);
+
                 const response = await fetch('/api/ImageCache', {
                     method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pageID: 'products', prompt: mainPrompt, checkOnly: false })
+                        body: JSON.stringify({
+                            prompt: mainPrompt,
+                            entityType: "Product",
+                            entityId: similarProduct.productID,
+                            checkOnly: false
+                        })
                 });
 
                 if (response.ok) {
                     const data = await response.json();
                     if (data.success && data.image) {
-                    console.log("SP: Successfully got image for product:", product.productID);
-                    product.image = `data:image/jpeg;base64,${data.image}`;
+                            const imageUrl = `data:image/jpeg;base64,${data.image}`;
+                            imageCache[mainPrompt] = imageUrl;
+                            similarProduct.image = imageUrl;
                     } else {
-                    console.error("SP: Failed to get image (API):", product.productID, data.message || '');
-                        product.image = '/placeholder.png'; // Use consistent placeholder
+                            similarProduct.image = '/placeholder.png';
                     }
                 } else {
-                console.error("SP: Failed to get image (HTTP):", product.productID, response.status);
-                    product.image = '/placeholder.png'; // Use consistent placeholder
+                        similarProduct.image = '/placeholder.png';
                 }
             } catch (error) {
-            console.error("SP: Exception during image fetch:", product.productID, error);
-                product.image = '/placeholder.png'; // Use consistent placeholder
+                    similarProduct.image = '/placeholder.png';
         } finally {
-            setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
-        }
-    }, []);
+                    const categories = await getCategories(); // Re-fetch for safety or pass down if stable
+                    const productCategory = categories.find((c: any) => c.categoryID === similarProduct.categoryID);
+                    const spCategoryName = productCategory?.categoryName || 'default';
+                    const categoryPromptDef = basePrompts[spCategoryName as CategoryKey] || basePrompts.default;
+                    if (categoryPromptDef && typeof categoryPromptDef.main === 'function') {
+                         const mainPrompt = categoryPromptDef.main(similarProduct.productName);
+                         processingPrompts.delete(mainPrompt);
+                    }
+                    setLoadingSimilarProductImages(prev => ({ ...prev, [similarProduct.productID]: false }));
+                }
+                await new Promise(resolve => setTimeout(resolve, 800));
+            }
+        };
 
-    // Check product images - generateProductImage dependency removed
-    useEffect(() => {
-        if (imagesGenerated) {
-            // console.log("SP: Images already generated."); // Optional log
+        if (products.length > 0 && !imageGenerationInProgressThisPage) {
+            setTimeout(generateSimilarProductImages, 1500);
+        }
+    }, [products, imageGenerationInProgressThisPage]);
+
+    const handleToggleFavoriteSP = (product: Product) => {
+        if (!user) {
+            toast.error("You must be logged in to manage favorites.");
             return;
         }
-
-        const initialLoadingState: Record<number, boolean> = {};
-        products.forEach(product => { initialLoadingState[product.productID] = false; });
-        setLoadingImages(initialLoadingState);
-
-        const productsNeedingImages = products.filter(p =>
-            !p.image || p.image === '/placeholder.png' || p.image.includes('placeholder')
-        );
-
-        if (productsNeedingImages.length > 0) {
-            console.log(`SP: Found ${productsNeedingImages.length} products needing images`);
-            const generateImages = async () => {
-                for (const product of productsNeedingImages) {
-                    await generateProductImage(product);
-                    await new Promise(resolve => setTimeout(resolve, 500)); // Keep delay
-                }
-                console.log("SP: Finished generating images loop.");
-                setImagesGenerated(true);
-                // Force update by creating new array reference AFTER generation attempt
-                // const updatedProducts = products.map(p => ({...p})); // May not be necessary if state updates trigger re-render
-                console.log("SP: Image generation attempts complete.");
-            };
-            generateImages();
+        if (isFavorite(product.productID)) {
+            removeFromFavoritesAction(product.productID);
         } else {
-            console.log("SP: No products needed image generation.");
-            setImagesGenerated(true);
+            addToFavoritesAction(product.productID);
+            // Consider a dedicated SP favorite notification if needed
+            toast.success(`${product.productName} added to favorites!`); 
         }
-    // Removed generateProductImage from dependency array
-    }, [products, imagesGenerated]); // Add imagesGenerated dependency
+    };
 
     const handleAddToCartSP = (product: Product) => {
         if (!user) {
@@ -162,29 +182,12 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
             productId: product.productID,
             quantity: 1
         });
-        setShowCartNotificationSP(true); // Show notification for SP item
+        toast.success(`${product.productName} added to cart!`);
     };
 
-    const handleToggleFavoriteSP = (product: Product) => {
-        if (!user) {
-            toast.error("You must be logged in to manage favorites.");
-            return;
-        }
-        if (isFavorite(product.productID)) {
-            removeFromFavoritesAction(product.productID);
-            // Optionally show a 'removed' notification
-        } else {
-            addToFavoritesAction(product.productID);
-            setShowFavoriteNotificationSP(true); // Show notification for SP item
-        }
-    };
 
     return (
         <div className="mt-8 border-t pt-6 bg-gray-50 p-4 rounded-lg">
-            {/* Notifications specific to Similar Products */}
-            {showCartNotificationSP && <CartSuccessMessage onClose={() => setShowCartNotificationSP(false)} />}
-            {showFavoriteNotificationSP && <FavoritesAddedMessage onClose={() => setShowFavoriteNotificationSP(false)} />}
-
             <h3 className="text-lg font-semibold mb-4">
                 Similar Products {categoryName && <span className="text-sm font-normal text-gray-500 ml-2">({categoryName})</span>}
             </h3>
@@ -212,7 +215,7 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
                         return (
                         <div
                             key={similarProduct.productID}
-                            className="flex-shrink-0 w-56 border rounded-lg overflow-hidden hover:shadow-md transition-shadow relative bg-white" // Added bg-white
+                            className="flex-shrink-0 w-56 border rounded-lg overflow-hidden hover:shadow-md transition-shadow relative bg-white"
                             onMouseEnter={() => setHoveredProducts(prev => ({ ...prev, [similarProduct.productID]: true }))}
                             onMouseLeave={() => setHoveredProducts(prev => ({ ...prev, [similarProduct.productID]: false }))}
                         >
@@ -221,48 +224,46 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
                                 className="block"
                                 aria-label={`View details for ${similarProduct.productName}`}
                             >
-                                <div className="h-40 bg-gray-100 relative flex items-center justify-center"> {/* Flex center */}
-                                    {loadingImages[similarProduct.productID] ? (
+                                <div className="h-40 bg-gray-100 relative flex items-center justify-center">
+                                    {loadingSimilarProductImages[similarProduct.productID] ? (
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                                         </div>
                                     ) : (
                                         <Image
-                                            src={similarProduct.image || '/placeholder.png'} // Use consistent placeholder
+                                            src={similarProduct.image || '/placeholder.png'}
                                             alt={similarProduct.productName}
                                             fill
-                                            className="object-contain p-2" // Maintain object-contain
+                                            className="object-contain p-2"
                                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                            priority={false} // Lower priority for similar products
+                                            priority={false}
+                                            unoptimized={similarProduct.image?.startsWith('data:')}
                                         />
                                     )}
                                 </div>
                                 <div className="p-3">
                                     <h4 className="font-medium text-sm line-clamp-2 h-10">{similarProduct.productName}</h4>
                                     <div className="flex justify-between items-center mt-2">
-                                            <span className="text-blue-600 font-bold">{similarProduct.price.toFixed(2)} TL</span> {/* Assuming TL */}
+                                            <span className="text-blue-600 font-bold">{(similarProduct.price || 0).toFixed(2)} TL</span>
                                         <span className="text-xs text-gray-500">{similarProduct.supplierName || 'GamerGear'}</span>
                                     </div>
                                 </div>
                             </Link>
 
-                            {/* Buttons */}
                             <div className="absolute bottom-3 right-3 flex space-x-2">
-                                {/* Add to Favorites Button */}
                                 <button
                                         className={`p-2 rounded-full transition-colors shadow-sm ${
-                                            productIsFavorite ? 'bg-red-500 text-white hover:bg-red-600' : // Added hover for active
+                                        productIsFavorite ? 'bg-red-500 text-white hover:bg-red-600' :
                                             hoveredFavorites[similarProduct.productID] ? 'bg-red-100 text-red-500' :
-                                            'bg-white text-gray-500 hover:bg-red-100 hover:text-red-500' // Added hover text color
+                                        'bg-white text-gray-500 hover:bg-red-100 hover:text-red-500'
                                         }`}
                                         title={productIsFavorite ? "Remove from Favorites" : "Add to Favorites"}
                                         aria-label={productIsFavorite ? "Remove from favorites" : "Add to favorites"}
                                     onMouseEnter={() => setHoveredFavorites(prev => ({ ...prev, [similarProduct.productID]: true }))}
                                     onMouseLeave={() => setHoveredFavorites(prev => ({ ...prev, [similarProduct.productID]: false }))}
                                     onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        handleToggleFavoriteSP(similarProduct); // Use SP handler
+                                        e.preventDefault(); e.stopPropagation();
+                                        handleToggleFavoriteSP(similarProduct);
                                     }}
                                     >
                                         {productIsFavorite || hoveredFavorites[similarProduct.productID] ? (
@@ -271,40 +272,31 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
                                         <FavoriteIcon width={20} height={20} className="text-gray-600" />
                                     )}
                                 </button>
-
-                                {/* Add to Cart Button */}
                                 <button
                                         className={`p-2 rounded-full shadow-sm transition-colors ${
                                         hoveredCarts[similarProduct.productID]
                                             ? 'bg-blue-100 text-blue-500'
-                                                : 'bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500' // Added hover text color
+                                        : 'bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500'
                                     }`}
                                     title="Add to Cart"
                                     aria-label="Add to Cart"
+                                    disabled={(similarProduct.stockQuantity ?? 0) === 0}
                                     onMouseEnter={() => setHoveredCarts(prev => ({ ...prev, [similarProduct.productID]: true }))}
                                     onMouseLeave={() => setHoveredCarts(prev => ({ ...prev, [similarProduct.productID]: false }))}
                                     onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        handleAddToCartSP(similarProduct); // Use SP handler
+                                        e.preventDefault(); e.stopPropagation();
+                                        handleAddToCartSP(similarProduct);
                                     }}
                                 >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-5 w-5"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                                     </svg>
                                 </button>
                             </div>
                         </div>
-                        )
-                    })}
+                        )}
+                    )}
                 </div>
-
                 <button
                     aria-label="Scroll Right"
                     className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md z-10 hover:bg-gray-100 disabled:opacity-50"
@@ -321,7 +313,6 @@ const SimilarProducts = ({ products, containerId = "similar-products-container",
         </div>
     );
 };
-
 
 export default function ProductPage() {
     const params = useParams() as { id: string };
@@ -355,23 +346,16 @@ export default function ProductPage() {
     useEffect(() => {
         const fetchData = async () => {
             if (!productId) return;
-            console.log(`Fetching data for product ID: ${productId}`);
-            try {
+            console.log(`PP: Fetching data for product ID: ${productId}`);
                 setLoading(true);
-                // Reset notifications on new product load
+            imageGenerationInProgressThisPage = true; // Signal that page-level generation might start
                 setShowCartNotification(false);
                 setShowFavoriteNotification(false);
 
+            try {
                 const [productsData, suppliersData, storesData, allSuppliers, categoriesData] = await Promise.all([
-                    getProducts(),
-                    getProductSuppliers(),
-                    getStores(),
-                    getSuppliers(),
-                    getCategories()
+                    getProducts(), getProductSuppliers(), getStores(), getSuppliers(), getCategories()
                 ]);
-
-                console.log("Total products fetched:", productsData.length);
-                console.log("Total categories fetched:", categoriesData.length);
 
                 const foundProduct = productsData.find((p: Product) => p.productID === productId);
 
@@ -420,217 +404,237 @@ export default function ProductPage() {
                     let productSpecs: Record<string, string> = {};
                     try {
                         const productKey = foundProduct.productName as keyof typeof productDescriptionData;
-                        console.log("Checking description/specs for product key:", productKey);
                         if (productDescriptionData[productKey]) {
                             const descData = productDescriptionData[productKey] as any;
-                            console.log("Found data in productDescriptionData:", descData);
-                            if (descData.description?.content) {
-                                productDescription = descData.description.content;
-                                console.log("Using description from productDescriptionData");
-                            }
+                            if (descData.description?.content) productDescription = descData.description.content;
                             if (descData.specifications?.content) {
-                                console.log("Found specifications in productDescriptionData");
                                 const specContent = descData.specifications.content;
-                                const parsedSpecs: Record<string, string> = { // Base specs
-                                    "Brand": foundProduct.productName.split(' ')[0] || "Generic",
-                                    "Model": foundProduct.productName,
-                                    "Warranty": "2 Years",
-                                    "Condition": "New",
+                                const parsedSpecs: Record<string, string> = {
+                                    "Brand": foundProduct.productName.split(' ')[0] || "Generic", "Model": foundProduct.productName,
+                                    "Warranty": "2 Years", "Condition": "New",
                                     "Package Contents": `1 x ${foundProduct.productName}, User Manual, Warranty Card`
                                 };
                                 if (typeof specContent === 'string') {
                                     const cleanedSpecString = specContent.replace(/\.$/, '');
                                     const specParts = cleanedSpecString.split(', ');
-                                    console.log("Parsed spec string parts:", specParts);
                                     if (specParts[0]?.includes('Ryzen') || specParts[0]?.includes('Core')) parsedSpecs["Processor"] = specParts[0];
                                     if (specParts[1]?.includes('GeForce')) parsedSpecs["Graphics"] = specParts[1];
                                     if (specParts[2]?.includes('RAM')) parsedSpecs["RAM"] = specParts[2];
                                     if (specParts[3]?.includes('SSD')) parsedSpecs["Storage"] = specParts[3];
                                     if (specParts[4]?.includes('inch')) parsedSpecs["Display"] = specParts[4];
-                                } else if (typeof specContent === 'object') { // Merge if object
-                                    Object.assign(parsedSpecs, specContent);
-                                }
+                                } else if (typeof specContent === 'object') { Object.assign(parsedSpecs, specContent); }
                                 productSpecs = parsedSpecs;
-                                console.log("Parsed specifications from productDescriptionData:", productSpecs);
                             }
                         }
-
-                        if (Object.keys(productSpecs).length <= 5) { // Check if only base specs are present
-                             console.log("No specific specs found or only base specs, using category defaults");
-                            // Category-based default specs
+                        if (Object.keys(productSpecs).length <= 5) {
                              const defaultSpecs = { "Brand": foundProduct.productName.split(' ')[0] || "Generic", "Model": foundProduct.productName, "Warranty": "2 Years", "Condition": "New", "Package Contents": `1 x ${foundProduct.productName}, User Manual, Warranty Card` };
-                             if (categoryName.includes('Computer') || categoryName.includes('Laptop')) {
-                                productSpecs = { ...defaultSpecs, "Processor": "AMD Ryzen 9", "RAM": "16GB DDR4", "Storage": "1TB SSD" };
-                            } else if (categoryName.includes('Phone') || categoryName.includes('Mobile')) {
-                                productSpecs = { ...defaultSpecs, "Display": "6.1-inch OLED", "Processor": "A15 Bionic", "Storage": "128GB" };
-                            } else {
-                                productSpecs = defaultSpecs; // Only base defaults
-                            }
-                             console.log("Applied category default specs:", productSpecs);
+                            const categoryNameForSpecs = categoriesData.find((c: Category) => c.categoryID === foundProduct.categoryID)?.categoryName || 'default';
+                            if (categoryNameForSpecs.includes('Computer') || categoryNameForSpecs.includes('Laptop')) productSpecs = { ...defaultSpecs, "Processor": "AMD Ryzen 9", "RAM": "16GB DDR4", "Storage": "1TB SSD" };
+                            else if (categoryNameForSpecs.includes('Phone') || categoryNameForSpecs.includes('Mobile')) productSpecs = { ...defaultSpecs, "Display": "6.1-inch OLED", "Processor": "A15 Bionic", "Storage": "128GB" };
+                            else productSpecs = defaultSpecs;
                         }
                     } catch (error) {
-                        console.error('Error processing product description/specs:', error);
+                        console.error('PP: Error processing product description/specs:', error);
                         productDescription = productDescriptionData.defaultDescriptionTitle?.content as string || "High quality product.";
                         productSpecs = { "Brand": foundProduct.productName.split(' ')[0] || "Generic", "Model": foundProduct.productName, "Warranty": "2 Years", "Condition": "New", "Package Contents": `1 x ${foundProduct.productName}, User Manual, Warranty Card` };
-                        console.log("Applied error default specs:", productSpecs);
                     }
 
-                    // Process reviews
                     let reviewComments: string[] = [];
-                    const categoryReviewKey = categoryName as keyof typeof categoryReviews;
-                    if (categoryName && categoryReviews[categoryReviewKey]) {
-                        reviewComments = categoryReviews[categoryReviewKey];
-                    } else if (categoryReviews['Computer/Tablet']) { // Fallback
-                        reviewComments = categoryReviews['Computer/Tablet'];
-                    }
-                    console.log(`Found ${reviewComments.length} review comments for category ${categoryName}`);
+                    const productCategoryForReviews = categoriesData.find((c: Category) => c.categoryID === foundProduct.categoryID);
+                    const categoryReviewKey = (productCategoryForReviews?.categoryName || 'default') as keyof typeof categoryReviews;
+                    if (categoryReviews[categoryReviewKey]) reviewComments = categoryReviews[categoryReviewKey];
+                    else if (categoryReviews['Computer/Tablet']) reviewComments = categoryReviews['Computer/Tablet'];
 
-                    const formattedReviews: Review[] = reviewComments.map(comment => {
-                        let rating = 3; // Default rating
-                        const negativeKeywords = ['crashes', 'problem', 'issue', 'bug', 'poor', 'bad', 'slow', 'laggy', 'broken', 'fail'];
-                        const positiveKeywords = ['great', 'good', 'excellent', 'amazing', 'fast', 'quality', 'value', 'recommend', 'happy'];
-                        const lowerComment = comment.toLowerCase();
-                        if (negativeKeywords.some(kw => lowerComment.includes(kw))) rating = Math.max(1, rating - 1);
-                        if (positiveKeywords.some(kw => lowerComment.includes(kw))) rating = Math.min(5, rating + 1);
-                        return {
-                            rating, comment,
-                            userName: `User${Math.floor(Math.random() * 1000)}`,
+                    const formattedReviews: Review[] = reviewComments.map(comment => ({
+                        rating: ((negativeKeywords: string[]) => (positiveKeywords: string[]) => (lowerComment: string) => {
+                            let r = 3;
+                            if (negativeKeywords.some((kw: string) => lowerComment.includes(kw))) r = Math.max(1, r - 1);
+                            if (positiveKeywords.some((kw: string) => lowerComment.includes(kw))) r = Math.min(5, r + 1);
+                            return r;
+                        })(['crashes', 'problem', 'issue', 'bug', 'poor', 'bad', 'slow', 'laggy', 'broken', 'fail'])
+                          (['great', 'good', 'excellent', 'amazing', 'fast', 'quality', 'value', 'recommend', 'happy'])
+                          (comment.toLowerCase()),
+                        comment, userName: `User${Math.floor(Math.random() * 1000)}`,
                             date: new Date(Date.now() - Math.random() * 10000000000).toLocaleDateString(),
                             avatar: `/avatars/user${Math.floor(Math.random() * 5) + 1}.png`
-                        };
-                    });
-                    console.log("Formatted reviews count:", formattedReviews.length);
+                    }));
+                    // END of existing data processing
 
-                     // Main and Additional Image Generation
+                    // Main and Additional Image Generation (Refactored Logic)
+                    const productImagesToGenerate: { type: 'main' | 'additional'; prompt: string; originalIndex?: number }[] = [];
+                    const productCategoryForImages = categoriesData.find((c: Category) => c.categoryID === foundProduct.categoryID);
+                    const categoryNameForImages = productCategoryForImages?.categoryName || 'default';
+                    const categoryPromptDef = basePrompts[categoryNameForImages as CategoryKey] || basePrompts.default;
+
+                    if (!categoryPromptDef || typeof categoryPromptDef.main !== 'function') {
+                        console.warn(`❓ PP: Could not find or use prompt function for category: ${categoryNameForImages}, product: ${foundProduct.productName} (Main Image Setup)`);
+                        foundProduct.image = '/placeholder.png'; // Set placeholder if prompt cannot be generated
+                        foundProduct.additionalImages = [];
+                    } else {
+                        const mainPromptForProduct = categoryPromptDef.main(foundProduct.productName);
+
+                        // Check main image
                     if (!foundProduct.image || foundProduct.image === '/placeholder.png' || foundProduct.image.includes('placeholder')) {
-                        console.log("PP: Product needs main image generation.");
-                        try {
-                            // Fetch categories again if needed (or ensure they are available from outer scope)
-                            const categoriesForImage = categoriesData; // Use already fetched categories
-                            const productCategoryForImage = categoriesForImage.find((c: Category) => c.categoryID === foundProduct.categoryID);
-                            const categoryNameForImage = productCategoryForImage?.categoryName || 'default';
-                            const categoryPrompt = basePrompts[categoryNameForImage as CategoryKey] || basePrompts.default;
-                            const mainPrompt = categoryPrompt.main(foundProduct.productName);
-                            console.log("PP: Generating main image with prompt:", mainPrompt);
+                            if (!imageCache[mainPromptForProduct] && !processingPrompts.has(mainPromptForProduct)) {
+                                productImagesToGenerate.push({ type: 'main', prompt: mainPromptForProduct });
+                            } else if (imageCache[mainPromptForProduct]) {
+                                foundProduct.image = imageCache[mainPromptForProduct]; // Use from cache
+                            }
+                        }
 
-                            // Directly call API - Backend handles caching
-                            const mainImageResponse = await fetch('/api/ImageCache', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ pageID: 'products', prompt: mainPrompt, checkOnly: false })
-                            });
+                        // Check additional images (ensure it's an array)
+                        if (!Array.isArray(foundProduct.additionalImages)) foundProduct.additionalImages = [];
+                        const currentAdditionalImages = [...(foundProduct.additionalImages || [])];
+                        const neededAdditionalPrompts = categoryPromptDef.views.slice(0, 3); // Max 3 additional
 
-                            if (mainImageResponse.ok) {
-                                const mainImageData = await mainImageResponse.json();
-                                if (mainImageData.success && mainImageData.image) {
-                                    foundProduct.image = `data:image/jpeg;base64,${mainImageData.image}`;
-                                    console.log("PP: Main image retrieved/generated.");
-                                } else {
-                                    console.error("PP: Main image generation failed (API):", mainImageData.message || 'Unknown API error');
-                                    foundProduct.image = '/placeholder.png';
+                        for (let i = 0; i < neededAdditionalPrompts.length; i++) {
+                            const viewPromptText = neededAdditionalPrompts[i];
+                            const fullAdditionalPrompt = `${mainPromptForProduct}, ${viewPromptText}`;
+                            // Check if an image for this view (index i) already exists or is cached/processing
+                            if (!currentAdditionalImages[i] || currentAdditionalImages[i].includes('placeholder')) {
+                                if (!imageCache[fullAdditionalPrompt] && !processingPrompts.has(fullAdditionalPrompt)) {
+                                    productImagesToGenerate.push({ type: 'additional', prompt: fullAdditionalPrompt, originalIndex: i });
+                                } else if (imageCache[fullAdditionalPrompt] && currentAdditionalImages[i] !== imageCache[fullAdditionalPrompt]) {
+                                   // If cached and different from current, update (will be handled by setProduct later)
+                                   // This logic assumes additionalImages array will be repopulated based on cache if needed
                                 }
-                            } else {
-                                console.error("PP: Main image generation failed (HTTP):", mainImageResponse.status, mainImageResponse.statusText);
-                                foundProduct.image = '/placeholder.png';
+                            }
+                        }
+                    }
+
+                    if (productImagesToGenerate.length > 0) {
+                        console.log(`PP: Found ${productImagesToGenerate.length} images (main/additional) to generate/fetch for ${foundProduct.productName}.`);
+                        // imageGenerationInProgressThisPage is already true
+
+                        for (const imageJob of productImagesToGenerate) {
+                            if (!imageGenerationInProgressThisPage) {
+                                console.log("PP: Image generation process was stopped externally (Main/Additional Loop).");
+                                break;
                             }
 
-                            // Generate additional images only if main image is valid
-                            if (foundProduct.image && foundProduct.image !== '/placeholder.png') {
-                                console.log("PP: Generating additional images...");
-                                const additionalImagesPromises = categoryPrompt.views.slice(0, 3).map(async (viewPrompt) => {
-                                    const fullPrompt = `${mainPrompt}, ${viewPrompt}`;
-                                    console.log("PP: Generating additional image with prompt:", fullPrompt);
+                            // Double check cache and processing prompts again just before fetch
+                            if (imageCache[imageJob.prompt]) {
+                                console.log(`PP: Prompt "${imageJob.prompt.substring(0,50)}..." for ${foundProduct.productName} already in imageCache. Skipping fetch.`);
+                                // Ensure product state reflects this cache (will be done in final setProduct)
+                                continue;
+                            }
+                            if (processingPrompts.has(imageJob.prompt)) {
+                                console.log(`PP: Prompt "${imageJob.prompt.substring(0,50)}..." for ${foundProduct.productName} is already processing. Skipping fetch.`);
+                                continue;
+                            }
+
+                            console.log(`PP: Processing ${imageJob.type} image for ${foundProduct.productName} with prompt: "${imageJob.prompt.substring(0,80)}..."`);
+                            processingPrompts.add(imageJob.prompt);
+
                                     try {
                                         const response = await fetch('/api/ImageCache', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ pageID: 'products', prompt: fullPrompt, checkOnly: false })
+                                    body: JSON.stringify({
+                                        prompt: imageJob.prompt,
+                                        entityType: "Product",
+                                        entityId: foundProduct.productID,
+                                        checkOnly: false
+                                    })
                                         });
+
                                         if (response.ok) {
                                             const data = await response.json();
                                             if (data.success && data.image) {
-                                                return `data:image/jpeg;base64,${data.image}`;
+                                        const imageUrl = `data:image/jpeg;base64,${data.image}`;
+                                        imageCache[imageJob.prompt] = imageUrl;
+                                        console.log(`PP: ${imageJob.type} image for ${foundProduct.productName} processed. Cached prompt: "${imageJob.prompt.substring(0,50)}..."`);
+                                        // Defer direct state update; final setProduct will use imageCache
                                             } else {
-                                                console.error("PP: Add. image failed (API):", data.message || 'Unknown API error'); return null;
+                                        console.error(`PP: API success=false for ${imageJob.type} image for ${foundProduct.productName}. Prompt: "${imageJob.prompt.substring(0,50)}..."`, data.error || data.message);
                                             }
                                         } else {
-                                            console.error("PP: Add. image failed (HTTP):", response.status, response.statusText); return null;
+                                    const errorText = await response.text().catch(() => "Could not read error text");
+                                    console.error(`PP: HTTP Error for ${imageJob.type} image for ${foundProduct.productName}. Status: ${response.status}. Prompt: "${imageJob.prompt.substring(0,50)}..." Body: ${errorText}`);
                                         }
                                     } catch (error) {
-                                        console.error("PP: Add. image exception:", error); return null;
-                                    }
-                                });
-                                foundProduct.additionalImages = (await Promise.all(additionalImagesPromises)).filter((img): img is string => img !== null);
-                                console.log("PP: Generated additional images count:", foundProduct.additionalImages?.length || 0);
-                            } else {
-                                console.log("PP: Skipping additional images due to main image failure.");
-                                foundProduct.additionalImages = [];
+                                console.error(`PP: Exception for ${imageJob.type} image for ${foundProduct.productName}. Prompt: "${imageJob.prompt.substring(0,50)}..."`, error);
+                            } finally {
+                                processingPrompts.delete(imageJob.prompt);
+                                console.log(`PP: Finished attempt for prompt "${imageJob.prompt.substring(0,50)}...". Removed from processing.`);
                             }
-                        } catch (error) {
-                            console.error('PP: Image generation process error:', error);
-                            foundProduct.image = '/placeholder.png';
-                            foundProduct.additionalImages = [];
+                            if (imageGenerationInProgressThisPage) await new Promise(resolve => setTimeout(resolve, 750));
                         }
-                    } else {
-                        console.log("PP: Product already has a main image.");
-                        if (!Array.isArray(foundProduct.additionalImages)) {
-                             foundProduct.additionalImages = []; // Ensure it's an array
-                        }
-                        // Consider logic to generate missing additional images if needed
+                        console.log(`PP: Finished generating/fetching main/additional images for ${foundProduct.productName}.`);
+                            } else {
+                        console.log(`PP: No new main/additional images needed generation for ${foundProduct.productName} based on initial check.`);
                     }
 
-                    // Calculate stock from the main product data
-                    const actualStock = foundProduct.stockQuantity ?? 0;
-                    console.log("Using stockQuantity directly from foundProduct:", actualStock);
+                    // Update product state using potentially new images from imageCache
+                    const finalMainImage = imageCache[categoryPromptDef.main(foundProduct.productName)] || foundProduct.image || '/placeholder.png';
+                    const finalAdditionalImages: string[] = [];
+                    if (categoryPromptDef && typeof categoryPromptDef.main === 'function') {
+                        const mainPromptForProduct = categoryPromptDef.main(foundProduct.productName);
+                        categoryPromptDef.views.slice(0, 3).forEach((viewPromptText, index) => {
+                            const fullAdditionalPrompt = `${mainPromptForProduct}, ${viewPromptText}`;
+                            if (imageCache[fullAdditionalPrompt]) {
+                                finalAdditionalImages[index] = imageCache[fullAdditionalPrompt];
+                            } else if (foundProduct.additionalImages && foundProduct.additionalImages[index] && !foundProduct.additionalImages[index].includes('placeholder')) {
+                                finalAdditionalImages[index] = foundProduct.additionalImages[index]; // Keep existing valid one if not re-cached
+                    } else {
+                                // finalAdditionalImages[index] = '/placeholder.png'; // Or leave undefined/null to not show a slot
+                        }
+                        });
+                    }
 
-                    // Update product state using stock from foundProduct
+
+                    const supplierDetailsForProductPage = suppliersData.find((s: ProductSupplier) => s.productID === foundProduct.productID);
+                    const fetchedSupplierName = supplierDetailsForProductPage ? (allSuppliers.find((s: any) => s.supplierID === supplierDetailsForProductPage.supplierID)?.supplierName || 'GamerGear') : 'GamerGear';
+
+
                     setProduct({
-                        ...foundProduct, // Spread all properties from foundProduct first
+                        ...foundProduct,
+                        image: finalMainImage,
+                        additionalImages: finalAdditionalImages.filter(img => img), // Remove empty slots
                         reviews: formattedReviews,
                         description: productDescription,
                         specs: productSpecs,
-                        stockQuantity: actualStock, // Ensure this overrides any default
-                        supplierName: fetchedSupplier?.supplierName || 'GamerGear', // Use fetched or default
-                        additionalImages: Array.isArray(foundProduct.additionalImages) ? foundProduct.additionalImages : [] // Ensure array
+                        stockQuantity: foundProduct.stockQuantity ?? 0,
+                        supplierName: fetchedSupplierName
                     });
-                    console.log("Final product state updated using foundProduct.stockQuantity.");
 
-                    // Find similar products
+                    // Find similar products (logic remains similar)
                     let sameCategoryProducts: Product[] = [];
-                    if (foundProduct.categoryName) {
-                        const filteredByCategoryName = productsData
-                            .filter((p: Product) => p.categoryName === foundProduct.categoryName && p.productID !== foundProduct.productID)
-                            .slice(0, 10); // Filter and slice
-                        sameCategoryProducts = filteredByCategoryName;
-                        console.log(`Found ${sameCategoryProducts.length} similar products by categoryName.`);
+                    if (foundProduct.categoryID) { // Use categoryID for more reliable filtering
+                        sameCategoryProducts = productsData
+                            .filter((p: Product) => p.categoryID === foundProduct.categoryID && p.productID !== foundProduct.productID)
+                            .slice(0, 10);
                     }
-
-                    // Add supplier name to similar products
                      sameCategoryProducts.forEach((sp: Product) => {
                         const spSupplier = suppliersData.find((s: ProductSupplier) => s.productID === sp.productID);
-                        if (spSupplier) {
-                            const spSupplierDetails = allSuppliers.find((s: any) => s.supplierID === spSupplier.supplierID);
-                            sp.supplierName = spSupplierDetails?.supplierName || 'GamerGear';
-                        } else {
-                            sp.supplierName = 'GamerGear'; // Default if no supplier link
-                        }
+                        sp.supplierName = spSupplier ? (allSuppliers.find((s: any) => s.supplierID === spSupplier.supplierID)?.supplierName || 'GamerGear') : 'GamerGear';
                     });
-                    setSimilarProducts(sameCategoryProducts);
+                    setSimilarProducts(sameCategoryProducts); // This will trigger SimilarProducts useEffect
 
                 } else {
-                     console.error("Product not found for ID:", productId);
-                     setProduct(null); // Ensure product is null if not found
+                    console.error("PP: Product not found for ID:", productId);
+                    setProduct(null);
                 }
             } catch (error) {
-                console.error('Error fetching product data:', error);
-                setProduct(null); // Set product to null on error
+                console.error('PP: Error fetching product data:', error);
+                setProduct(null);
             } finally {
                 setLoading(false);
-                console.log("Finished fetching data.");
+                imageGenerationInProgressThisPage = false; // Page-level generation attempt is complete
+                console.log("PP: Finished fetching data and main/additional image processing for ProductPage.");
             }
         };
 
             fetchData();
+
+        // Cleanup function for ProductPage
+        return () => {
+            console.log(`PP: Cleaning up ProductPage (productId: ${productId}). Setting imageGenerationInProgressThisPage to false.`);
+            imageGenerationInProgressThisPage = false;
+            // No need to clear processingPrompts or imageCache here as they are module-level
+            // and might be in use by other components or needed for quick revisits.
+            // The checks at the beginning of generation loops handle stale processingPrompts.
+        };
     }, [productId]); // Rerun only when productId changes
 
     const handleAddToCart = () => {
@@ -924,7 +928,7 @@ export default function ProductPage() {
                                         <SimilarProducts
                                             products={similarProducts}
                                             categoryName={category?.categoryName || ""}
-                                            containerId="similar-products-description-tab" // Unique ID
+                                            containerId="similar-products-description-tab-final" // Ensured unique ID
                                         />
                                     ) : (
                                         <p className="text-gray-500 italic mt-4">No similar products found in this category.</p> // Improved text

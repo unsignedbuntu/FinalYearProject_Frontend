@@ -61,10 +61,15 @@ export default function StoresMegaMenu() {
         ]);
 
         if (Array.isArray(storesData)) {
-          setStores(storesData);
+          // Deduplicate stores by storeID before setting state
+          const uniqueStores = storesData.filter(
+            (store, index, self) =>
+              index === self.findIndex((s) => s.storeID === store.storeID)
+          );
+          setStores(uniqueStores);
           // İlk mağazayı varsayılan olarak seç
-          if (storesData.length > 0) {
-            setSelectedStore(storesData[0]);
+          if (uniqueStores.length > 0) {
+            setSelectedStore(uniqueStores[0]);
           }
         }
         

@@ -1,227 +1,199 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
-import https from 'https';
-import { createHash } from 'crypto';
+// import https from 'https'; // Artık doğrudan C# backend'ine https agent ile gitmiyoruz, API_Service hallediyor.
+// import { createHash } from 'crypto'; // Hashleme C# backend'inde yapılıyor.
 
-const AUTOMATIC1111_API_URL = 'http://127.0.0.1:7860';
-const API_URL = process.env.URL;
+import {
+    getImageByPromptFromBackend,
+    createOrUpdateImageInBackend,
+    ImageCacheRequestDto,
+    ImageCacheResponseDto
+} from '../../../services/API_Service'; // Servislerin yolu projenize göre ayarlanmalı
 
-// GET /api/ImageCache - Get cached image by pageId and prompt
+const AUTOMATIC1111_API_URL = process.env.AUTOMATIC1111_API_URL || 'http://127.0.0.1:7860';
+// const API_URL = process.env.URL; // Bu artık API_Service içinde yönetiliyor (getApiUrl())
+
+// GET /api/ImageCache - Verilen prompt ile backend cache'inden resim getirmeyi dener.
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
-        const pageID = searchParams.get('pageID');
         const prompt = searchParams.get('prompt');
-        console.log("GET isteği - PageID:", pageID, "Prompt:", prompt);
 
-        if (!pageID || !prompt) {
-            return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+        if (!prompt) {
+            return NextResponse.json({ success: false, error: 'Prompt parameter is required' }, { status: 400 });
         }
 
-        try {
-            // URL yapısını backend'in beklediği formata uygun hale getiriyoruz
-            const response = await axios.get(`${API_URL}/api/ImageCache/${pageID}/${prompt}`, {
-                httpsAgent: new https.Agent({ rejectUnauthorized: false })
+        console.log("Next.js API GET /api/ImageCache - Prompt:", prompt);
+
+        const cachedData = await getImageByPromptFromBackend(prompt);
+
+        if (cachedData && cachedData.base64Image) {
+            console.log("Next.js API GET: Image found in backend cache for prompt:", prompt);
+            return NextResponse.json({
+                success: true,
+                image: cachedData.base64Image, // Base64 image'i döndür
+                source: cachedData.imageUrl ? "backend_cache_via_prompt_get_route" : "backend_cache_redis_only_get_route",
+                data: cachedData // Tüm DTO'yu da döndür
             });
-
-            if (response.data && response.data.cached) {
-                console.log("Cache'den görsel bulundu");
-                return NextResponse.json({
-                    cached: true,
-                    image: response.data.image
-                });
-            }
-
-            console.log("Response:", response.data.image);
-            return NextResponse.json({ cached: false });
-
-        } catch (error) {
-            console.error("Backend API hatası:", error);
-            return NextResponse.json({ error: "Backend API error" }, { status: 500 });
+        } else {
+            console.log("Next.js API GET: Image not found in backend cache for prompt:", prompt);
+            return NextResponse.json({ success: false, error: 'Image not found for the given prompt', source: "backend_not_found_get_route" }, { status: 404 });
         }
 
     } catch (error: any) {
-        console.error('Genel hata:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('Error in Next.js GET /api/ImageCache:', error);
+        return NextResponse.json({ success: false, error: error.message || 'Internal server error in Next.js GET' }, { status: 500 });
     }
 }
 
 
-// POST /api/ImageCache - Generate and cache new image
+// POST /api/ImageCache - Resim oluşturur, cache'ler veya var olanı getirir.
 export async function POST(req: Request) {
     try {
-        const { pageID, prompt, checkOnly, image } = await req.json();
+        // pageID artık doğrudan kullanılmıyor, entityType ve entityId tercih ediliyor.
+        // 'image' alanı 'directBase64Image' olarak yeniden adlandırıldı, daha açıklayıcı olması için.
+        const {
+            prompt,
+            entityType, // Örn: "Product" ya da "Supplier"
+            entityId,   // İlişkili ProductID ya da SupplierID
+            base64Image: directBase64Image, // Frontend'den direkt gelen base64 resim (isteğe bağlı)
+            checkOnly   // Sadece cache kontrolü mü yapılacak?
+        } = await req.json();
 
-        if (!pageID || !prompt) {
-            return NextResponse.json({
-                success: false,
-                error: 'Missing required fields'
-            }, { status: 400 });
+        if (!prompt) {
+            return NextResponse.json({ success: false, error: 'Prompt is required' }, { status: 400 });
         }
 
-        console.log("POST request received for pageID:", pageID, "prompt:", prompt);
+        console.log("Next.js API POST /api/ImageCache - Prompt:", prompt, "EntityType:", entityType, "EntityId:", entityId, "CheckOnly:", checkOnly, "HasDirectImage:", !!directBase64Image);
 
-        // Eğer image doğrudan gönderilmişse, backend'e direkt olarak kaydet
-        if (image) {
-            console.log("Image data received directly, saving to backend cache");
+        // 1. Frontend'den direkt bir base64 resim gönderildiyse, bunu C# backend'ine kaydetmeyi dene
+        if (directBase64Image) {
+            console.log("Next.js API POST: Direct base64 image provided. Attempting to save to C# backend.");
             try {
-                const cacheResponse = await axios.post(`${API_URL}/api/ImageCache`, {
-                    PageID: pageID,
-                    Prompt: prompt,
-                    Image: image,
-                    Status: true
-                }, {
-                    headers: { 'Content-Type': 'application/json' },
-                    httpsAgent: new https.Agent({ rejectUnauthorized: false })
-                });
-                
-                return NextResponse.json({
-                    success: true,
-                    image: image,
-                    source: "direct_upload"
-                });
-            } catch (saveError: any) {
-                console.error("Error saving direct image:", saveError);
-                return NextResponse.json({
-                    success: false,
-                    error: saveError.message || 'Error saving image to backend'
-                }, { status: 500 });
+                const dto: ImageCacheRequestDto = {
+                    prompt,
+                    base64Image: directBase64Image,
+                    entityType,
+                    entityId
+                };
+                const backendResult = await createOrUpdateImageInBackend(dto);
+                if (backendResult && backendResult.base64Image) {
+                    console.log("Next.js API POST: Successfully saved direct image to C# backend. ImageID:", backendResult.id);
+                    return NextResponse.json({
+                        success: true,
+                        image: backendResult.base64Image,
+                        source: "direct_image_saved_to_backend",
+                        data: backendResult
+                    });
+                } else {
+                    console.error("Next.js API POST: Failed to save direct image to C# backend.");
+                    return NextResponse.json({ success: false, error: "Failed to save provided image to backend cache" }, { status: 500 });
+                }
+            } catch (e: any) {
+                console.error("Next.js API POST: Exception saving direct image to C# backend:", e);
+                return NextResponse.json({ success: false, error: e.message || "Error saving provided image to backend cache" }, { status: 500 });
             }
         }
 
-        // Önce backend'den direkt olarak görüntüyü almaya çalış
+        // 2. C# Backend cache'ini kontrol et (Redis -> DB)
+        console.log("Next.js API POST: Checking C# backend cache for prompt:", prompt);
         try {
-            console.log("Checking if image exists in backend cache");
-            const directCacheResponse = await axios.get(`${API_URL}/api/ImageCache/${pageID}/${encodeURIComponent(prompt)}`, {
-                httpsAgent: new https.Agent({ rejectUnauthorized: false })
-            });
-            
-            // Eğer görüntü zaten varsa, doğrudan döndür
-            if (directCacheResponse.status === 200 && directCacheResponse.data.image) {
-                console.log("Image found in backend cache, returning existing image");
+            const cachedData = await getImageByPromptFromBackend(prompt);
+            if (cachedData && cachedData.base64Image) {
+                console.log("Next.js API POST: Image found in C# backend cache. ImageID:", cachedData.id);
                 return NextResponse.json({
                     success: true,
-                    image: directCacheResponse.data.image,
-                    source: "backend_cache"
+                    image: cachedData.base64Image,
+                    source: cachedData.imageUrl ? "backend_cache_via_prompt_post_route" : "backend_cache_redis_only_post_route",
+                    data: cachedData
                 });
             }
-        } catch (error: any) {
-            // 404 hatası normal, görüntü bulunamadı demektir
-            if (error.response && error.response.status === 404) {
-                console.log("Image not found in backend cache, will try to generate");
-            } else {
-                console.error("Error checking backend cache:", error);
-            }
+            console.log("Next.js API POST: Image not found in C# backend cache for prompt:", prompt);
+        } catch (e: any) {
+            console.warn("Next.js API POST: Warning during C# backend cache check (will proceed to generation if not checkOnly):", e.message);
+            // Hata olsa bile, eğer checkOnly değilse resim oluşturmaya devam et
         }
 
-        // Eğer checkOnly parametresi true ise, sadece kontrol et ve görüntü oluşturma
+        // 3. Eğer 'checkOnly' true ise ve cache'de bulunamadıysa, burada dur.
         if (checkOnly) {
-            console.log("checkOnly parameter is true, skipping image generation");
-            return NextResponse.json({
-                success: false,
-                error: 'Image not found in cache',
-                source: "check_only"
-            }, { status: 404 });
+            console.log("Next.js API POST: checkOnly is true and image not in cache. Returning not found.");
+            return NextResponse.json({ success: false, error: 'Image not found in cache', source: "check_only_not_found_post_route" }, { status: 404 });
         }
 
-        // Stable Diffusion API'ye istek gönder
-        console.log("Generating new image with Stable Diffusion API");
+        // 4. Stable Diffusion API ile yeni resim oluştur
+        let generatedBase64Image: string;
+        console.log("Next.js API POST: Generating new image with Stable Diffusion for prompt:", prompt);
         try {
-            const sdAgent = new https.Agent({ 
-                rejectUnauthorized: false 
-            });
-            
-            // HTTP kullan veya farklı bir endpoint dene
-            // Not: Backend sistemini kontrol et, hangi endpointin doğru olduğunu belirle
-            const response = await axios.post(`http://127.0.0.1:7860/sdapi/v1/txt2img`, {
+            // const sdAgent = new https.Agent({ rejectUnauthorized: false }); // Artık gerekmiyor, axios global ayarları kullanır
+            const response = await axios.post(`${AUTOMATIC1111_API_URL}/sdapi/v1/txt2img`, {
                 prompt,
-                negative_prompt: "blurry, low quality, deformed",
-                steps: 15,
+                negative_prompt: "blurry, low quality, deformed, text, watermark, signature",
+                steps: 20, // Daha kaliteli sonuç için biraz artırılabilir
                 width: 512,
                 height: 512,
-                cfg_scale: 7
+                cfg_scale: 7,
+                sampler_name: "Euler a" // Yaygın kullanılan bir sampler
             }, {
-                httpsAgent: sdAgent,
-                timeout: 240000 
+                // httpsAgent: sdAgent, // Gerekmiyorsa kaldırılabilir
+                timeout: 240000
             });
 
             if (!response.data?.images?.[0]) {
-                console.error("No image generated by Stable Diffusion API");
-                return NextResponse.json({
-                    success: false,
-                    error: 'No image generated'
-                }, { status: 500 });
+                console.error("Next.js API POST: No image generated by Stable Diffusion API.");
+                throw new Error('No image generated by Stable Diffusion API');
             }
-
-            const base64Image = response.data.images[0];
-            console.log("Successfully generated image with Stable Diffusion API");
-
-            // Cache'e kaydet
-            try {
-                console.log("Saving image to backend cache");
-                const cacheResponse = await axios.post(`${API_URL}/api/ImageCache`, {
-                    PageID: pageID,
-                    Prompt: prompt,
-                    Base64Image: base64Image
-                }, {
-                    headers: { 'Content-Type': 'application/json' },
-                    httpsAgent: new https.Agent({ rejectUnauthorized: false })
-                });
-                
-                console.log("Cache save response status:", cacheResponse.status);
-                
-                // Başarılı bir şekilde kaydedildi
-                return NextResponse.json({
-                    success: true,
-                    image: base64Image,
-                    source: "newly_generated"
-                });
-            } catch (error: any) {
-                // 409 hatası alırsak, bu görüntü zaten var demektir
-                if (error.response && error.response.status === 409) {
-                    console.log("Image already exists in backend cache (409), retrieving existing image");
-                    
-                    // Mevcut görüntüyü almak için tekrar GET isteği gönder
-                    try {
-                        const existingImageResponse = await axios.get(`${API_URL}/api/ImageCache/${pageID}/${encodeURIComponent(prompt)}`, {
-                            httpsAgent: new https.Agent({ rejectUnauthorized: false })
-                        });
-                        
-                        if (existingImageResponse.status === 200 && existingImageResponse.data.image) {
-                            console.log("Successfully retrieved existing image from backend cache");
-                            return NextResponse.json({
-                                success: true,
-                                image: existingImageResponse.data.image,
-                                source: "backend_cache_after_conflict"
-                            });
-                        }
-                    } catch (getError) {
-                        console.error("Error getting existing image after conflict:", getError);
-                    }
-                }
-                
-                console.error("Cache save error:", error);
-                // Cache kaydetme hatası olsa bile, görüntüyü döndürebiliriz
-                return NextResponse.json({
-                    success: true,
-                    image: base64Image,
-                    source: "newly_generated_cache_error"
-                });
-            }
+            generatedBase64Image = response.data.images[0];
+            console.log("Next.js API POST: Successfully generated image with Stable Diffusion.");
         } catch (sdError: any) {
-            console.error("Stable Diffusion API error:", sdError);
-            return NextResponse.json({
-                success: false,
-                error: sdError.message || 'Error generating image with Stable Diffusion API'
-            }, { status: 500 });
+            console.error("Next.js API POST: Stable Diffusion API error:", sdError.response?.data || sdError.message);
+            return NextResponse.json({ success: false, error: sdError.message || 'Error generating image with Stable Diffusion' }, { status: 500 });
         }
+
+        // 5. Oluşturulan yeni resmi C# backend'ine kaydet
+        console.log("Next.js API POST: Saving newly generated image to C# backend for prompt:", prompt);
+        try {
+            const dto: ImageCacheRequestDto = {
+                prompt,
+                base64Image: generatedBase64Image,
+                entityType,
+                entityId
+            };
+            const backendResult = await createOrUpdateImageInBackend(dto);
+            if (backendResult && backendResult.base64Image) {
+                console.log("Next.js API POST: Successfully saved newly generated image to C# backend. ImageID:", backendResult.id);
+                return NextResponse.json({
+                    success: true,
+                    image: backendResult.base64Image, // Backend'den dönen resmi kullan (eğer bir işlemden geçtiyse)
+                    source: "newly_generated_and_cached_to_backend",
+                    data: backendResult
+                });
+            } else {
+                // Backend kaydı başarısız olsa bile, oluşturulan resmi frontend'e gönder.
+                console.warn("Next.js API POST: Failed to save newly generated image to C# backend, but returning generated image to client.");
+                return NextResponse.json({
+                    success: true,
+                    image: generatedBase64Image,
+                    source: "newly_generated_backend_cache_failed",
+                    error: "Image generated, but failed to save to backend cache."
+                });
+            }
+        } catch (cacheError: any) {
+            console.error("Next.js API POST: Exception saving newly generated image to C# backend:", cacheError.response?.data || cacheError.message);
+            // Cache hatası olsa bile, oluşturulan resmi frontend'e gönder.
+            return NextResponse.json({
+                success: true,
+                image: generatedBase64Image,
+                source: "newly_generated_backend_cache_exception",
+                error: cacheError.message || "Image generated, but exception occurred while saving to backend cache."
+            });
+        }
+
     } catch (error: any) {
-        console.error('General error in POST request:', error);
+        console.error('General error in Next.js POST /api/ImageCache:', error);
         return NextResponse.json({
-            success: false, 
-            error: error.message || 'Görsel oluşturma işlemi başarısız oldu',
-            details: error.stack
+            success: false,
+            error: error.message || 'Görsel işleme sırasında genel bir hata oluştu (Next.js API).',
+            details: error.stack // Geliştirme ortamında detaylı hata için
         }, { status: 500 });
     }
 }
-// GET endpoint'i aynı kalabilir...

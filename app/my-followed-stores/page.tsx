@@ -49,6 +49,10 @@ export default function MyFollowedStores() {
     const [loadingImages, setLoadingImages] = useState(false);
     const [isGenerating, setIsGenerating] = useState<{[key: number]: boolean}>({});
 
+    // New state for one-time supplier image loading
+    const [initialSupplierImagesDone, setInitialSupplierImagesDone] = useState(false);
+    const [isLoadingSupplierImages, setIsLoadingSupplierImages] = useState(false);
+
     // Resim üretme fonksiyonlarını kaldırıyoruz
     // generateStoreImage ve generateProductImage fonksiyonları artık kullanılmıyor
 
@@ -202,6 +206,73 @@ export default function MyFollowedStores() {
         };
     }, []);
 
+    // New useEffect for ONE-TIME loading of ALL supplier images
+    useEffect(() => {
+        if (isLoading || initialSupplierImagesDone || !allStores || allStores.length === 0) {
+            return;
+        }
+
+        const loadAllSupplierImagesOnce = async () => {
+            setIsLoadingSupplierImages(true);
+            console.log("🔵 Starting one-time load for ALL supplier images...");
+
+            // Initialize all supplier images to placeholder
+            const initialSupplierImagesState: Record<number, string> = {};
+            allStores.forEach(store => {
+                initialSupplierImagesState[store.supplierID] = DEFAULT_PLACEHOLDER;
+            });
+            setSupplierImages(initialSupplierImagesState);
+
+            for (const store of allStores) {
+                try {
+                    const generatedPrompt = generatePrompt(
+                        store.supplierName,
+                        "modern storefront design with professional appearance, emphasizing brand style"
+                    );
+
+                    const response = await fetch('/api/ImageCache', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            prompt: generatedPrompt.prompt,
+                            entityType: "Supplier",
+                            entityId: store.supplierID,
+                            checkOnly: false
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success && data.image) {
+                            const imageUrl = `data:image/jpeg;base64,${data.image}`;
+                            setSupplierImages(prev => ({
+                                ...prev,
+                                [store.supplierID]: imageUrl
+                            }));
+                            console.log(`✅ Supplier ID ${store.supplierID} (${store.supplierName}) image loaded (one-time).`);
+                        } else {
+                             console.warn(`⚠️ Supplier ID ${store.supplierID} (${store.supplierName}) image API success=false or no image (one-time).`);
+                        }
+                    } else {
+                        console.error(`❌ Supplier ID ${store.supplierID} (${store.supplierName}) image HTTP error ${response.status} (one-time).`);
+                    }
+                } catch (error) {
+                    console.error(`❌ Exception loading image for Supplier ID ${store.supplierID} (${store.supplierName}) (one-time):`, error);
+                }
+                // Add a small delay between requests
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+
+            console.log("🎉 One-time load for ALL supplier images COMPLETE.");
+            storeImagesLoadingComplete.value = true; // Mark global flag as complete
+            setInitialSupplierImagesDone(true); // Mark this specific load as done
+            setIsLoadingSupplierImages(false);
+        };
+
+        loadAllSupplierImagesOnce();
+
+    }, [isLoading, allStores, initialSupplierImagesDone]); // initialSupplierImagesDone in deps to ensure it runs once after conditions are met
+
     // Mağaza takip etme/bırakma işlevleri
     const handleFollowStore = (storeId: number) => {
         setFollowedSuppliers(prev => {
@@ -281,190 +352,65 @@ export default function MyFollowedStores() {
 
     // Görsel yükleme süreci - mağaza ve ürün resimlerini sıralı şekilde yükler
     useEffect(() => {
-        if (isLoading) return;
-        if (loadingImages) return; // Hali hazırda yükleme yapılıyorsa, bekle
-        if (storeImagesLoaded) return; // Eğer görüntüler yüklendiyse tekrar yükleme yapma
-        
-        const loadAllImages = async () => {
-            setLoadingImages(true);
-            
-            try {
-                // Log: tüm mağazaların ve ürünlerini yazdır
-                console.log("📊 TÜM MAĞAZALAR VE ÜRÜNLERİ");
-                
-                // GlobalStore'dan productSupplier haritasını al
-                const productSupplierMap = (window as any).productSupplierMap || {};
-                
-                // Her mağaza için atanan ürünleri yazdır
-                allStores.forEach((store, index) => {
-                    const storeProductIds = productSupplierMap[store.supplierID] || [];
-                    console.log(`🏬 ${store.supplierName} (ID: ${store.supplierID}) - ${index+1}. sırada: ${storeProductIds.length} ürün:`);
-                    console.log(`   Ürün ID'leri: [${storeProductIds.join(', ')}]`);
-                });
-                
-                // 1. ADIM: ÖNCE TÜM MAĞAZA GÖRSELLERİNİ YÜKLE - İLK FOLLOWED, SONRA UNFOLLOWED
-                console.log("🔄 Mağaza görselleri yükleniyor...");
-                
-                // Tüm mağazalara placeholder atama
-                [...suppliers, ...allStores.filter(store => !followedSuppliers.has(store.supplierID))].forEach(store => {
-                    if (!supplierImages[store.supplierID]) {
-                        setSupplierImages(prev => ({
-                            ...prev,
-                            [store.supplierID]: DEFAULT_PLACEHOLDER
-                        }));
-                    }
-                });
-                
-                // İlk önce takip edilen mağazaların görsellerini yükle
-                console.log(`🔵 ADIM 1/4: Takip edilen ${suppliers.length} mağazanın görselleri yükleniyor...`);
-                const followedImagePromises = [];
-                
-                for (const store of suppliers) {
-                    const loadStoreImage = async () => {
-                        try {
-                            const generatedPrompt = generatePrompt(
-                                store.supplierName,
-                                "modern storefront design with professional appearance"
-                            );
-                            
-                            const response = await fetch('/api/ImageCache', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    pageID: 'my-followed-stores',
-                                    prompt: generatedPrompt.prompt,
-                                    checkOnly: false
-                                })
-                            });
-                            
-                            if (response.ok) {
-                                const data = await response.json();
-                                if (data.success && data.image) {
-                                    const imageUrl = `data:image/jpeg;base64,${data.image}`;
-                                    setSupplierImages(prev => ({
-                                        ...prev,
-                                        [store.supplierID]: imageUrl
-                                    }));
-                                    console.log(`✅ [FOLLOWED] Mağaza ID ${store.supplierID} (${store.supplierName}) için görsel yüklendi`);
-                                }
-                            }
-                        } catch (error) {
-                            console.error(`❌ Mağaza ID ${store.supplierID} için görsel yüklenemedi:`, error);
-                        }
-                    };
-                    
-                    followedImagePromises.push(loadStoreImage().then(() => 
-                        new Promise(resolve => setTimeout(resolve, 300))
-                    ));
-                }
-                
-                // Takip edilen mağazaların görsellerinin yüklenmesini bekle
-                await Promise.all(followedImagePromises);
-                console.log("✅ Takip edilen tüm mağaza görselleri yüklendi");
-                
-                // Sonra takip edilmeyen mağazaların görsellerini yükle
-                const unfollowedStores = allStores.filter(store => !followedSuppliers.has(store.supplierID));
-                console.log(`🔵 ADIM 2/4: Takip edilmeyen ${unfollowedStores.length} mağazanın görselleri yükleniyor...`);
-                
-                const unfollowedImagePromises = [];
-                
-                for (const store of unfollowedStores) {
-                    const loadStoreImage = async () => {
-                        try {
-                            const generatedPrompt = generatePrompt(
-                                store.supplierName,
-                                "modern storefront design with professional appearance"
-                            );
-                            
-                            const response = await fetch('/api/ImageCache', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    pageID: 'my-followed-stores',
-                                    prompt: generatedPrompt.prompt,
-                                    checkOnly: false
-                                })
-                            });
-                            
-                            if (response.ok) {
-                                const data = await response.json();
-                                if (data.success && data.image) {
-                                    const imageUrl = `data:image/jpeg;base64,${data.image}`;
-                                    setSupplierImages(prev => ({
-                                        ...prev,
-                                        [store.supplierID]: imageUrl
-                                    }));
-                                    console.log(`✅ [UNFOLLOWED] Mağaza ID ${store.supplierID} (${store.supplierName}) için görsel yüklendi`);
-                                }
-                            }
-                        } catch (error) {
-                            console.error(`❌ Mağaza ID ${store.supplierID} için görsel yüklenemedi:`, error);
-                        }
-                    };
-                    
-                    unfollowedImagePromises.push(loadStoreImage().then(() => 
-                        new Promise(resolve => setTimeout(resolve, 300))
-                    ));
-                }
-                
-                // Takip edilmeyen mağazaların görsellerinin yüklenmesini bekle
-                await Promise.all(unfollowedImagePromises);
-                console.log("✅ Takip edilmeyen tüm mağaza görselleri yüklendi");
-                console.log("🎉 TÜM MAĞAZA GÖRSELLERİ BAŞARIYLA YÜKLENDİ");
-                
-                // Mağaza görselleri yüklenme işlemi tamamlandı
-                storeImagesLoadingComplete.value = true;
-                
-                // 3. ADIM: TÜM MAĞAZALAR İÇİN PRODUCT-SUPPLIER İLİŞKİLERİNİ DOĞRU KURARIM
-                console.log(`🔄 Tüm mağazalar için ürün ilişkileri kuruluyor...`);
-                
-                // Önce tüm mağazalar için rastgele 3 ürün seçimini yap
-                allStores.forEach(store => {
-                    // Önbelleği temizle ve yeniden ürünleri getir
-                    delete storeProductsCache[store.supplierID];
-                    
-                    // Ürünleri getir ve önbelleğe al
+        // Guard conditions: wait for initial data, one-time supplier images, and ensure not already loading products for current tab
+        if (isLoading || !initialSupplierImagesDone || isLoadingSupplierImages || loadingImages || storeImagesLoaded) {
+            return;
+        }
+
+        const loadProductImagesForCurrentTab = async () => {
+            setLoadingImages(true); // Mark that product image loading for the current tab is starting
+            console.log(`🔄 Product images loading for activeTab: '${activeTab}'...`);
+
+            const storesForProductImageLoad = activeTab === 'followed' 
+                ? suppliers // suppliers state already filtered for followed
+                : allStores.filter(store => !followedSuppliers.has(store.supplierID));
+
+            console.log(`🔵 Will load product images for ${storesForProductImageLoad.length} stores in '${activeTab}' tab.`);
+
+            // Ensure products for these stores are in cache (this might be redundant if getStoreProducts is efficient)
+            storesForProductImageLoad.forEach(store => {
+                if (!storeProductsCache[store.supplierID]) {
                     storeProductsCache[store.supplierID] = getStoreProducts(store.supplierID);
-                });
-                
-                // 4. ADIM: ÜRÜN GÖRSELLERİNİ YÜKLE - ÖNCE FOLLOWED SONRA UNFOLLOWED STORES
-                console.log(`🔵 ADIM 3/4: Takip edilen mağazaların ürün görselleri yükleniyor...`);
-                
-                // Önce takip edilen mağazaların ürünlerini yükle
-                for (const store of suppliers) {
-                    // Bu mağazanın ürünlerini al
+                }
+            });
+
+            // Load product images for the relevant stores
+            for (const store of storesForProductImageLoad) {
                     const storeProducts = storeProductsCache[store.supplierID] || [];
-                    
                     if (storeProducts.length === 0) {
-                        console.log(`ℹ️ Mağaza ID ${store.supplierID} (${store.supplierName}) için hiç ürün bulunamadı`);
+                    console.log(`ℹ️ Store ID ${store.supplierID} (${store.supplierName}) has no products for image loading in '${activeTab}' tab.`);
                         continue;
                     }
                     
-                    console.log(`🔄 [FOLLOWED] Mağaza: ${store.supplierName} için ${storeProducts.length} ürün görseli yükleniyor...`);
+                console.log(`🔄 Loading ${storeProducts.length} product images for Store: ${store.supplierName} (ID: ${store.supplierID}) in '${activeTab}' tab.`);
                     
-                    // Önce tüm ürünlere placeholder atama
                     for (const product of storeProducts) {
+                    // Initialize to placeholder if not already set
                         if (!productImages[product.productID]) {
                             setProductImages(prev => ({
                                 ...prev,
                                 [product.productID]: DEFAULT_PLACEHOLDER
                             }));
-                        }
+                    }
+
+                    // Skip if image already loaded and is not placeholder
+                    if (productImages[product.productID] && productImages[product.productID] !== DEFAULT_PLACEHOLDER) {
+                        console.log(`⏭️ Product ID ${product.productID} (${product.productName}) already has an image. Skipping.`);
+                        continue;
                     }
                     
-                    // Bu mağazanın tüm ürünlerinin görsellerini sırayla yükle
-                    for (const product of storeProducts) {
                         try {
                             const categoryKey = product.categoryName as CategoryKey || 'default';
                             const categoryPrompt = basePrompts[categoryKey] || basePrompts.default;
-                            const prompt = categoryPrompt.main(product.productName);
+                        const promptText = categoryPrompt.main(product.productName);
                             
                             const response = await fetch('/api/ImageCache', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                    pageID: 'products',
-                                    prompt: prompt,
+                                prompt: promptText,
+                                entityType: "Product",
+                                entityId: product.productID,
                                     checkOnly: false
                                 })
                             });
@@ -477,100 +423,33 @@ export default function MyFollowedStores() {
                                         ...prev,
                                         [product.productID]: imageUrl
                                     }));
-                                    console.log(`✅ [FOLLOWED] Mağaza: ${store.supplierName} - Ürün ID ${product.productID} (${product.productName}) için görsel yüklendi`);
-                                }
+                                console.log(`✅ Product ID ${product.productID} (${product.productName}) image loaded for store ${store.supplierName}.`);
+                            } else {
+                                console.warn(`⚠️ Product ID ${product.productID} (${product.productName}) API success=false or no image.`);
                             }
-                            
-                            // Her ürün arasında kısa bir gecikme
-                            await new Promise(resolve => setTimeout(resolve, 300));
-                        } catch (error) {
-                            console.error(`❌ Ürün ID ${product.productID} için görsel yüklenemedi:`, error);
+                        } else {
+                             console.error(`❌ Product ID ${product.productID} (${product.productName}) HTTP error ${response.status}.`);
                         }
+                        await new Promise(resolve => setTimeout(resolve, 300)); // Delay
+                    } catch (error) {
+                        console.error(`❌ Exception loading image for Product ID ${product.productID} (${product.productName}):`, error);
                     }
-                    
-                    console.log(`✅ [FOLLOWED] Mağaza: ${store.supplierName} için tüm ürün görselleri yüklendi`);
                 }
-                
-                console.log("✅ Takip edilen mağazaların tüm ürün görselleri yüklendi");
-                console.log(`🔵 ADIM 4/4: Takip edilmeyen mağazaların ürün görselleri yükleniyor...`);
-                
-                // Sonra takip edilmeyen mağazaların ürünlerini yükle
-                for (const store of unfollowedStores) {
-                    // Bu mağazanın ürünlerini al
-                    const storeProducts = storeProductsCache[store.supplierID] || [];
-                    
-                    if (storeProducts.length === 0) {
-                        console.log(`ℹ️ Mağaza ID ${store.supplierID} (${store.supplierName}) için hiç ürün bulunamadı`);
-                        continue;
-                    }
-                    
-                    console.log(`🔄 [UNFOLLOWED] Mağaza: ${store.supplierName} için ${storeProducts.length} ürün görseli yükleniyor...`);
-                    
-                    // Önce tüm ürünlere placeholder atama
-                    for (const product of storeProducts) {
-                        if (!productImages[product.productID]) {
-                            setProductImages(prev => ({
-                                ...prev,
-                                [product.productID]: DEFAULT_PLACEHOLDER
-                            }));
-                        }
-                    }
-                    
-                    // Bu mağazanın tüm ürünlerinin görsellerini sırayla yükle
-                    for (const product of storeProducts) {
-                        try {
-                            const categoryKey = product.categoryName as CategoryKey || 'default';
-                            const categoryPrompt = basePrompts[categoryKey] || basePrompts.default;
-                            const prompt = categoryPrompt.main(product.productName);
-                            
-                            const response = await fetch('/api/ImageCache', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    pageID: 'products',
-                                    prompt: prompt,
-                                    checkOnly: false
-                                })
-                            });
-                            
-                            if (response.ok) {
-                                const data = await response.json();
-                                if (data.success && data.image) {
-                                    const imageUrl = `data:image/jpeg;base64,${data.image}`;
-                                    setProductImages(prev => ({
-                                        ...prev,
-                                        [product.productID]: imageUrl
-                                    }));
-                                    console.log(`✅ [UNFOLLOWED] Mağaza: ${store.supplierName} - Ürün ID ${product.productID} (${product.productName}) için görsel yüklendi`);
-                                }
-                            }
-                            
-                            // Her ürün arasında kısa bir gecikme
-                            await new Promise(resolve => setTimeout(resolve, 300));
-                        } catch (error) {
-                            console.error(`❌ Ürün ID ${product.productID} için görsel yüklenemedi:`, error);
-                        }
-                    }
-                    
-                    console.log(`✅ [UNFOLLOWED] Mağaza: ${store.supplierName} için tüm ürün görselleri yüklendi`);
-                }
-                
-                console.log("🎉 TÜM GÖRSEL YÜKLEME İŞLEMLERİ BAŞARIYLA TAMAMLANDI");
-                
-            } catch (error) {
-                console.error('❌ Görsel yükleme hatası:', error);
-            } finally {
-                setLoadingImages(false);
-                setStoreImagesLoaded(true);
+                console.log(`✅ Product images loaded for Store: ${store.supplierName} (ID: ${store.supplierID}) in '${activeTab}' tab.`);
             }
+
+            console.log(`🎉 Product image loading COMPLETE for activeTab: '${activeTab}'.`);
+            setLoadingImages(false); // Mark product image loading for current tab as finished
+            setStoreImagesLoaded(true); // Mark that images for the current tab view are loaded
         };
-        
-        // Sayfa ilk yüklendiğinde hemen başlamasın, biraz beklesin
-        const timer = setTimeout(loadAllImages, 1000);
+
+        // Start loading product images if conditions are met
+        // Adding a small delay to ensure UI updates from supplier images are processed
+        const timer = setTimeout(loadProductImagesForCurrentTab, 500); 
         
         return () => clearTimeout(timer);
         
-    }, [isLoading, activeTab, storeImagesLoaded]);
+    }, [isLoading, initialSupplierImagesDone, isLoadingSupplierImages, activeTab, storeImagesLoaded, suppliers, allStores, followedSuppliers, products]); // Added dependencies
     
     // Mağaza resimlerinden önce ürünlerin local kopya resimlerini gösterme için
     useEffect(() => {
@@ -591,6 +470,7 @@ export default function MyFollowedStores() {
     // Sekme değiştiğinde mağaza görsellerini yeniden yüklemeyi tetikle
     useEffect(() => {
         setStoreImagesLoaded(false); // Tab değiştiğinde, görsel yükleme işlemini sıfırla
+        setLoadingImages(false); // Also reset loadingImages flag for product images
     }, [activeTab]);
 
     // Yükleme ekranı

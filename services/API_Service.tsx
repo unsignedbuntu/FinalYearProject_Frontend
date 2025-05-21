@@ -458,97 +458,6 @@ export const deleteSupplier = async (id: number) => {
   return response.json();
 };
 
-export async function getImageFromCache(pageId: string, prompt: string) {
-  try {
-    const response = await api.post('/api/ImageCache', {
-      pageID: pageId,
-      prompt: prompt,
-      checkOnly: true
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      httpsAgent: new https.Agent({ rejectUnauthorized: false })
-    });
-
-    console.log('Cache response:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('Error fetching from cache:', error);
-    if (error.response) {
-      console.error('Error response:', error.response.data);
-      console.error('Error status:', error.response.status);
-    }
-    return { cached: false, error: error.message };
-  }
-}
-
-export const getCacheImageById = async (pageId: string, prompt: string, id: number) => {
-  const response = await fetch(`${getApiUrl()}/api/ImageCache?pageId=${pageId}&prompt=${prompt}&id=${id}`, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    },
-    mode: 'cors',
-    cache: 'no-store'
-  });
-  return response.json();
-};
-
-interface CreateCacheImageParams {
-  pageID: string;
-  prompt: string;
-}
-
-export const createCacheImage = async ({ pageID, prompt }: CreateCacheImageParams) => {
-  try {
-    if (!pageID || !prompt) {
-      console.error("HATA: pageID veya prompt veya image eksik!", { pageID, prompt });
-      return { success: false, error: "PageID ve Prompt,Image zorunludur!" };
-    }
-
-    const response = await api.post('/api/ImageCache', {
-      pageID: pageID,
-      prompt: prompt,
-      checkOnly: false
-    }, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      httpsAgent: new https.Agent({ rejectUnauthorized: false })
-    });
-
-    if (response.data && response.data.image) {
-      return {
-        success: true,
-        image: response.data.image
-      };
-    }
-  
-    return {
-      success: false,
-      error: 'Failed to create image'
-    };
-  } catch (error: any) {
-    console.error('Error in createCacheImage:', error);
-    return { 
-      success: false, 
-      error: error.message || 'Failed to create and cache image' 
-    };
-  }
-};
-
-export const deleteCacheImage = async (id: number) => {
-  const response = await fetch(`${getApiUrl()}/api/ImageCache/SoftDelete_Status${id}`, {
-    method: 'DELETE',
-  });
-
-  return response.json();
-};
-
 export const getLoyaltyPrograms = async () => {
   try {
     const response = await fetch(`${getApiUrl()}/api/LoyaltyPrograms`, {
@@ -965,3 +874,260 @@ export const getFavoriteListItems = async (listId: number): Promise<ApiFavoriteL
 //     throw new Error(errorMessage);
 //   }
 // };
+
+// Corresponds to C# ImageCacheDTO
+export interface ImageCacheRequestDto {
+  prompt: string;
+  base64Image: string;
+  entityType?: string; // "Product" or "Supplier"
+  entityId?: number;
+}
+
+// Corresponds to C# ImageCacheResponseDTO
+export interface ImageCacheResponseDto {
+  id: number;
+  prompt?: string;
+  hashValue?: string;
+  status: boolean;
+  productId?: number;
+  productName?: string;
+  supplierId?: number;
+  supplierName?: string;
+  base64Image?: string; 
+  imageUrl?: string;
+}
+
+// --- NEW ImageCache Functions for C# Backend ---
+
+/**
+ * Creates or updates an image in the backend cache.
+ * POST /api/imagecache
+ */
+export const createOrUpdateImageInBackend = async (dto: ImageCacheRequestDto): Promise<ImageCacheResponseDto | null> => {
+  try {
+    const response = await api.post<ApiResponse<ImageCacheResponseDto>>('/api/imagecache', dto);
+    if (response.data && response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    console.error('Error creating/updating image in backend:', response.data?.message || 'No data returned', response.data);
+    return null;
+  } catch (error: any) {
+    console.error('Exception in createOrUpdateImageInBackend:', error.response?.data || error.message);
+    const errorMessage = error.response?.data?.message || error.message || 'Failed to save image to backend cache';
+    throw new Error(errorMessage);
+  }
+};
+
+/**
+ * Gets an image from the backend cache by prompt.
+ * GET /api/imagecache/prompt/{prompt}
+ */
+export const getImageByPromptFromBackend = async (prompt: string): Promise<ImageCacheResponseDto | null> => {
+  if (!prompt) return null;
+  try {
+    const response = await api.get<ApiResponse<ImageCacheResponseDto>>(`/api/imagecache/prompt/${encodeURIComponent(prompt)}`);
+    if (response.data && response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    if (response.data && !response.data.success) {
+        // This is a valid case where image is not found, not necessarily an error.
+        console.log(`Image not found in backend by prompt "${prompt}": ${response.data.message}`);
+        return null;
+    }
+    return null;
+  } catch (error: any) {
+    if (error.response && error.response.status === 404) {
+      console.log(`Image not found in backend by prompt (404): "${prompt}"`);
+      return null;
+    }
+    console.error(`Error fetching image by prompt from backend for "${prompt}":`, error.response?.data || error.message);
+    return null;
+  }
+};
+
+/**
+ * Returns the direct URL to fetch an image by its ID from the backend.
+ * This URL will hit GET /api/imagecache/image/{id}
+ */
+export const getDirectImageUrlFromBackend = (imageId: number): string => {
+  return `${getApiUrl()}/api/imagecache/image/${imageId}`;
+};
+
+/**
+ * Soft deletes an image cache record from the backend.
+ * DELETE /api/imagecache/{id}
+ */
+export const deleteImageCacheInBackend = async (id: number): Promise<boolean> => {
+  try {
+    const response = await api.delete<ApiResponse<null>>(`/api/imagecache/${id}`);
+    return response.data?.success || false;
+  } catch (error: any) {
+    console.error(`Error deleting image cache ${id} in backend:`, error.response?.data || error.message);
+    return false;
+  }
+};
+
+/**
+ * Gets image cache entries for a specific ProductID.
+ * GET /api/imagecache/product/{productId}
+ */
+export const getImageCacheForProductFromBackend = async (productId: number): Promise<ImageCacheResponseDto[]> => {
+  try {
+    const response = await api.get<ApiResponse<ImageCacheResponseDto[]>>(`/api/imagecache/product/${productId}`);
+    if (response.data && response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    return [];
+  } catch (error: any) {
+    console.error(`Error fetching image cache for product ${productId} from backend:`, error.response?.data || error.message);
+    return [];
+  }
+};
+
+/**
+ * Gets image cache entries for a specific SupplierID.
+ * GET /api/imagecache/supplier/{supplierId}
+ */
+export const getImageCacheForSupplierFromBackend = async (supplierId: number): Promise<ImageCacheResponseDto[]> => {
+  try {
+    const response = await api.get<ApiResponse<ImageCacheResponseDto[]>>(`/api/imagecache/supplier/${supplierId}`);
+    if (response.data && response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    return [];
+  } catch (error: any) {
+    console.error(`Error fetching image cache for supplier ${supplierId} from backend:`, error.response?.data || error.message);
+    return [];
+  }
+};
+
+// --- Function to be called by Frontend Components via Next.js API Route ---
+
+interface FrontendImageCacheParams {
+  prompt: string;
+  entityType?: 'Product' | 'Supplier' | string; // Page context like 'products', 'my-followed-stores'
+  entityId?: number;
+  // pageID was used to give context to Next.js API route. We'll use entityType primarily now.
+  // pageID might still be passed if the Next.js API route needs it for other logic.
+  pageID?: 'products' | 'my-followed-stores' | string; 
+}
+
+/**
+ * This function is intended to be called by client-side components.
+ * It triggers the Next.js API route (/api/ImageCache) for image generation and caching.
+ * The Next.js API route, in turn, will use the "*InBackend" functions above to interact with the C# backend.
+ * @param params - Contains prompt, entityType, entityId, and checkOnly flag.
+ * @param params.checkOnly - If true, the Next.js API route should only check the cache (both its own logic and backend's) without generating.
+ * @returns A promise that resolves to an object containing success status, and optionally the image (base64) or an error message.
+ */
+export const getOrGenerateImageViaNextApi = async (
+  params: FrontendImageCacheParams & { checkOnly: boolean }
+): Promise<{ success: boolean; image?: string; source?: string; error?: string }> => {
+  try {
+    const body: Record<string, any> = {
+      prompt: params.prompt,
+      checkOnly: params.checkOnly,
+    };
+
+    if (params.entityType && params.entityId !== undefined) {
+      body.entityType = params.entityType;
+      body.entityId = params.entityId;
+    }
+    // Pass pageID if provided, as the Next.js route might still use it for context
+    // or to derive entityType/entityId if not explicitly given.
+    if (params.pageID) {
+        body.pageID = params.pageID;
+    }
+
+    // This fetch calls YOUR Next.js API route located at app/api/ImageCache/route.ts
+    const response = await fetch('/api/ImageCache', { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response from Next.js API route' }));
+      console.error('Error from Next.js /api/ImageCache route:', response.status, errorData);
+      return { success: false, error: errorData.error || `Next.js API Route Error: ${response.status}` };
+    }
+    // The Next.js API route is expected to return a JSON response like:
+    // { success: true, image: 'base64string', source: 'cache_or_generated' }
+    // or { success: false, error: 'message', source: '...' }
+    return await response.json();
+
+  } catch (error: any) {
+    console.error('Exception in getOrGenerateImageViaNextApi:', error);
+    return { success: false, error: error.message || 'Failed to process image request via Next.js API route' };
+  }
+};
+
+// --- Search DTOs and Service Function ---
+
+export interface SearchResultProduct {
+  productID: number;
+  productName: string;
+  imageUrl?: string;
+}
+
+export interface SearchResultCategory {
+  categoryID: number;
+  categoryName: string;
+}
+
+export interface SearchResultStore {
+  storeID: number;
+  storeName: string;
+}
+
+// New interface for Supplier results from backend
+export interface SearchResultSupplier {
+  supplierID: number;
+  supplierName: string;
+}
+
+export interface GlobalSearchResults {
+  products: SearchResultProduct[];
+  categories: SearchResultCategory[];
+  stores: SearchResultStore[];
+  suppliers: SearchResultSupplier[];
+}
+
+/**
+ * Performs a global search across products, categories, stores, and suppliers.
+ * Calls the backend endpoint GET /api/search?q={searchTerm}
+ */
+export const searchGlobal = async (searchTerm: string): Promise<GlobalSearchResults> => {
+  if (!searchTerm.trim()) {
+    console.log('[searchGlobal] Search term is empty, returning empty results.');
+    return { products: [], categories: [], stores: [], suppliers: [] };
+  }
+  try {
+    console.log(`[searchGlobal] Searching for: "${searchTerm}"`);
+    // Expect GlobalSearchResults directly from the backend for this endpoint
+    const response = await api.get<GlobalSearchResults>(`/api/search?q=${encodeURIComponent(searchTerm)}`);
+
+    console.log('[searchGlobal] Raw API response object (expecting GlobalSearchResults directly):', response);
+    console.log('[searchGlobal] API response.data (should be GlobalSearchResults):', response.data);
+
+    if (response.data) {
+      console.log('[searchGlobal] API call successful, data received.');
+      const resultsToReturn = {
+        products: response.data.products || [],
+        categories: response.data.categories || [],
+        stores: response.data.stores || [],
+        suppliers: response.data.suppliers || [],
+      };
+      console.log('[searchGlobal] Returning results:', resultsToReturn);
+      return resultsToReturn;
+    } else {
+      console.warn('[searchGlobal] API call returned no data or unexpected format.');
+      console.log('[searchGlobal] Returning empty results due to missing/unexpected data.');
+      return { products: [], categories: [], stores: [], suppliers: [] };
+    }
+  } catch (error: any) {
+    console.error('[searchGlobal] Exception during search:', error.response?.data || error.message, error);
+    console.log('[searchGlobal] Returning empty results due to exception.');
+    return { products: [], categories: [], stores: [], suppliers: [] };
+  }
+};

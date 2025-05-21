@@ -159,183 +159,151 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
       return;
     }
 
-    console.log("📋 Checking products for image generation");
+    console.log("📋 Checking products for image generation in CategoryDetailsPage");
 
     const initialLoadingState: Record<number, boolean> = {};
     products.forEach(product => {
       initialLoadingState[product.productID] = false;
     });
-    setLoadingImages(initialLoadingState);
+    setLoadingImages(initialLoadingState); // Initialize all to false
 
     // Check for products needing images based on current state and module-level cache
-    const productsNeedingImages = products.filter(p => {
+    const productsToProcessInitially = products.filter(p => {
         if (!p.image || p.image === '/placeholder.png' || p.image.includes('placeholder')) {
             try {
                 const productCategory = categories.find((c: Category) => c.categoryID === p.categoryID);
                 const categoryName = productCategory?.categoryName || 'default';
-                const categoryPrompt = basePrompts[categoryName as CategoryKey] || basePrompts.default;
-                const mainPrompt = categoryPrompt.main(p.productName);
-                // Needs image if not in module cache AND not currently processing
+                const categoryPromptDef = basePrompts[categoryName as CategoryKey] || basePrompts.default;
+                if (!categoryPromptDef || typeof categoryPromptDef.main !== 'function') {
+                    console.warn(`❓ Could not find or use prompt function for category: ${categoryName}, product: ${p.productName} in CategoryDetailsPage filter`);
+                    return false;
+                }
+                const mainPrompt = categoryPromptDef.main(p.productName);
                 return !imageCache[mainPrompt] && !processingPrompts.has(mainPrompt);
             } catch (e) {
-                console.warn(`Could not determine prompt for ${p.productName}`, e);
+                console.warn(`Could not determine prompt for ${p.productName} in CategoryDetailsPage filter`, e);
                 return false; // Don't process if prompt fails
             }
         }
         return false; // Already has a valid image
     });
 
-    if (productsNeedingImages.length > 0) {
-      console.log(`🔍 Found ${productsNeedingImages.length} products needing images in category ${categoryId}`);
-
-      // Set module-level flag
+    if (productsToProcessInitially.length > 0) {
+      console.log(`🔍 Found ${productsToProcessInitially.length} products needing images in category ${categoryId} (CategoryDetailsPage)`);
       imageGenerationInProgress = true;
 
       const generateImages = async () => {
         try {
-          let processedCount = 0;
-          const productsToProcess: ExtendedProduct[] = [];
-          const promptsToProcess: string[] = [];
-          
-          for (const product of productsNeedingImages) {
-            let productCategory = categories.find((c: Category) => c.categoryID === product.categoryID); 
-            const categoryName = productCategory?.categoryName || 'default';
-            const categoryPrompt = basePrompts[categoryName as CategoryKey] || basePrompts.default;
-            // Prompt oluştururken hata olmaması için kontrol
-            if (!categoryPrompt || typeof categoryPrompt.main !== 'function') {
-              console.warn(`❓ Could not find or use prompt function for category: ${categoryName}, product: ${product.productName}`);
-              continue;
+          for (const product of productsToProcessInitially) {
+            if (!imageGenerationInProgress) { // Check flag before processing each product
+                console.log("🛑 Image generation process was stopped externally in CategoryDetailsPage.");
+                break; // Exit loop if flag is false
             }
-            const mainPrompt = categoryPrompt.main(product.productName);
-            
-            // Double check cache and processing status (might have changed)
-            if (imageCache[mainPrompt] || processingPrompts.has(mainPrompt)) {
-              console.log(`⏭️ Skipping product ${product.productID} - already cached or processing`);
-               // If it's in cache but product state doesn't reflect it, update state
-               if(imageCache[mainPrompt] && (!product.image || product.image.includes('placeholder'))) {
-                  setProducts(prevProducts =>
-                    prevProducts.map(p =>
-                      p.productID === product.productID
-                        ? { ...p, image: imageCache[mainPrompt] }
-                        : p
-                    )
-                  );
-               }
-              continue;
-            }
-            
-            productsToProcess.push(product);
-            promptsToProcess.push(mainPrompt);
-            // Add to module-level processing set *before* async call
-            processingPrompts.add(mainPrompt);
-          }
-          
-          console.log(`📊 Will process ${productsToProcess.length} products after filtering`);
-          
-          if (productsToProcess.length === 0) {
-            console.log("✅ No products to process, all are cached or being processed.");
-            imageGenerationInProgress = false; // Reset flag
-            return;
-          }
-          
-          for (let i = 0; i < productsToProcess.length; i++) {
-             // Check flag before each iteration
-             if (!imageGenerationInProgress) {
-                console.log("🛑 Image generation process was stopped externally.");
-                // Clean up prompts added in this run but not processed
-                for (let j = i; j < productsToProcess.length; j++) {
-                    processingPrompts.delete(promptsToProcess[j]);
-                }
-                break;
-              }
 
-            const product = productsToProcess[i];
-            const prompt = promptsToProcess[i];
-            
-            console.log(`🔄 Processing product ${processedCount + 1}/${productsToProcess.length}: ${product.productName} (Prompt: ${prompt})`);
+            let productCategory = categories.find((c: Category) => c.categoryID === product.categoryID);
+            const categoryName = productCategory?.categoryName || 'default';
+            const categoryPromptDef = basePrompts[categoryName as CategoryKey] || basePrompts.default;
+
+            if (!categoryPromptDef || typeof categoryPromptDef.main !== 'function') {
+              console.warn(`❓ Could not find or use prompt function for category: ${categoryName}, product: ${product.productName} in CategoryDetailsPage loop`);
+              continue; // Skip this product
+            }
+            const mainPrompt = categoryPromptDef.main(product.productName);
+
+            // Double check cache and processing status just before the async call
+            if (imageCache[mainPrompt]) {
+              console.log(`⏭️ Product ${product.productID} (${product.productName}) already in imageCache. Updating state if needed. (CategoryDetailsPage)`);
+              if (!product.image || product.image.includes('placeholder')) {
+                setProducts(prevProducts =>
+                  prevProducts.map(p =>
+                    p.productID === product.productID ? { ...p, image: imageCache[mainPrompt] } : p
+                  )
+                );
+              }
+              continue; // Already cached
+            }
+
+            if (processingPrompts.has(mainPrompt)) {
+              console.log(`⏭️ Product ${product.productID} (${product.productName}) is already being processed (in processingPrompts). Skipping. (CategoryDetailsPage)`);
+              continue; // Already processing
+            }
+
+            console.log(`🔄 Processing product ${product.productName} (ID: ${product.productID}) (CategoryDetailsPage)`);
             setLoadingImages(prev => ({ ...prev, [product.productID]: true }));
-            
+            processingPrompts.add(mainPrompt); // Add to set before starting fetch
+
             try {
-              console.log("📡 Sending API request for image generation:", product.productID, "Prompt:", prompt);
+              console.log("📡 Sending API request for image generation (CategoryDetailsPage):", product.productID, "Prompt:", mainPrompt);
               const response = await fetch('/api/ImageCache', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pageID: 'products', prompt: prompt, checkOnly: false }),
-                // Removed cache: 'no-store' unless specifically needed
+                body: JSON.stringify({
+                    prompt: mainPrompt,
+                    entityType: "Product",
+                    entityId: product.productID,
+                    checkOnly: false
+                }),
               });
 
-              console.log(`📬 Received API response for product ${product.productID}. Status: ${response.status}, OK: ${response.ok}`);
+              console.log(`📬 Received API response for product ${product.productID}. Status: ${response.status}, OK: ${response.ok} (CategoryDetailsPage)`);
 
               if (response.ok) {
                 const data = await response.json();
-                console.log(`📦 Parsed API response data for product ${product.productID}:`, data);
+                console.log(`📦 Parsed API response data for product ${product.productID}:`, data, "(CategoryDetailsPage)");
 
                 if (data.success && data.image) {
-                  console.log("✅ Successfully retrieved or generated image for product:", product.productID);
+                  console.log("✅ Successfully retrieved or generated image for product:", product.productID, "(CategoryDetailsPage)");
                   const imageUrl = `data:image/jpeg;base64,${data.image}`;
-                  
-                  // Add to module-level cache *first*
+
                   if (typeof imageUrl === 'string' && imageUrl.startsWith('data:image')) {
-                     imageCache[prompt] = imageUrl;
-                     console.log(`💾 Added image to module cache for prompt: ${prompt}`);
+                     imageCache[mainPrompt] = imageUrl;
+                     console.log(`💾 Added image to module cache for prompt: ${mainPrompt} (CategoryDetailsPage)`);
                   }
 
-                  // Update product state
                   setProducts(prevProducts =>
                     prevProducts.map(p =>
-                      p.productID === product.productID
-                        ? { ...p, image: imageUrl }
-                        : p
+                      p.productID === product.productID ? { ...p, image: imageUrl } : p
                     )
                   );
-                  
                 } else {
-                  console.error(`❌ API reported success=false or missing image for product ${product.productID}. Data:`, data);
+                  console.error(`❌ API reported success=false or missing image for product ${product.productID}. Data:`, data, "(CategoryDetailsPage)");
                 }
               } else {
-                // Log response body text for non-OK responses if possible
                 let errorBody = 'Could not read error body';
-                try {
-                    errorBody = await response.text();
-                } catch (e) { console.warn("Could not read error body text", e); }
-                console.error(`❌ API Error for product ${product.productID}: Status ${response.status}. Body:`, errorBody);
+                try { errorBody = await response.text(); } catch (e) { console.warn("Could not read error body text", e); }
+                console.error(`❌ API Error for product ${product.productID}: Status ${response.status}. Body:`, errorBody, "(CategoryDetailsPage)");
               }
             } catch (error) {
-              // Log the caught error object itself
-              console.error(`❌ Exception during fetch for product ${product.productID}:`, error);
+              console.error(`❌ Exception during fetch for product ${product.productID}:`, error, "(CategoryDetailsPage)");
             } finally {
               setLoadingImages(prev => ({ ...prev, [product.productID]: false }));
-              // Remove from module-level processing set *after* attempt
-              processingPrompts.delete(prompt);
+              processingPrompts.delete(mainPrompt); // Remove from set after attempt (success or fail)
+              console.log(`📊 Finished attempt for product ${product.productName}. Prompt removed: ${mainPrompt}. (CategoryDetailsPage)`);
             }
             
-            processedCount++;
-            console.log(`📊 Processed ${processedCount}/${productsToProcess.length} products`);
-            // Keep delay
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
+            // Optional delay between processing each product
+            if (imageGenerationInProgress) { // Only delay if still supposed to be running
+                await new Promise(resolve => setTimeout(resolve, 750)); // Slightly increased delay
+            }
+          } // End of for...of loop
 
-          console.log("🎉 Image generation loop finished for this batch");
+          console.log("🎉 Image generation loop finished for this batch in CategoryDetailsPage.");
         } catch (error) {
-          console.error("❌ Error in image generation process:", error);
+          console.error("❌ Error in image generation process (CategoryDetailsPage):", error);
         } finally {
-          // Reset module-level flag
           imageGenerationInProgress = false;
-          console.log("🏁 Image generation process ended.");
+          console.log("🏁 Image generation process ended for CategoryDetailsPage.");
         }
       };
-      
+
       generateImages();
     } else {
-        // No images needed generation based on current state and cache
-        console.log("📷 No images need generation based on current state and cache.");
-        // Ensure flag is false if no generation was triggered
+        console.log("📷 No images need generation based on current state and cache in CategoryDetailsPage.");
         if (imageGenerationInProgress) {
-            imageGenerationInProgress = false;
+            imageGenerationInProgress = false; // Ensure flag is reset if no generation was triggered
         }
     }
-    // Dependencies: Run when loading finishes, products change, or categories change (for prompt generation)
-  }, [loading, products, categories, categoryId]);
+  }, [loading, products, categories, categoryId]); // Keep dependencies as they are, internal logic handles re-triggering issues
 
   // Cleanup useEffect (Updated)
   useEffect(() => {
