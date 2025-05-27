@@ -33,7 +33,7 @@ export interface GridProduct {
 interface ProductGridProps {
   products: GridProduct[];
   isLoading?: boolean;
-  context?: 'products' | 'favorites' | 'search' | 'favorite-list-detail';
+  context?: 'products' | 'favorites' | '' | 'favorite-list-detail';
   onProductMenuClick?: (productId: number) => void;
   onAddToCartClick?: (productId: number) => void;
   onDirectDeleteClick?: (productId: number) => void;

@@ -18,6 +18,7 @@ import { useUserStore } from '@/app/stores/userStore'
 import MenuOverlay from '@/components/overlay/MenuOverlay'
 import MoveToListRealOverlay, { MoveToListOverlayProps } from '@/components/overlay/MoveToListOverlay'
 import CreateNewListOverlay, { CreateNewListOverlayProps } from '@/components/overlay/CreateNewListOverlay'
+import { getProxiedProductImageUrl } from '@/services/API_Service'
 
 // Import GridProduct type
 import { type GridProduct } from '@/app/products/ProductGrid'
@@ -183,7 +184,7 @@ export default function FavoritesPage() {
     productId: fp.ProductId,    
     productName: fp.ProductName || 'Unnamed Product',
     price: fp.Price,            
-    imageUrl: fp.ImageUrl,      
+    imageUrl: getProxiedProductImageUrl(fp.ProductId),
     inStock: fp.InStock,        // Use PascalCase InStock
     supplierName: fp.SupplierName, // Use PascalCase SupplierName if available on FavoriteProduct
   }));

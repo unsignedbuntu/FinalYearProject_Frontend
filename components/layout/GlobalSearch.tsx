@@ -99,7 +99,7 @@ const GlobalSearch = () => {
       )}
 
       {isDropdownVisible && results && (results.products.length > 0 || results.categories.length > 0 || results.stores.length > 0 || results.suppliers.length > 0) && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-96 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-96 overflow-y-auto">
           {results.products.length > 0 && (
             <div className="p-2">
               <h3 className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">Products</h3>

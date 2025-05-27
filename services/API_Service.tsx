@@ -1131,3 +1131,13 @@ export const searchGlobal = async (searchTerm: string): Promise<GlobalSearchResu
     return { products: [], categories: [], stores: [], suppliers: [] };
   }
 };
+
+export const getProxiedProductImageUrl = (productId: number): string => {
+  // This URL will point to a new Next.js API route we will create.
+  // Using a distinct path like '/api-proxy' to avoid potential conflicts with '/api'.
+  return `/api-proxy/product-image/${productId}`;
+};
+
+export const getProxiedSupplierImageUrl = (supplierId: number): string => {
+  return `/api-proxy/supplier-image/${supplierId}`;
+};
