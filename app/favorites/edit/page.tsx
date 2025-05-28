@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useRouter } from "next/navigation"
@@ -132,7 +131,7 @@ export default function FavoritesEditPage() {
                   <label htmlFor={`select-${product.Id}`} className="block cursor-pointer">
                     <div className="relative w-full aspect-square mb-3 rounded-md overflow-hidden bg-gray-100">
                       <Image
-                        src={product.ImageUrl || "/placeholder.png"}
+                        src={`/api-proxy/product-image/${product.ProductId}`}
                         alt={product.ProductName || "Product image"}
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"

@@ -11,18 +11,9 @@ import CompleteShopping from '@/components/messages/CompleteShopping'
 import Ticket from '@/components/icons/Ticket'
 import { useCartStore, useCartActions } from '@/app/stores/cartStore'
 import { useUserStore } from '@/app/stores/userStore'
-import { createOrder, OrderPayloadDTO } from '@/services/API_Service'
+import { createOrder, OrderPayloadDTO, CartItemDto } from '@/services/API_Service'
 import { toast } from 'react-hot-toast'
 import EmptyCartPage from './empty/page'
-
-interface Product {
-  id: number
-  name: string
-  supplier: string
-  price: number
-  image: string
-  quantity: number
-}
 
 interface CouponType {
   code: string;
@@ -213,146 +204,146 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen pt-[40px] relative">
+    <div className="min-h-screen pt-[40px] relative flex">
       <Sidebar />
       
-      <div className="ml-[391px] mt-[87px]">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="font-raleway text-[64px] font-normal text-left">
-            My Cart ({currentItemCount} {currentItemCount === 1 ? 'item' : 'items'})
-          </h1>
-          
-          <div className="flex items-center gap-2 cursor-pointer" 
-               style={{position: 'absolute', left: '983px', top: '179px'}}
-               onClick={handleClearCart}
-               title="Clear Cart">
-            <span className="text-[#FFF600] font-raleway text-[24px]">Clear Cart</span>
-            <Bin width={24} height={24} />
+      <div className="ml-[391px] mt-[87px] flex flex-1 gap-x-6">
+        <div className="flex flex-col w-full max-w-[800px]">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="font-raleway text-[64px] font-normal text-left">
+              My Cart ({currentItemCount} {currentItemCount === 1 ? 'item' : 'items'})
+            </h1>
+            <div className="flex items-center gap-2 cursor-pointer" 
+                 onClick={handleClearCart}
+                 title="Clear Cart">
+              <span className="text-[#FFF600] font-raleway text-[24px]">Clear Cart</span>
+              <Bin width={24} height={24} />
+            </div>
           </div>
-        </div>
 
-        <div className="w-[800px] h-[80px] bg-[#D9D9D9] rounded-lg flex items-center justify-between px-6"
-             style={{position: 'absolute', left: '391px', top: '225px'}}>
-          <div className="flex items-center gap-4">
-            <Coupon width={32} height={32} color="#FF9D00" />
-            <span className="font-raleway text-[32px] font-normal text-[#FF9D00]">My Coupons</span>
-            <ArrowRight width={32} height={32} />
+          <div className="w-full h-[80px] bg-[#D9D9D9] rounded-lg flex items-center justify-between px-6 mb-8">
+            <div className="flex items-center gap-4">
+              <Coupon width={32} height={32} color="#FF9D00" />
+              <span className="font-raleway text-[32px] font-normal text-[#FF9D00]">My Coupons</span>
+              <ArrowRight width={32} height={32} />
+            </div>
+            <div className="flex items-center gap-2 cursor-pointer"
+                 onClick={() => setShowCouponOverlay(true)}>
+              <span className="font-raleway text-[32px] font-normal text-[#FF9D00]">
+                Add coupon code +
+              </span>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-2 cursor-pointer"
-               onClick={() => setShowCouponOverlay(true)}>
-            <span className="font-raleway text-[32px] font-normal text-[#FF9D00]"
-                  style={{position: 'absolute', left: '500px', top: '20px'}}>
-              Add coupon code +
-            </span>
-          </div>
-        </div>
 
-        <div className="mt-[100px]">
-          {products.map((product) => (
-              <div key={product.productId}
-                   className="w-[800px] h-[150px] bg-[#D9D9D9] rounded-lg mb-4 relative">
-                <div className="absolute left-0 top-3 w-full px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-raleway text-[16px]">Supplier: </span>
-                      <span className="font-raleway text-[16px] text-[#00FFB7]">{product.supplierName || 'Unknown'}</span>
-                      <ArrowRight width={16} height={16} />
+          <div className="w-full">
+            {products.map((product: CartItemDto) => (
+                <div key={product.productId}
+                     className="w-full h-[150px] bg-[#D9D9D9] rounded-lg mb-4 relative">
+                  <div className="absolute left-0 top-3 w-full px-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-raleway text-[16px]">Supplier: </span>
+                        <span className="font-raleway text-[16px] text-[#00FFB7]">{product.supplierName || 'Unknown'}</span>
+                        <ArrowRight width={16} height={16} />
+                      </div>
+                      {selectedItems.includes(product.productId) && (
+                        <span className="font-raleway text-[20px] font-normal text-[#008A09]">
+                          Free shipping
+                        </span>
+                      )}
                     </div>
-                    {selectedItems.includes(product.productId) && (
-                      <span className="font-raleway text-[20px] font-normal text-[#008A09]">
-                        Free shipping
-                      </span>
-                    )}
+                    <div className="w-full h-[0.5px] bg-[#665F5F] mt-2 -mx-6" />
                   </div>
-                  <div className="w-[800px] h-[0.5px] bg-[#665F5F] mt-2 -mx-6" />
-                </div>
 
-                <div className="absolute left-[20px] top-[45px] flex items-center">
-                  <input 
-                    type="checkbox" 
-                    className="w-[32px] h-[32px] absolute left-[6px] top-[36px] cursor-pointer"
-                    checked={selectedItems.includes(product.productId)}
-                    onChange={() => toggleItemSelection(product.productId)}
-                  />
-                  <div className="ml-[36px] flex items-center">
-                    <Image 
-                      src={product.imageUrl || '/placeholder.png'}
-                      alt={product.productName}
-                      width={100}
-                      height={100}
-                      className="rounded-lg object-contain bg-white"
+                  <div className="absolute left-[20px] top-[45px] flex items-center">
+                    <input 
+                      type="checkbox" 
+                      className="w-[32px] h-[32px] absolute left-[6px] top-[36px] cursor-pointer"
+                      checked={selectedItems.includes(product.productId)}
+                      onChange={() => toggleItemSelection(product.productId)}
                     />
-                    
-                    <div className="flex flex-col max-w-[400px] ml-4">
-                      <div className="font-raleway text-[14px] leading-tight">
-                        {product.productName}
-                      </div>
-                      <div className="font-raleway text-[16px] font-bold text-blue-600 mt-1">
-                        {product.price.toFixed(2)} TL
+                    <div className="ml-[36px] flex items-center" key={`product-details-${product.productId}-${product.quantity}`}> 
+                      <img 
+                        key={`${product.imageUrl || product.productId}-img`}
+                        src={product.imageUrl || '/placeholder.png'}
+                        alt={product.productName}
+                        width={100}
+                        height={100}
+                        className="rounded-lg object-contain bg-white"
+                      />
+                      
+                      <div className="flex flex-col max-w-[400px] ml-4">
+                        <div className="font-raleway text-[14px] leading-tight">
+                          {product.productName}
+                        </div>
+                        <div className="font-raleway text-[16px] font-bold text-blue-600 mt-1">
+                          {product.price.toFixed(2)} TL
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="absolute right-[150px] top-[75px] flex items-center">
-                  <button onClick={() => handleQuantityChange(product.productId, -1)}
-                          className="w-[30px] h-[30px] bg-[#F0F0F0] rounded-full flex items-center justify-center text-xl font-bold hover:bg-gray-300 disabled:opacity-50"
-                          disabled={product.quantity <= 1 || isLoading}
-                        >
-                        -
-                      </button>
-                  <span className="mx-3 font-raleway text-[20px] w-8 text-center">{product.quantity}</span>
-                  <button onClick={() => handleQuantityChange(product.productId, 1)}
-                          className="w-[30px] h-[30px] bg-[#F0F0F0] rounded-full flex items-center justify-center text-xl font-bold hover:bg-gray-300 disabled:opacity-50"
+                  <div className="absolute right-[150px] top-[75px] flex items-center">
+                    <button onClick={() => handleQuantityChange(product.productId, -1)}
+                            className="w-[30px] h-[30px] bg-[#F0F0F0] rounded-full flex items-center justify-center text-xl font-bold hover:bg-gray-300 disabled:opacity-50"
+                            disabled={product.quantity <= 1 || isLoading}
+                          >
+                          -
+                        </button>
+                    <span className="mx-3 font-raleway text-[20px] w-8 text-center">{product.quantity}</span>
+                    <button onClick={() => handleQuantityChange(product.productId, 1)}
+                            className="w-[30px] h-[30px] bg-[#F0F0F0] rounded-full flex items-center justify-center text-xl font-bold hover:bg-gray-300 disabled:opacity-50"
+                             disabled={isLoading}
+                          >
+                          +
+                        </button>
+                  </div>
+
+                  <button className="absolute right-[20px] top-[110px] text-gray-600 hover:text-red-500 disabled:opacity-50"
+                          onClick={() => handleRemoveProduct(product.productId)}
                            disabled={isLoading}
-                        >
-                        +
-                      </button>
+                          title="Remove Product">
+                    <Bin width={20} height={20} />
+                  </button>
                 </div>
-
-                <button className="absolute right-[20px] top-[110px] text-gray-600 hover:text-red-500 disabled:opacity-50"
-                        onClick={() => handleRemoveProduct(product.productId)}
-                         disabled={isLoading}
-                        title="Remove Product">
-                  <Bin width={20} height={20} />
-                </button>
-              </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {products.length > 0 && (
-             <div className="w-[400px] bg-[#D9D9D9] rounded-lg p-6 fixed right-[50px] top-[225px]">
-                 <h2 className="font-raleway text-[32px] font-bold mb-4">Order Summary</h2>
-                <div className="flex justify-between mb-2">
-                     <span>Selected Items Total:</span>
-                    <span>{currentSelectedTotalPrice.toFixed(2)} TL</span>
+             <div className="w-[400px] flex-shrink-0">
+                <div className="bg-[#D9D9D9] rounded-lg p-6 w-full h-fit"> 
+                    <h2 className="font-raleway text-[32px] font-bold mb-4">Order Summary</h2>
+                    <div className="flex justify-between mb-2">
+                       <span>Selected Items Total:</span>
+                      <span>{currentSelectedTotalPrice.toFixed(2)} TL</span>
+                  </div>
+                  <div className="flex justify-between mb-4">
+                    <span>Shipping Cost:</span>
+                    {currentSelectedTotalPrice > 50 ? (
+                      <span>
+                        <span className="line-through text-gray-500">{shippingCost.toFixed(2)} TL</span>
+                        <span className="ml-2">0.00 TL</span>
+                      </span>
+                    ) : (
+                      <span>{shippingCost.toFixed(2)} TL</span>
+                    )}
+                  </div>
+                   <div className="border-t border-gray-400 pt-4 flex justify-between font-bold text-lg">
+                       <span>Grand Total:</span>
+                      <span>
+                        {(currentSelectedTotalPrice + (currentSelectedTotalPrice > 50 ? 0 : (currentSelectedTotalPrice > 0 ? shippingCost : 0))).toFixed(2)} TL
+                      </span>
+                   </div>
+                  <button 
+                      onClick={handleCompleteShopping}
+                       disabled={selectedItems.length === 0 || isLoadingOrder}
+                      className="w-full mt-6 bg-[#FF9D00] text-white py-3 rounded-lg font-bold hover:bg-[#FFB84D] transition-colors disabled:opacity-50 flex items-center justify-center"
+                   >
+                       {isLoadingOrder ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : 'Proceed to Checkout'}
+                   </button>
+                   {orderError && <p className="text-red-500 text-sm mt-2">{orderError}</p>}
                 </div>
-                <div className="flex justify-between mb-4">
-                  <span>Shipping Cost:</span>
-                  {currentSelectedTotalPrice > 50 ? (
-                    <span>
-                      <span className="line-through text-gray-500">{shippingCost.toFixed(2)} TL</span>
-                      <span className="ml-2">0.00 TL</span>
-                    </span>
-                  ) : (
-                    <span>{shippingCost.toFixed(2)} TL</span>
-                  )}
-                </div>
-                 <div className="border-t border-gray-400 pt-4 flex justify-between font-bold text-lg">
-                     <span>Grand Total:</span>
-                    <span>
-                      {(currentSelectedTotalPrice + (currentSelectedTotalPrice > 50 ? 0 : (currentSelectedTotalPrice > 0 ? shippingCost : 0))).toFixed(2)} TL
-                    </span>
-                 </div>
-                <button 
-                    onClick={handleCompleteShopping}
-                     disabled={selectedItems.length === 0 || isLoadingOrder}
-                    className="w-full mt-6 bg-[#FF9D00] text-white py-3 rounded-lg font-bold hover:bg-[#FFB84D] transition-colors disabled:opacity-50 flex items-center justify-center"
-                 >
-                     {isLoadingOrder ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : 'Proceed to Checkout'}
-                 </button>
-                 {orderError && <p className="text-red-500 text-sm mt-2">{orderError}</p>}
              </div>
         )}
       </div>

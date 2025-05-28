@@ -225,9 +225,19 @@ export default function MyFollowedStores() {
 
             for (const store of allStores) {
                 try {
+                    const baseStorePromptFromCode = "Sleek, modern storefront design with a professional appearance, emphasizing brand identity and unique style.";
+                    let actualBasePromptToUse = baseStorePromptFromCode;
+
+                    // For supplier IDs 1-15, add a trailing space to the base prompt to force a new hash and bypass problematic cache.
+                    // This will be a one-time regeneration with this slightly altered prompt.
+                    if (store.supplierID >= 1 && store.supplierID <= 15) {
+                        actualBasePromptToUse = baseStorePromptFromCode + " "; // Trailing space added
+                        console.log(`Applied slightly modified prompt for Supplier ID ${store.supplierID} (${store.supplierName}) to force regeneration.`);
+                    }
+
                     const generatedPrompt = generatePrompt(
                         store.supplierName,
-                        "modern storefront design with professional appearance, emphasizing brand style"
+                        actualBasePromptToUse // Use the original or slightly modified base prompt
                     );
 
                     const response = await fetch('/api/ImageCache', {

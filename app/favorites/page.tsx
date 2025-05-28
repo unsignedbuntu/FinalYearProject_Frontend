@@ -184,7 +184,7 @@ export default function FavoritesPage() {
     productId: fp.ProductId,    
     productName: fp.ProductName || 'Unnamed Product',
     price: fp.Price,            
-    imageUrl: getProxiedProductImageUrl(fp.ProductId),
+    imageUrl: `/api-proxy/product-image/${fp.ProductId}`,
     inStock: fp.InStock,        // Use PascalCase InStock
     supplierName: fp.SupplierName, // Use PascalCase SupplierName if available on FavoriteProduct
   }));

@@ -27,8 +27,8 @@ const GlobalSearch = () => {
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  const fetchResults = async (query: string) => {
-    console.log('[GlobalSearch] fetchResults called with query:', query);
+  const fetchResults = useCallback(async (query: string) => {
+    console.log('[GlobalSearch] fetchResults (useCallback) called with query:', query);
     if (!query.trim()) {
       setResults(null);
       setIsDropdownVisible(false);
@@ -39,21 +39,40 @@ const GlobalSearch = () => {
       console.log('[GlobalSearch] Calling searchGlobal with query:', query);
       const searchData = await searchGlobal(query);
       console.log('[GlobalSearch] Data received from searchGlobal:', searchData);
+
+      // Set results first
       setResults(searchData);
-      setIsDropdownVisible(true);
-    } catch (error) {
-      console.error("Search failed:", error);
-      setResults(null); 
+
+      // Then, determine visibility based on content of searchData
+      if (searchData && (searchData.products.length > 0 || searchData.categories.length > 0 || searchData.stores.length > 0 || searchData.suppliers.length > 0)) {
+        setIsDropdownVisible(true);
+        console.log('[GlobalSearch] Setting isDropdownVisible to true because searchData has content.');
+      } else {
+        setIsDropdownVisible(false);
+        console.log('[GlobalSearch] Setting isDropdownVisible to false because searchData is empty or null.');
+      }
+    } catch (error) { // This catch is for errors thrown by searchGlobal or other issues in try block
+      console.error("[GlobalSearch] Error in fetchResults:", error);
+      setResults(null);
       setIsDropdownVisible(false);
     } finally {
       setIsLoading(false);
+      // Logging state here might show values from previous render due to async nature of setState
+      // console.log('[GlobalSearch] fetchResults FINALLY: results state:', results); // Best to check 'Data received' log
+      // console.log('[GlobalSearch] fetchResults FINALLY: isDropdownVisible state:', isDropdownVisible); // And the new specific logs for visibility
     }
-  };
+  }, []); // Dependencies are stable setters from useState (setIsLoading, setResults, setIsDropdownVisible) and searchGlobal (import)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const debouncedFetchResults = useCallback(debounce(fetchResults, 300), []);
+  const debouncedFetchResults = useCallback(debounce(fetchResults, 300), [fetchResults]);
 
   useEffect(() => {
+    if (searchTerm.trim() === '') { // Also handle clearing results when searchTerm is cleared
+        setResults(null);
+        setIsDropdownVisible(false);
+        setIsLoading(false); // Ensure loading is also reset
+    }
+    // Only call debouncedFetchResults if searchTerm is not empty,
+    // fetchResults itself handles the query.trim() check but this prevents unnecessary debounce scheduling.
     debouncedFetchResults(searchTerm);
   }, [searchTerm, debouncedFetchResults]);
 
@@ -113,12 +132,11 @@ const GlobalSearch = () => {
                     >
                         {product.imageUrl && (
                             <Image 
-                                src={product.imageUrl.startsWith('data:') || product.imageUrl.startsWith('http') ? product.imageUrl : `/images_s/${product.imageUrl}`}
+                                src={`/api-proxy/product-image/${product.productID}`}
                                 alt={product.productName}
                                 width={32} 
                                 height={32}
                                 className="object-contain w-8 h-8 rounded-md mr-3"
-                                unoptimized={product.imageUrl.startsWith('data:')}
                             />
                         )}
                         {!product.imageUrl && (

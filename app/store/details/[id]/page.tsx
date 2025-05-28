@@ -330,7 +330,7 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
     // Fiyat aralığı filtresi
     if (product.price && (product.price < priceRange[0] || product.price > priceRange[1])) {
       return false;
-    }
+    }    
 
     return true;
   });

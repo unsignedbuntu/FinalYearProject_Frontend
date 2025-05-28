@@ -171,11 +171,24 @@ export const useCartStore = create<CartState>((set, get) => ({
         const updatedItemDto = await addOrUpdateCartItem(updateData);
         if (updatedItemDto) {
           set(state => ({
-            items: state.items.map(item =>
-              item.productId === productId
-                ? { ...item, ...updatedItemDto, id: updatedItemDto.productId }
-                : item
-            ),
+            items: state.items.map(item => {
+              if (item.productId === productId) {
+                // Defensive coding: Preserve existing imageUrl if the one from updatedItemDto is null/undefined,
+                // but the existing one was valid. This helps if the backend momentarily fails to send it back post-update.
+                const finalImageUrl = (updatedItemDto.imageUrl === null || updatedItemDto.imageUrl === undefined)
+                                      && item.imageUrl // Check if old one was valid
+                                    ? item.imageUrl 
+                                    : updatedItemDto.imageUrl;
+
+                return {
+                  ...item,             // Start with the original item from frontend state
+                  ...updatedItemDto,   // Spread changes from backend (quantity, possibly price if it can change)
+                  imageUrl: finalImageUrl, // Explicitly use the determined imageUrl
+                  id: updatedItemDto.productId // Ensure id is correctly mapped (if it's part of DTO)
+                };
+              }
+              return item;
+            }),
             error: null // Clear error on success
           }));
            toast.success(`${itemToUpdate.productName || 'Ürün'} miktarı güncellendi.`);

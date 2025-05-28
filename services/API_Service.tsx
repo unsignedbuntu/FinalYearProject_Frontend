@@ -1,5 +1,6 @@
 import axios from 'axios';
 import https from 'https';
+import { AxiosResponse } from 'axios';
 
 // Create an Axios instance
 const api = axios.create({
@@ -647,21 +648,30 @@ export const getOrderDetails = async (orderId: number) => {
 /** Kullanıcının sepetindeki ürünleri getirir */
 export const getUserCart = async (): Promise<CartItemDto[]> => {
   try {
-    // Backend'in doğrudan List<CartItemDto> döndürdüğünü varsayıyoruz
+    // Backend'in `/api/Cart` endpoint'inin CartItem'ları ve ilişkili Product/Supplier bilgilerini döndürdüğünü varsayıyoruz.
+    // Dönen her bir öğenin productName, price, imageUrl VE supplierName içerdiğini varsayıyoruz.
     const response = await api.get<CartItemDto[]>('/api/Cart');
     console.log("getUserCart response:", response.data);
-    // Backend'den gelen yanıtta `productId` gibi alan adları frontend ile uyuşmuyorsa burada map'leme yapın
-    // Örnek map'leme:
-    // return response.data.map(item => ({
-    //   userCartItemId: item.userCartItemID, // Backend'den gelen
-    //   productId: item.productID,         // Backend'den gelen
-    //   productName: item.product?.productName || 'Unknown Product', // Join ile geliyorsa
-    //   price: item.product?.price || 0,                       // Join ile geliyorsa
-    //   quantity: item.quantity,
-    //   imageUrl: item.product?.imageUrl,                     // Join ile geliyorsa
-    //   supplierName: item.product?.supplier?.supplierName     // Join ile geliyorsa
-    // }));
-    return response.data || []; // Boş dizi döndür eğer data yoksa
+
+    // Backend'den gelen yanıtta supplierName alanı zaten doğru şekilde mapleniyorsa
+    // (yani CartItemDto tanımındaki gibi camelCase ise) ekstra map'lemeye gerek olmayabilir.
+    // Ancak, emin olmak için veya backend farklı bir yapı gönderiyorsa (örneğin Product.Supplier.SupplierName gibi)
+    // burada bir map işlemi faydalı olabilir.
+    // Aşağıdaki map varsayımsal bir backend yapısına göredir.
+    // GERÇEK BACKEND YANITINIZA GÖRE AYARLAMANIZ GEREKİR.
+    return (response.data || []).map(item => ({
+      ...item, // productName, price, quantity, imageUrl gibi alanlar doğrudan gelsin
+      productId: item.productId, // Zaten camelCase olmalı
+      // supplierName alanı için olası senaryolar:
+      // 1. item.supplierName (doğrudan geliyorsa)
+      // 2. item.product?.supplier?.supplierName (iç içe objelerden geliyorsa)
+      // 3. item.product?.supplierName (product objesinde direct supplierName varsa)
+      // Backend DTO yapınıza göre doğru olanı seçin.
+      // Şimdilik gelen item'da supplierName olduğunu varsayıyorum:
+      supplierName: item.supplierName || 'Unknown Supplier',
+      // Construct the proxied image URL
+      imageUrl: item.productId ? `/api-proxy/product-image/${item.productId}` : (item.imageUrl || '/placeholder.png')
+    }));
   } catch (error: any) {
     if (error.response && error.response.status === 401) {
       console.warn('Kullanıcı sepeti alınamadı (Yetkisiz 401)');
@@ -1097,37 +1107,43 @@ export interface GlobalSearchResults {
  * Performs a global search across products, categories, stores, and suppliers.
  * Calls the backend endpoint GET /api/search?q={searchTerm}
  */
-export const searchGlobal = async (searchTerm: string): Promise<GlobalSearchResults> => {
-  if (!searchTerm.trim()) {
-    console.log('[searchGlobal] Search term is empty, returning empty results.');
-    return { products: [], categories: [], stores: [], suppliers: [] };
-  }
+export const searchGlobal = async (query: string): Promise<GlobalSearchResults> => {
   try {
-    console.log(`[searchGlobal] Searching for: "${searchTerm}"`);
-    // Expect GlobalSearchResults directly from the backend for this endpoint
-    const response = await api.get<GlobalSearchResults>(`/api/search?q=${encodeURIComponent(searchTerm)}`);
+    // Corrected endpoint to /api/Search and query parameter to 'q'
+    // Use the existing ApiResponse interface for the expected response type.
+    const response = await api.get<ApiResponse<GlobalSearchResults>>(`/api/Search?q=${encodeURIComponent(query)}`);
+    
+    console.log('[searchGlobal] Full Axios response:', response);
+    console.log('[searchGlobal] API response.data (this is ApiResponse):', response.data);
 
-    console.log('[searchGlobal] Raw API response object (expecting GlobalSearchResults directly):', response);
-    console.log('[searchGlobal] API response.data (should be GlobalSearchResults):', response.data);
-
-    if (response.data) {
-      console.log('[searchGlobal] API call successful, data received.');
-      const resultsToReturn = {
-        products: response.data.products || [],
-        categories: response.data.categories || [],
-        stores: response.data.stores || [],
-        suppliers: response.data.suppliers || [],
-      };
-      console.log('[searchGlobal] Returning results:', resultsToReturn);
-      return resultsToReturn;
+    // Check if the backend operation was successful and data exists
+    // The actual search results are in response.data.data
+    if (response.data && response.data.success && response.data.data) {
+      console.log('[searchGlobal] Search successful, returning response.data.data:', response.data.data);
+      return response.data.data;
     } else {
-      console.warn('[searchGlobal] API call returned no data or unexpected format.');
-      console.log('[searchGlobal] Returning empty results due to missing/unexpected data.');
+      // Handle cases where the API call itself was successful (e.g., 200 OK) 
+      // but the backend indicates a failure (e.g., success: false) or data is missing.
+      console.warn('[searchGlobal] API call successful, but backend indicates failure or no data. Message:', response.data?.message);
       return { products: [], categories: [], stores: [], suppliers: [] };
     }
-  } catch (error: any) {
-    console.error('[searchGlobal] Exception during search:', error.response?.data || error.message, error);
-    console.log('[searchGlobal] Returning empty results due to exception.');
+
+  } catch (error: any) { 
+    console.error('[searchGlobal] Error during global search API call:', error);
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('[searchGlobal] Axios error - Response Data:', error.response.data);
+      console.error('[searchGlobal] Axios error - Response Status:', error.response.status);
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('[searchGlobal] Axios error - No response received:', error.request);
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('[searchGlobal] Axios error - Request setup error:', error.message);
+    }
+    // Ensure a valid, empty GlobalSearchResults object is returned on any error.
+    console.log('[searchGlobal] Returning empty results due to an exception during API call.');
     return { products: [], categories: [], stores: [], suppliers: [] };
   }
 };

@@ -4,9 +4,10 @@ import { Readable } from 'stream';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { productId: string } }
+  context: { params: { productId: string } }
 ) {
-  const productId = params.productId;
+  const { productId } = await context.params;
+
   if (!productId || isNaN(parseInt(productId))) {
     return new NextResponse('Invalid product ID', { status: 400 });
   }
