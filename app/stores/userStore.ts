@@ -2,10 +2,11 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { getAuthMe } from '@/services/API_Service'
 
-interface User {
+export interface User {
   id: number
   email: string
   fullName: string
+  phoneNumber?: string | null
   // Backend'den gelen diğer alanlar eklenebilir
 }
 

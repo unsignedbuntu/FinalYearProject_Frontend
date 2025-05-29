@@ -885,6 +885,179 @@ export const getFavoriteListItems = async (listId: number): Promise<ApiFavoriteL
 //   }
 // };
 
+// --- UserInformation and UserAddress DTOs ---
+
+// Corresponds to C# UserInformationDto
+export interface UserInformationRequestDto {
+  firstName?: string | null;
+  lastName?: string | null;
+  dateOfBirth?: string | null; // ISO string format for date (e.g., "YYYY-MM-DD")
+  phoneNumber?: string | null; // phoneNumber alanı eklendi
+}
+
+// Corresponds to C# UserInformationResponseDto (assuming similar structure or direct mapping from UserInformation entity)
+export interface UserInformationResponseDto {
+  userInformationID: number;
+  userID: number;
+  firstName?: string | null;
+  lastName?: string | null;
+  dateOfBirth?: string | null; // ISO string format
+  phoneNumber?: string | null; // Eklendi
+}
+
+// Corresponds to C# UserAddressDto
+export interface UserAddressRequestDto {
+  // UserAddressID is typically 0 or omitted for new addresses.
+  // For updates, it might be in the DTO or path. Backend uses path {id}.
+  // UserAddressID?: number; 
+  addressTitle: string;
+  fullName: string;
+  phoneNumber: string;
+  city: string;
+  district?: string | null;
+  fullAddress: string;
+  isDefault: boolean;
+}
+
+// Corresponds to C# UserAddressResponseDto (assuming similar structure or direct mapping from UserAddress entity)
+export interface UserAddressResponseDto {
+  userAddressID: number;
+  userID: number;
+  addressTitle: string;
+  fullName: string;
+  phoneNumber: string;
+  city: string;
+  district?: string | null;
+  fullAddress: string;
+  isDefault: boolean;
+  status: boolean; // Assuming status is part of the response
+}
+
+
+// --- UserInformation API Functions ---
+
+/**
+ * Gets the current user's information.
+ * GET /api/userinformation
+ */
+export const getCurrentUserInformation = async (): Promise<ApiResponse<UserInformationResponseDto | null>> => {
+  try {
+    const response = await api.get<ApiResponse<UserInformationResponseDto>>('/api/userinformation');
+    // The backend controller returns ApiResponseDto directly
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching user information:', error.response?.data || error.message);
+    return { success: false, message: error.response?.data?.message || 'Failed to fetch user information.', data: null };
+  }
+};
+
+/**
+ * Creates or updates the current user's information.
+ * PUT /api/userinformation
+ */
+export const createOrUpdateCurrentUserInformation = async (userInfoData: UserInformationRequestDto): Promise<ApiResponse<UserInformationResponseDto | null>> => {
+  try {
+    const response = await api.put<ApiResponse<UserInformationResponseDto>>('/api/userinformation', userInfoData);
+    // The backend controller returns ApiResponseDto directly
+    return response.data;
+  } catch (error: any) {
+    console.error('Error creating/updating user information:', error.response?.data || error.message);
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to update user information.', 
+      errors: error.response?.data?.errors,
+      data: null
+    };
+  }
+};
+
+// --- UserAddresses API Functions ---
+
+/**
+ * Gets all active addresses for the current user.
+ * GET /api/addresses
+ */
+export const getCurrentUserAddresses = async (): Promise<ApiResponse<UserAddressResponseDto[] | null>> => {
+  try {
+    const response = await api.get<ApiResponse<UserAddressResponseDto[]>>('/api/addresses');
+    // The backend controller returns ApiResponseDto directly
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching user addresses:', error.response?.data || error.message);
+    return { success: false, message: error.response?.data?.message || 'Failed to fetch addresses.', data: null };
+  }
+};
+
+/**
+ * Gets a specific address by ID for the current user.
+ * GET /api/addresses/{id}
+ */
+export const getUserAddressById = async (id: number): Promise<ApiResponse<UserAddressResponseDto | null>> => {
+  try {
+    const response = await api.get<ApiResponse<UserAddressResponseDto>>(`/api/addresses/${id}`);
+    // The backend controller returns ApiResponseDto directly
+    return response.data;
+  } catch (error: any) {
+    console.error(`Error fetching address ${id}:`, error.response?.data || error.message);
+    return { success: false, message: error.response?.data?.message || `Failed to fetch address ${id}.`, data: null };
+  }
+};
+
+/**
+ * Creates a new address for the current user.
+ * POST /api/addresses
+ */
+export const createUserAddress = async (addressData: UserAddressRequestDto): Promise<ApiResponse<UserAddressResponseDto | null>> => {
+  try {
+    const response = await api.post<ApiResponse<UserAddressResponseDto>>('/api/addresses', addressData);
+    // The backend controller returns ApiResponseDto directly
+    return response.data;
+  } catch (error: any) {
+    console.error('Error creating address:', error.response?.data || error.message);
+     return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to create address.', 
+      errors: error.response?.data?.errors,
+      data: null
+    };
+  }
+};
+
+/**
+ * Updates an existing address for the current user.
+ * PUT /api/addresses/{id}
+ */
+export const updateUserAddress = async (id: number, addressData: UserAddressRequestDto): Promise<ApiResponse<UserAddressResponseDto | null>> => {
+  try {
+    const response = await api.put<ApiResponse<UserAddressResponseDto>>(`/api/addresses/${id}`, addressData);
+    // The backend controller returns ApiResponseDto directly
+    return response.data;
+  } catch (error: any) {
+    console.error(`Error updating address ${id}:`, error.response?.data || error.message);
+    return { 
+      success: false, 
+      message: error.response?.data?.message || `Failed to update address ${id}.`,
+      errors: error.response?.data?.errors,
+      data: null
+    };
+  }
+};
+
+/**
+ * Soft deletes an address for the current user (marks as inactive).
+ * DELETE /api/addresses/{id}
+ */
+export const deleteUserAddress = async (id: number): Promise<ApiResponse<object | null>> => { // Backend returns ApiResponseDto<object>
+  try {
+    const response = await api.delete<ApiResponse<object>>(`/api/addresses/${id}`);
+    // The backend controller returns ApiResponseDto directly
+    return response.data;
+  } catch (error: any) {
+    console.error(`Error deleting address ${id}:`, error.response?.data || error.message);
+    return { success: false, message: error.response?.data?.message || `Failed to delete address ${id}.`, data: null };
+  }
+};
+
 // Corresponds to C# ImageCacheDTO
 export interface ImageCacheRequestDto {
   prompt: string;

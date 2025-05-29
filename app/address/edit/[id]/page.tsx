@@ -1,10 +1,15 @@
-"use client"  
-import { useState } from 'react'  
-import { useRouter } from 'next/navigation'  
-import Sidebar from '@/components/sidebar/Sidebar'  
-import AddressSuccessMessage from '@/components/messages/AddressSuccessMessage'  
-import { createUserAddress, UserAddressRequestDto } from '@/services/API_Service'  
-import { toast } from 'react-hot-toast'  
+"use client"
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useParams } from 'next/navigation'; // useParams eklendi
+import Sidebar from '@/components/sidebar/Sidebar';
+import AddressSuccessMessage from '@/components/messages/AddressSuccessMessage'; // Başarı mesajı için
+import { 
+  getUserAddressById, // Adres detayını çekmek için
+  updateUserAddress,  // Adresi güncellemek için
+  UserAddressRequestDto,
+  UserAddressResponseDto 
+} from '@/services/API_Service';
+import { toast } from 'react-hot-toast';
 
 const cities = [  
   "Adana", "Adıyaman", "Afyon", "Ağrı", "Amasya", "Ankara", "Antalya", "Artvin", "Aydın", "Balıkesir",  
@@ -17,10 +22,12 @@ const cities = [
   "Batman", "Şırnak", "Bartın", "Ardahan", "Iğdır", "Yalova", "Karabük", "Kilis", "Osmaniye", "Düzce"  
 ];  
 
-export default function NewAddressPage() {  
-  const router = useRouter();  
-  const [showCities, setShowCities] = useState(false);  
-  const [selectedCity, setSelectedCity] = useState("");  
+export default function EditAddressPage() { // Component adı güncellendi
+  const router = useRouter();
+  const params = useParams(); // URL parametrelerini almak için
+  const addressId = params.id ? parseInt(params.id as string, 10) : null;
+
+  const [isLoading, setIsLoading] = useState(true); // Sayfa ilk yüklenirken veri çekme durumu
   const [isSubmitting, setIsSubmitting] = useState(false);  
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);  
   const [formData, setFormData] = useState<Omit<UserAddressRequestDto, 'city' | 'isDefault'> & { isDefaultForm: boolean }>({  
@@ -31,7 +38,39 @@ export default function NewAddressPage() {
     fullAddress: "",  
     isDefaultForm: false,  
   });  
+  const [selectedCity, setSelectedCity] = useState("");  
   const [errors, setErrors] = useState<{ [key: string]: string }>({});  
+  const [showCities, setShowCities] = useState(false);
+
+  useEffect(() => {
+    if (addressId) {
+      const fetchAddressDetails = async () => {
+        setIsLoading(true);
+        const response = await getUserAddressById(addressId);
+        if (response.success && response.data) {
+          const addr = response.data;
+          setFormData({
+            addressTitle: addr.addressTitle,
+            fullName: addr.fullName,
+            phoneNumber: addr.phoneNumber,
+            district: addr.district || "",
+            fullAddress: addr.fullAddress,
+            isDefaultForm: addr.isDefault,
+          });
+          setSelectedCity(addr.city);
+        } else {
+          toast.error(response.message || "Failed to load address details.");
+          router.push('/user-info'); // Hata durumunda kullanıcı bilgi sayfasına yönlendir
+        }
+        setIsLoading(false);
+      };
+      fetchAddressDetails();
+    } else {
+      toast.error("Address ID not found.");
+      router.push('/user-info');
+      setIsLoading(false);
+    }
+  }, [addressId, router]);
 
   const validateForm = () => {  
     const newErrors: { [key: string]: string } = {};  
@@ -49,27 +88,27 @@ export default function NewAddressPage() {
     return Object.keys(newErrors).length === 0;  
   };  
 
-  const handleSave = async () => {  
-    if (!validateForm()) return;  
+  const handleUpdate = async () => { // Fonksiyon adı handleSave -> handleUpdate
+    if (!validateForm() || !addressId) return;  
 
     setIsSubmitting(true);  
     const payload: UserAddressRequestDto = {  
       ...formData,  
       city: selectedCity,  
       isDefault: formData.isDefaultForm,  
-      district: formData.district?.trim() || undefined,  
+      district: formData.district?.trim() || undefined, // API DTO'suna uygun olması için null yerine undefined
     };  
 
-    const toastId = toast.loading('Saving address...');  
-    const response = await createUserAddress(payload);  
+    const toastId = toast.loading('Updating address...');  
+    const response = await updateUserAddress(addressId, payload); // API çağrısı güncellendi
     toast.dismiss(toastId);  
     setIsSubmitting(false);  
 
     if (response.success && response.data) {  
-      toast.success(response.message || 'Address saved successfully!');  
+      toast.success(response.message || 'Address updated successfully!');  
       setShowSuccessMessage(true);  
     } else {  
-      toast.error(response.message || 'Failed to save address.');  
+      toast.error(response.message || 'Failed to update address.');  
       if (response.errors) {  
         const backendErrors: { [key: string]: string } = {};  
         for (const error of response.errors) {  
@@ -90,21 +129,33 @@ export default function NewAddressPage() {
 
   const handleCloseSuccessMessage = () => {  
     setShowSuccessMessage(false);  
-    router.push('/address');  
+    router.push('/user-info?tab=addresses'); // Başarılı güncelleme sonrası adresler sekmesine yönlendir
   };  
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <span className="ml-4">Loading address details...</span>
+      </div>
+    );
+  }
+
   if (showSuccessMessage) {  
-    return <AddressSuccessMessage onClose={handleCloseSuccessMessage} />;  
-  }  
+    // Başarı mesajı için AddressSuccessMessage component'i kullanılabilir veya basit bir toast gösterilip yönlendirilebilir.
+    // Şimdilik UserInfoPage'e yönlendirme yapılıyor, AddressSuccessMessage istenirse eklenebilir.
+    // UserInfoPage'de zaten toast ile mesaj gösteriliyor, bu yüzden burada tekrar göstermeye gerek yok.
+    // handleCloseSuccessMessage çağrıldığında yönlendirme yapılacak.
+    return <AddressSuccessMessage onClose={handleCloseSuccessMessage} />; 
+  }
   
   return (
     <div className="min-h-screen pr-[160px] pt-[100px] relative">
       <Sidebar />
-      
       <div className="ml-[480px] flex flex-col min-h-[calc(100vh-100px)]">
         <div className="w-[500px] bg-white mx-auto relative rounded-lg p-8 flex-grow">
           <div className="mb-8">
-            <h1 className="font-inter text-[32px] mb-2">Add address</h1>
+            <h1 className="font-inter text-[32px] mb-2">Edit Address</h1> {/* Başlık güncellendi */}
             <div className="w-full h-[1px] bg-black" />
           </div>
 
@@ -161,7 +212,7 @@ export default function NewAddressPage() {
               className={`w-full h-[40px] bg-[#C5C5C5] bg-opacity-40 rounded-[10px] px-4
                        font-inter text-left flex items-center justify-between
                        ${errors.city ? 'border-2 border-red-500' : 'text-gray-600'}`}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLoading} // Veri yüklenirken de disable edilebilir
             >
               {selectedCity || "Choose"}
               <span>▼</span>
@@ -232,18 +283,18 @@ export default function NewAddressPage() {
           </div>
 
           <button
-            onClick={handleSave}
-            disabled={isSubmitting}
+            onClick={handleUpdate} // handleSave -> handleUpdate
+            disabled={isSubmitting || isLoading} // isLoading eklendi
             className="w-full h-[55px] bg-[#00EEFF] rounded-[15px]
                      font-inter text-[32px] text-black
                      transition-all duration-200
                      hover:bg-[#2F00FF] hover:text-white
                      disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Saving...' : 'Save'}
+            {isSubmitting ? 'Updating...' : (isLoading ? 'Loading...' : 'Update Address')} {/* Buton metni güncellendi */}
           </button>
         </div>
       </div>
     </div>
   );
-}
+} 
