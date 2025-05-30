@@ -1,38 +1,37 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-// API servis fonksiyonlarını import edelim
-import { getUserOrders, getUserReviews, submitReviewApi, getOrderDetails } from '@/services/API_Service'; 
-// userStore'dan kullanıcı ID'sini almak için
+import {
+  getReviewableOrderItems,      
+  createReview,                 
+  getReviewsByUserId,           
+  ApiReviewableProduct as ApiServiceReviewableProduct, // Alias to avoid naming conflict 
+  ApiReview as ApiServiceReview,                    // Alias to avoid naming conflict
+  ApiCreateReviewPayload      
+} from '@/services/API_Service'; 
 import { useUserStore } from './userStore'; 
 
+// Re-export API types if they are used directly by components
+export type { ApiServiceReviewableProduct as ApiReviewableProduct, ApiServiceReview as ApiReview };
+
 // Tipler
-// ReviewableProduct'ı export edelim
-export interface ReviewableProduct {
-  productId: number;
-  orderItemId: number; // Sipariş öğesi ID'si, aynı ürünü farklı siparişlerde ayırt etmek için
-  productName: string;
-  productImage: string | null;
-  orderDate: Date; // Sipariş tarihi, sıralama için
+// ReviewableProductUi, ApiReviewableProduct'ı temel alır ve UI'a özel alanlar ekler.
+export interface ReviewableProductUi extends ApiServiceReviewableProduct { 
   isReviewed: boolean;
-  // Eğer yorumlanmışsa mevcut yorum bilgisi
   existingReview?: {
     reviewId: number;
     rating: number;
-    comment: string;
-    reviewDate: Date;
+    comment?: string | null;
+    reviewDate: Date; // UI'da Date objesi olarak kullanmak daha kolay olabilir
   };
-  // Overlay için geçici kullanıcı rating'i (henüz kaydedilmemiş)
-  userRating?: number; 
-  size?: string; // Sipariş detayından alınabilir
-  color?: string; // Sipariş detayından alınabilir
+  userRating?: number; // Overlay için geçici kullanıcı rating'i
 }
 
 interface ReviewOverlayState {
   isOpen: boolean;
-  selectedProduct: ReviewableProduct | null;
-  rating: number; // Zorunlu yıldız rating'i
-  text: string; // Opsiyonel yorum metni
-  hoveredStars: number; // Sadece UI için overlay içindeki hover durumu
+  selectedProduct: ReviewableProductUi | null;
+  rating: number; 
+  text: string; 
+  hoveredStars: number; 
   isSubmitting: boolean;
   submitError: string | null;
 }
@@ -51,17 +50,20 @@ interface Order {
 }
 
 interface ReviewsState {
-  productsToReview: ReviewableProduct[];
-  isLoading: boolean;
+  pendingProducts: ReviewableProductUi[]; 
+  completedReviews: ApiServiceReview[];         
+  isLoadingPending: boolean;
+  isLoadingCompleted: boolean;
   error: string | null;
   selectedTab: SelectedTab;
   currentPage: number;
   productsPerPage: number;
   overlayState: ReviewOverlayState;
-  fetchReviewsAndOrders: (userId: number) => Promise<boolean>; // Boş durum kontrolü için boolean dönebilir
+  fetchPendingReviews: () => Promise<boolean>;       
+  fetchCompletedReviews: (userId: number) => Promise<void>; 
   setSelectedTab: (tab: SelectedTab) => void;
   setCurrentPage: (page: number) => void;
-  openReviewOverlay: (product: ReviewableProduct) => void;
+  openReviewOverlay: (product: ReviewableProductUi) => void;
   closeReviewOverlay: () => void;
   setOverlayRating: (rating: number) => void;
   setOverlayText: (text: string) => void;
@@ -72,7 +74,7 @@ interface ReviewsState {
 const initialOverlayState: ReviewOverlayState = {
   isOpen: false,
   selectedProduct: null,
-  rating: 0, // Başlangıçta 0, kullanıcı seçmeli
+  rating: 0, 
   text: '',
   hoveredStars: 0,
   isSubmitting: false,
@@ -88,134 +90,60 @@ export const useReviewsStore = create<ReviewsState>()(
   devtools(
     (set, get) => ({
       // --- STATE ---
-      productsToReview: [],
-      isLoading: false,
+      pendingProducts: [],
+      completedReviews: [],
+      isLoadingPending: false,
+      isLoadingCompleted: false,
       error: null,
       selectedTab: 'Pending reviews',
       currentPage: 1,
-      productsPerPage: 12, // Sabit veya ayarlanabilir
+      productsPerPage: 12, 
       overlayState: initialOverlayState,
 
       // --- ACTIONS ---
-      fetchReviewsAndOrders: async (userId) => {
-        set({ isLoading: true, error: null, productsToReview: [] }); // Clear previous products
+      fetchPendingReviews: async () => {
+        set({ isLoadingPending: true, error: null });
         try {
-          console.log(`ReviewsStore: Fetching initial orders list for user: ${userId}`);
-          const initialOrdersResponse = await getUserOrders(userId);
-          const initialOrders = (initialOrdersResponse || []) as Order[]; // Cast to Order[]
-          console.log('ReviewsStore: Initial orders fetched:', initialOrders);
-
-          if (initialOrders.length === 0) {
-             console.log('ReviewsStore: No orders found initially.');
-             set({ isLoading: false });
-             return true; // isEmpty = true
-          }
-
-          // Fetch details for each order to get orderItems
-          console.log(`ReviewsStore: Fetching details for ${initialOrders.length} orders...`);
-          const orderDetailPromises = initialOrders.map((order: Order) => 
-              order.orderId ? getOrderDetails(order.orderId) : Promise.reject(`Order missing orderId: ${JSON.stringify(order)}`)
-          );
-          
-          // Use Promise.allSettled to handle potential errors for individual orders
-          const orderDetailResults = await Promise.allSettled(orderDetailPromises);
-          console.log('ReviewsStore: Order detail results (settled):', orderDetailResults);
-
-          // Filter out rejected promises and keep only fulfilled order details
-          const successfulOrdersWithDetails: Order[] = orderDetailResults
-              .filter((result): result is PromiseSettledResult<Order> & { status: 'fulfilled' } => result.status === 'fulfilled')
-              .map(result => result.value);
-          console.log('ReviewsStore: Successfully fetched order details:', successfulOrdersWithDetails);
-
-          // Fetch reviews (can be done in parallel with details or after)
-          console.log(`ReviewsStore: Fetching reviews for user: ${userId}`);
-          const reviewsResponse = await getUserReviews(userId);
-          const reviews = reviewsResponse || [];
-          console.log('ReviewsStore: Reviews fetched:', reviews);
-
-          // Now process the orders *with details* and reviews
-          const processedProductsMap = new Map<number, ReviewableProduct>();
-          console.log('ReviewsStore: Processing orders with details...');
-
-          for (const orderDetail of successfulOrdersWithDetails) {
-             // Check if orderItems exist in the detailed response
-            if (orderDetail.orderItems && Array.isArray(orderDetail.orderItems)) {
-              console.log(`ReviewsStore: Processing items for orderId ${orderDetail.orderId}`);
-              for (const item of orderDetail.orderItems) {
-                 console.log('ReviewsStore: Processing item from details:', item);
-                // Ensure field names match the response from getOrderDetails
-                const productId = item.product?.productID; // ADJUST FIELD NAME IF NEEDED
-                const orderItemId = item.orderItemID; // ADJUST FIELD NAME IF NEEDED
-                console.log(`ReviewsStore: Extracted productId: ${productId}, orderItemId: ${orderItemId}`);
-
-                if (productId && orderItemId) {
-                  if (!processedProductsMap.has(orderItemId)) {
-                    console.log(`ReviewsStore: Adding item ${orderItemId} to map from order ${orderDetail.orderId}.`);
-                    const productData: ReviewableProduct = {
-                      productId: productId,
-                      orderItemId: orderItemId,
-                      productName: item.product?.productName || 'Unknown Product',
-                      productImage: item.product?.image || null,
-                      orderDate: new Date(orderDetail.orderDate), // Use date from detail response
-                      isReviewed: false,
-                      size: item.size,
-                      color: item.color,
-                    };
-                    processedProductsMap.set(orderItemId, productData);
-                  } else {
-                    console.log(`ReviewsStore: Item ${orderItemId} already processed, skipping.`);
-                  }
-                } else {
-                   console.warn(`ReviewsStore: Missing productId or orderItemId for item in order ${orderDetail.orderId}:`, item);
-                }
-              }
-            } else {
-                 console.log(`ReviewsStore: No orderItems found in details for orderId ${orderDetail.orderId}`);
-            }
-          }
-
-          // Match with reviews (same logic as before)
-           console.log('ReviewsStore: Matching with reviews...');
-           for (const review of reviews as any[]) { // Assuming review type might be less defined
-            // ... (review matching logic - check field names: review.orderItemId, review.reviewID etc.)
-             const orderItemId = review.orderItemId; // ADJUST FIELD NAME IF NEEDED
-             console.log(`ReviewsStore: Extracted orderItemId from review: ${orderItemId}`);
-            
-            if (orderItemId && processedProductsMap.has(orderItemId)) {
-              console.log(`ReviewsStore: Found match for review, marking item ${orderItemId} as reviewed.`);
-              const productToUpdate = processedProductsMap.get(orderItemId)!;
-              productToUpdate.isReviewed = true;
-              productToUpdate.existingReview = {
-                reviewId: review.reviewID, // ADJUST FIELD NAME IF NEEDED
-                rating: review.rating, // ADJUST FIELD NAME IF NEEDED
-                comment: review.comment, // ADJUST FIELD NAME IF NEEDED
-                reviewDate: new Date(review.reviewDate), // ADJUST FIELD NAME IF NEEDED
-              };
-              processedProductsMap.set(orderItemId, productToUpdate);
-            } else {
-                 console.log(`ReviewsStore: No matching product found in map for review's orderItemId: ${orderItemId}`);
-            }
-           }
-
-          // Final processing
-          const processedProducts = Array.from(processedProductsMap.values())
-                                      .sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
-          
-          set({ productsToReview: processedProducts, isLoading: false });
-          console.log('ReviewsStore: Final processed products for review:', processedProducts);
-          
-          return processedProducts.length === 0; // Return isEmpty status
-
+          const reviewableItems = await getReviewableOrderItems(); 
+          // ApiReviewableProduct.orderDate string olarak kalır.
+          // ReviewableProductUi.orderDate de string olur.
+          // Eğer UI'da Date objesine ihtiyaç olursa, component içinde new Date(item.orderDate) yapılır.
+          const uiProducts: ReviewableProductUi[] = reviewableItems.map(item => ({
+            ...item, // orderDate string olarak gelir ve öyle kalır
+            isReviewed: false, 
+          }));
+          set({ pendingProducts: uiProducts, isLoadingPending: false });
+          console.log('ReviewsStore: Fetched pending reviews:', uiProducts);
+          return uiProducts.length === 0; 
         } catch (err) {
-          console.error("ReviewsStore: Error in fetchReviewsAndOrders:", err);
-          const errorMessage = err instanceof Error ? err.message : 'Failed to load review data';
-          set({ error: errorMessage, isLoading: false, productsToReview: [] });
-          return false; // Assume not empty on error to prevent unwanted redirect
+          console.error("ReviewsStore: Error in fetchPendingReviews:", err);
+          const errorMessage = err instanceof Error ? err.message : 'Failed to load pending reviews';
+          set({ error: errorMessage, isLoadingPending: false, pendingProducts: [] });
+          return false; 
+        }
+      },
+
+      fetchCompletedReviews: async (userId) => {
+        set({ isLoadingCompleted: true, error: null });
+        try {
+          const reviews = await getReviewsByUserId(userId); 
+          set({ completedReviews: reviews, isLoadingCompleted: false });
+          console.log('ReviewsStore: Fetched completed reviews:', reviews);
+        } catch (err) {
+          console.error("ReviewsStore: Error in fetchCompletedReviews:", err);
+          const errorMessage = err instanceof Error ? err.message : 'Failed to load completed reviews';
+          set({ error: errorMessage, isLoadingCompleted: false, completedReviews: [] });
         }
       },
 
       setSelectedTab: (tab) => {
-        set({ selectedTab: tab, currentPage: 1 }); // Sekme değişince ilk sayfaya dön
+        set({ selectedTab: tab, currentPage: 1 }); 
+        const userId = useUserStore.getState().user?.id;
+        if (tab === 'Pending reviews') {
+          get().fetchPendingReviews();
+        } else if (tab === 'Completed reviews' && userId) {
+          get().fetchCompletedReviews(userId);
+        }
       },
 
       setCurrentPage: (page) => {
@@ -228,8 +156,8 @@ export const useReviewsStore = create<ReviewsState>()(
             ...initialOverlayState, 
             isOpen: true, 
             selectedProduct: product,
-            rating: product.userRating || product.existingReview?.rating || 0, // Mevcut yorumun rating'ini de al
-            text: product.existingReview?.comment || '', // Mevcut yorumun metnini de al
+            rating: product.userRating || product.existingReview?.rating || 0, 
+            text: product.existingReview?.comment || '', 
           } 
         });
       },
@@ -255,9 +183,7 @@ export const useReviewsStore = create<ReviewsState>()(
       submitReview: async () => {
         const { overlayState } = get();
         const { selectedProduct, rating, text } = overlayState;
-        // userStore'dan state al
-        const userState = useUserStore.getState();
-        const userId = userState.user?.id;
+        const userId = useUserStore.getState().user?.id; 
 
         if (userId === null || userId === undefined) {
           set(state => ({ overlayState: { ...state.overlayState, submitError: 'User not logged in.' } }));
@@ -272,42 +198,27 @@ export const useReviewsStore = create<ReviewsState>()(
         set(state => ({ overlayState: { ...state.overlayState, isSubmitting: true, submitError: null } }));
 
         try {
-           const reviewPayload = { 
-             userId: userId,
-             productId: selectedProduct.productId, 
+           const reviewPayload: ApiCreateReviewPayload = { 
+             productID: selectedProduct.productId, 
+             orderItemID: selectedProduct.orderItemId, 
              rating: rating, 
-             comment: text,
-             // Backend'in DTO'suna göre orderItemId gerekliyse ekle
-             // orderItemId: selectedProduct.orderItemId 
+             comment: text || null, 
            };
            console.log('Submitting review with payload:', reviewPayload);
            
-           // API çağrısını yap
-           const submittedReview = await submitReviewApi(reviewPayload);
+           const submittedReview = await createReview(reviewPayload); 
            
-           // Backend yanıtının yapısını varsayalım
-           // submittedReview: { reviewID: number, rating: number, comment: string, reviewDate: string, ... }
            console.log('Review submitted successfully:', submittedReview);
 
-           // State'deki ürünü güncelle
            set(state => ({
-             productsToReview: state.productsToReview.map(p => 
-               p.orderItemId === selectedProduct.orderItemId 
-                 ? { 
-                     ...p, 
-                     isReviewed: true, 
-                     existingReview: { 
-                       reviewId: submittedReview.reviewID, // Yanıttan al
-                       rating: submittedReview.rating,    // Yanıttan al
-                       comment: submittedReview.comment,  // Yanıttan al
-                       reviewDate: new Date(submittedReview.reviewDate) // Yanıttan al ve Date'e çevir
-                     },
-                     userRating: undefined 
-                   } 
-                 : p
+             pendingProducts: state.pendingProducts.filter(p => 
+               p.orderItemId !== selectedProduct.orderItemId 
              ),
-             overlayState: initialOverlayState // Overlay'i kapat ve sıfırla
+             overlayState: initialOverlayState 
            }));
+           if (get().selectedTab === 'Completed reviews' && userId) {
+             get().fetchCompletedReviews(userId);
+           }
 
         } catch (err) {
           console.error("Error submitting review:", err);
@@ -316,7 +227,7 @@ export const useReviewsStore = create<ReviewsState>()(
         }
       },
     }),
-    { name: 'reviews-store' } // DevTools için isim
+    { name: 'reviews-store' } 
   )
 );
 

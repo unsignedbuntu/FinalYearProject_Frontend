@@ -149,18 +149,21 @@ export default function CartPage() {
     }
 
     try {
-      const createdOrder = await createOrder(orderPayload)
-      console.log('Order created successfully:', createdOrder)
+      const createdOrder = await createOrder(orderPayload);
+      console.log('[LOG 1] Full AxiosResponse (createdOrder):', createdOrder);
+
+      const orderDataPayload = createdOrder?.data;
+      console.log('[LOG 2] Order Data Payload (createdOrder.data):', orderDataPayload);
       
-      await removeSelectedItems()
-      
-      const orderIdFromResponse = createdOrder?.orderId || createdOrder?.id || createdOrder?.orderID;
+      const orderIdFromResponse = orderDataPayload?.orderID || orderDataPayload?.OrderID;
+      console.log('[LOG 4] orderIdFromResponse Value:', orderIdFromResponse, 'Type:', typeof orderIdFromResponse);
 
       if (orderIdFromResponse) { 
            toast.success('Order created successfully! Redirecting to payment...');
+           removeSelectedItems();
            router.push(`/payment?orderId=${orderIdFromResponse}`);
       } else {
-          console.error('Order created but a valid orderId (orderId, id, orderID) was not found in the response. Response:', createdOrder);
+          console.error('Order created but a valid OrderID/orderId was not found in the response.data.data. Response:', createdOrder);
           toast.error('Order created but could not proceed to payment. Please check My Orders.');
           router.push('/my-orders'); 
       }

@@ -2,14 +2,21 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import { getProducts, getProductSuppliers, getStores, getSuppliers, getCategories } from '@/services/API_Service';
+import {
+    getProducts,
+    getProductSuppliers,
+    getStores,
+    getSuppliers,
+    getCategories,
+    getReviewsByProductId,
+    ApiReview
+} from '@/services/API_Service';
 import CartFavorites from '@/components/icons/CartFavorites';
 import FavoriteIcon from '@/components/icons/FavoriteIcon';
 import FavoritesPageHover from '@/components/icons/FavoritesPageHover';
 import CartSuccessMessage from '@/components/messages/CartSuccessMessage';
 import FavoritesAddedMessage from '@/components/messages/FavoritesAddedMessage';
-import { categoryReviews } from './data/categoryReviews';
-import { Product, ProductSupplier, Store, Category, Review } from './types/Product';
+import { Product, ProductSupplier, Store, Category } from './types/Product';
 import { basePrompts, CategoryKey } from './data/basePrompts';
 import { productDetails as productDescriptionData } from './data/productDescription';
 import Link from 'next/link';
@@ -330,6 +337,7 @@ export default function ProductPage() {
     const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
     const [category, setCategory] = useState<Category | null>(null);
     const [quantity, setQuantity] = useState(1); // Quantity state (if needed)
+    const [productReviews, setProductReviews] = useState<ApiReview[]>([]); // State for reviews from API
 
     // Store hooks
     const { items: cartItems } = useCartStore();
@@ -346,11 +354,11 @@ export default function ProductPage() {
     useEffect(() => {
         const fetchData = async () => {
             if (!productId) return;
-            console.log(`PP: Fetching data for product ID: ${productId}`);
-                setLoading(true);
+            console.log(`PP: Fetching data for product ID: ${productId}, cartItems.length: ${cartItems.length}`);
+            setLoading(true);
             imageGenerationInProgressThisPage = true; // Signal that page-level generation might start
-                setShowCartNotification(false);
-                setShowFavoriteNotification(false);
+            setShowCartNotification(false);
+            setShowFavoriteNotification(false);
 
             try {
                 const [productsData, suppliersData, storesData, allSuppliers, categoriesData] = await Promise.all([
@@ -438,27 +446,6 @@ export default function ProductPage() {
                         productDescription = productDescriptionData.defaultDescriptionTitle?.content as string || "High quality product.";
                         productSpecs = { "Brand": foundProduct.productName.split(' ')[0] || "Generic", "Model": foundProduct.productName, "Warranty": "2 Years", "Condition": "New", "Package Contents": `1 x ${foundProduct.productName}, User Manual, Warranty Card` };
                     }
-
-                    let reviewComments: string[] = [];
-                    const productCategoryForReviews = categoriesData.find((c: Category) => c.categoryID === foundProduct.categoryID);
-                    const categoryReviewKey = (productCategoryForReviews?.categoryName || 'default') as keyof typeof categoryReviews;
-                    if (categoryReviews[categoryReviewKey]) reviewComments = categoryReviews[categoryReviewKey];
-                    else if (categoryReviews['Computer/Tablet']) reviewComments = categoryReviews['Computer/Tablet'];
-
-                    const formattedReviews: Review[] = reviewComments.map(comment => ({
-                        rating: ((negativeKeywords: string[]) => (positiveKeywords: string[]) => (lowerComment: string) => {
-                            let r = 3;
-                            if (negativeKeywords.some((kw: string) => lowerComment.includes(kw))) r = Math.max(1, r - 1);
-                            if (positiveKeywords.some((kw: string) => lowerComment.includes(kw))) r = Math.min(5, r + 1);
-                            return r;
-                        })(['crashes', 'problem', 'issue', 'bug', 'poor', 'bad', 'slow', 'laggy', 'broken', 'fail'])
-                          (['great', 'good', 'excellent', 'amazing', 'fast', 'quality', 'value', 'recommend', 'happy'])
-                          (comment.toLowerCase()),
-                        comment, userName: `User${Math.floor(Math.random() * 1000)}`,
-                            date: new Date(Date.now() - Math.random() * 10000000000).toLocaleDateString(),
-                            avatar: `/avatars/user${Math.floor(Math.random() * 5) + 1}.png`
-                    }));
-                    // END of existing data processing
 
                     // Main and Additional Image Generation (Refactored Logic)
                     const productImagesToGenerate: { type: 'main' | 'additional'; prompt: string; originalIndex?: number }[] = [];
@@ -591,7 +578,7 @@ export default function ProductPage() {
                         ...foundProduct,
                         image: finalMainImage,
                         additionalImages: finalAdditionalImages.filter(img => img), // Remove empty slots
-                        reviews: formattedReviews,
+                        // reviews: formattedReviews, // Static reviews removed, will be fetched
                         description: productDescription,
                         specs: productSpecs,
                         stockQuantity: foundProduct.stockQuantity ?? 0,
@@ -635,7 +622,29 @@ export default function ProductPage() {
             // and might be in use by other components or needed for quick revisits.
             // The checks at the beginning of generation loops handle stale processingPrompts.
         };
-    }, [productId]); // Rerun only when productId changes
+    }, [productId, cartItems.length]); // Rerun if productId changes OR if cartItems.length changes
+
+    // useEffect to fetch reviews when product is loaded
+    useEffect(() => {
+        const fetchReviews = async () => {
+            if (product && product.productID) {
+                setLoading(true); // Optionally set a loading state for reviews
+                try {
+                    console.log(`PP: Fetching reviews for product ID: ${product.productID}`);
+                    const reviewsData = await getReviewsByProductId(product.productID);
+                    setProductReviews(reviewsData || []);
+                    console.log("PP: Reviews fetched: ", reviewsData);
+                } catch (error) {
+                    console.error('PP: Error fetching product reviews:', error);
+                    setProductReviews([]);
+                } finally {
+                    setLoading(false); // Reset loading state for reviews
+                }
+            }
+        };
+
+        fetchReviews();
+    }, [product]); // Rerun when product changes
 
     const handleAddToCart = () => {
         if (!currentUser) {
@@ -900,7 +909,7 @@ export default function ProductPage() {
                             className={`px-4 sm:px-6 py-3 text-sm sm:text-base font-medium whitespace-nowrap ${activeTab === 'reviews' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
                             onClick={() => setActiveTab('reviews')}
                         >
-                            Reviews ({product.reviews?.length || 0})
+                            Reviews ({productReviews?.length || 0})
                         </button>
                         <button
                             className={`px-4 sm:px-6 py-3 text-sm sm:text-base font-medium whitespace-nowrap ${activeTab === 'shipping' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
@@ -959,39 +968,39 @@ export default function ProductPage() {
                             <div>
                                 <h3 className="text-lg font-semibold mb-4">Customer Reviews</h3>
 
-                                {product.reviews && product.reviews.length > 0 ? (
+                                {productReviews && productReviews.length > 0 ? (
                                     <div className="space-y-6">
-                                        {product.reviews.map((review, index) => (
-                                            <div key={index} className="border-b border-gray-100 pb-4 last:border-b-0">
+                                        {productReviews.map((review, index) => (
+                                            <div key={review.reviewID || index} className="border-b border-gray-100 pb-4 last:border-b-0">
                                                 <div className="flex items-start mb-2">
                                                     <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden mr-3 flex-shrink-0">
-                                                        {review.avatar ? (
+                                                        {review.userAvatarUrl ? (
                                                             <Image
-                                                                src={review.avatar}
-                                                                alt={`${review.userName}'s avatar`} // Improved alt text
+                                                                src={review.userAvatarUrl} // Use avatar from API if available
+                                                                alt={`${review.userFullName || 'User'}\'s avatar`} 
                                                                 width={40}
                                                                 height={40}
                                                                 className="w-full h-full object-cover"
                                                             />
                                                         ) : (
                                                             <div className="w-full h-full flex items-center justify-center bg-blue-500 text-white font-medium">
-                                                                {review.userName[0].toUpperCase()}
+                                                                {(review.userFullName || 'U')[0].toUpperCase()}
                                                             </div>
                                                         )}
                                                     </div>
                                                     <div className="flex-1">
-                                                        <p className="font-medium text-gray-800">{review.userName}</p>
+                                                        <p className="font-medium text-gray-800">{review.userFullName || 'Anonymous User'}</p>
                                                         <div className="flex items-center mt-1">
-                                                            <div className="flex"> {/* Wrap stars */}
+                                                            <div className="flex"> 
                                                                 {[1, 2, 3, 4, 5].map((star) => (
                                                                     <span key={star} className={`text-sm ${star <= review.rating ? 'text-yellow-400' : 'text-gray-300'}`}>★</span>
                                                                 ))}
                                                             </div>
-                                                            <span className="text-xs text-gray-500 ml-2">{review.date}</span>
+                                                            <span className="text-xs text-gray-500 ml-2">{new Date(review.reviewDate).toLocaleDateString()}</span>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <p className="text-gray-700 ml-13 leading-relaxed">{review.comment}</p> {/* Use ml-13 if spacing requires it */}
+                                                <p className="text-gray-700 ml-13 leading-relaxed whitespace-pre-wrap">{review.comment || "No comment provided."}</p> 
                                             </div>
                                         ))}
                                     </div>

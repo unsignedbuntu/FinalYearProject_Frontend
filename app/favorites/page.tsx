@@ -13,6 +13,7 @@ import { useFavoritesStore, useFavoritesActions, FavoriteProduct, FavoriteList }
 import Image from 'next/image'
 import { toast } from 'react-hot-toast'
 import { useUserStore } from '@/app/stores/userStore'
+import { useCartActions } from '@/app/stores/cartStore'
 
 // Import actual overlay components
 import MenuOverlay from '@/components/overlay/MenuOverlay'
@@ -48,9 +49,9 @@ export default function FavoritesPage() {
   
   const actions = useFavoritesActions()
   const { user } = useUserStore()
+  const { addItem: addItemToCart } = useCartActions()
 
   const [isSortOpen, setIsSortOpen] = useState(false)
-  const [showCartSuccess, setShowCartSuccess] = useState(false)
 
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
   const [currentOverlay, setCurrentOverlay] = useState<'menu' | 'moveTo' | 'createList' | null>(null)
@@ -165,10 +166,31 @@ export default function FavoritesPage() {
   }, [actions, favoriteLists, closeAllOverlays]);
   
   const handleAddToCart = useCallback((productId: number) => {
-    toast.success("Product added to cart (placeholder)!"); 
-    setShowCartSuccess(true);
-    setTimeout(() => setShowCartSuccess(false), 3000);
-  }, []);
+    const product = favoriteProducts.find(p => p.ProductId === productId);
+
+    if (!user) {
+        toast.error("You must be logged in to add items to the cart.");
+        return;
+    }
+
+    if (product) {
+        addItemToCart({
+            productId: product.ProductId,
+            quantity: 1
+            // If your addItemToCart expects more details (name, price, imageUrl),
+            // you should get them from the product object and add them here.
+            // Example:
+            // productName: product.ProductName,
+            // price: product.Price,
+            // imageUrl: `/api-proxy/product-image/${product.ProductId}`
+        });
+        toast.success(`${product.ProductName || 'Product'} added to cart!`);
+    } else {
+        toast.error("Product details not found to add to cart.");
+    }
+    // setShowCartSuccess(true); // This is handled by toast.success
+    // setTimeout(() => setShowCartSuccess(false), 3000); // This is also handled by toast
+  }, [addItemToCart, favoriteProducts, user]);
 
   const mainFavoriteProducts = favoriteProducts.filter(product => product.ListId === undefined);
 
@@ -331,9 +353,6 @@ export default function FavoritesPage() {
           onListCreateAndMove={handleCreateListAndMoveAction}
           existingLists={favoriteLists || []}
         />
-      )}
-      {showCartSuccess && (
-        <CartSuccessMessage onClose={() => setShowCartSuccess(false)} />
       )}
     </div>
   )

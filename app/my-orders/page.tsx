@@ -35,6 +35,11 @@ const MyOrdersPage = () => {
   const [isLoadingOrderItems, setIsLoadingOrderItems] = useState<boolean>(false)
   const [fetchItemsError, setFetchItemsError] = useState<string | null>(null)
 
+  // useEffect to log expandedOrderItems whenever it changes
+  useEffect(() => {
+    console.log('[MyOrdersPage EFFECT] expandedOrderItems changed:', expandedOrderItems);
+  }, [expandedOrderItems]);
+
   useEffect(() => {
     if (!authIsLoading) {
       if (!isAuthenticated || !user) {
@@ -70,12 +75,15 @@ const MyOrdersPage = () => {
       setExpandedOrderId(orderIdToToggle);
       setIsLoadingOrderItems(true);
       setFetchItemsError(null);
-      setExpandedOrderItems([]); // Clear previous items
+      console.log('[MyOrdersPage] About to clear expandedOrderItems. Current length:', expandedOrderItems.length);
+      setExpandedOrderItems([]);
+      console.log('[MyOrdersPage] Cleared expandedOrderItems (intended state). Next, fetching new items...');
       try {
         console.log(`[MyOrdersPage] Calling getOrderItemsByOrderId(${orderIdToToggle})`);
         const items = await getOrderItemsByOrderId(orderIdToToggle);
-        console.log('[MyOrdersPage] Received items:', items);
+        console.log('[MyOrdersPage] Received items from API:', items);
         setExpandedOrderItems(items || []);
+        console.log('[MyOrdersPage] Set expandedOrderItems with new items. Intended items length:', (items || []).length);
         if (!items || items.length === 0) {
           console.log('[MyOrdersPage] No items found or empty array returned.');
         }
@@ -87,7 +95,7 @@ const MyOrdersPage = () => {
       setIsLoadingOrderItems(false);
       console.log('[MyOrdersPage] Finished loading order items.');
     }
-  }, [expandedOrderId])
+  }, [expandedOrderId, setExpandedOrderItems, setIsLoadingOrderItems, setFetchItemsError]);
 
   const formatDate = (dateString: string) => {
     try {
@@ -164,13 +172,17 @@ const MyOrdersPage = () => {
                   </button>
 
                   {expandedOrderId === order.orderID && (
-                    <div className="border-t border-gray-200 bg-gray-100 p-4 sm:p-5">
+                    <div 
+                      key={`order-items-for-${order.orderID}`}
+                      className="border-t border-gray-200 bg-gray-100 p-4 sm:p-5"
+                    >
                       {isLoadingOrderItems && <p className="text-sm text-gray-500 text-center py-4">Loading items...</p>}
                       {fetchItemsError && <p className="text-sm text-red-500 text-center py-4">Error fetching items: {fetchItemsError}</p>}
                       {!isLoadingOrderItems && !fetchItemsError && (
                         expandedOrderItems.length > 0 ? (
                           <>
                             <h4 className="text-base sm:text-lg font-semibold text-gray-700 mb-3">Order Items:</h4>
+                            { /* Boolean(console.log('[MyOrdersPage] Rendering Order Items. expandedOrderItems:', expandedOrderItems)) || null */ }
                             <ul className="space-y-3">
                               {expandedOrderItems.map(item => (
                                 <li key={item.orderItemID} className="flex items-start p-3 bg-white rounded-md border border-gray-200 shadow-sm">
@@ -198,6 +210,7 @@ const MyOrdersPage = () => {
                                 </li>
                               ))}
                             </ul>
+                            {/* <pre>{JSON.stringify(expandedOrderItems, null, 2)}</pre> */}
                           </>
                         ) : (
                           <p className="text-sm text-gray-500 text-center py-4">No items found for this order.</p>

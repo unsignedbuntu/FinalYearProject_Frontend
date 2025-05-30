@@ -533,113 +533,216 @@ export const deleteLoyaltyProgram = async (id: number) => {
   return response.json();
 };
 
-//Reviews
-export const getUserReviews = async (userId: number) => {
-  try {
-    const response = await fetch(`${getApiUrl()}/api/Reviews/ByUser/${userId}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      mode: 'cors',
-      cache: 'no-store'
-    });
-    if (!response.ok) {
-      if (response.status === 404) return []; // Yorum yoksa boş dizi
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error(`Error fetching reviews for user ${userId}:`, error);
-    return []; // Hata durumunda boş dizi
-  }
-};
+// --- REVIEWS API FUNCTIONS ---
 
-export const submitReviewApi = async (reviewData: { 
-  userId: number; 
-  productId: number; 
-  orderItemId?: number; // Backend'e göre gerekebilir
-  rating: number; 
-  comment: string; 
-}) => {
-  try {
-    const response = await fetch(`${getApiUrl()}/api/Reviews`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      mode: 'cors',
-      cache: 'no-store',
-      body: JSON.stringify(reviewData),
-    });
-    
-    if (!response.ok) {
-       const errorText = await response.text();
-       throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-    }
-    return await response.json(); // Başarılı yanıtı döndür
-  } catch (error) {
-     console.error('Error submitting review:', error);
-     throw error; // Hatanın store action'ında yakalanması için tekrar fırlat
-  }
-};
-
-// Backend DTO'suna uygun payload oluştur
-interface OrderItemPayload {
-  productID: number;
+// TypeScript Interfaces for Reviews
+export interface ApiReviewableProduct {
+  orderItemId: number;
+  orderId: number;
+  productId: number;
+  productName: string;
+  productImageUrl?: string | null;
+  orderDate: string; // ISO Date string
   quantity: number;
   priceAtPurchase: number;
+  productVariantInfo?: string | null;
 }
 
-// OrderPayloadDTO interface'inin sadece bir kere tanımlandığından emin olalım
-// Eğer başka bir yerde tanımlıysa onu kaldırıp bunu export edelim.
-export interface OrderPayloadDTO {
+export interface ApiReview {
+  reviewID: number;
   userID: number;
-  totalAmount: number;
-  shippingAddress?: string;
-  orderItems: OrderItemPayload[];
+  productID: number;
+  orderItemID?: number | null;
+  rating: number;
+  comment?: string | null;
+  reviewDate: string; // ISO Date string
+  userFullName?: string | null;
+  userAvatarUrl?: string | null;
+  productName?: string | null;
+  productImageUrl?: string | null;
 }
 
-//Orders
-export const getUserOrders = async (userId: number) => {
+export interface ApiCreateReviewPayload {
+  productID: number;
+  orderItemID?: number | null;
+  rating: number;
+  comment?: string | null;
+}
+
+/**
+ * Fetches order items that are eligible for review by the current user.
+ * GET /api/Reviews/me/reviewable-order-items
+ */
+export const getReviewableOrderItems = async (): Promise<ApiReviewableProduct[]> => {
   try {
-    // Axios kullanıldı
-    const response = await api.get(`/api/Orders/ByUser/${userId}`);
-    return response.data;
-  } catch (error: any) {
-    if (error.response && error.response.status === 404) return [];
-    console.error(`Error fetching orders for user ${userId}:`, error);
-    return [];
+    const response = await api.get<ApiReviewableProduct[]>('/api/Reviews/me/reviewable-order-items');
+    console.log('[API_Service] getReviewableOrderItems response:', response.data);
+    return response.data || []; // Ensure array is returned
+  } catch (error) {
+    console.error('[API_Service] Error fetching reviewable order items:', error);
+    throw error; // Propagate error for store to handle
   }
 };
 
-// Add function to create an order
-// Parametre tipi olarak export edilen OrderPayloadDTO'yu kullan
-export const createOrder = async (orderData: OrderPayloadDTO) => {
+/**
+ * Submits a new review.
+ * POST /api/Reviews
+ */
+export const createReview = async (payload: ApiCreateReviewPayload): Promise<ApiReview> => {
   try {
-    // Axios kullanıldı
-    const response = await api.post('/api/Orders', orderData);
-    return response.data; // Return the created order details
+    const response = await api.post<ApiReview>('/api/Reviews', payload);
+    console.log('[API_Service] createReview response:', response.data);
+    if (!response.data || !response.data.reviewID) { // Basic validation of response
+        throw new Error("Invalid response from createReview API");
+    }
+    return response.data;
+  } catch (error) {
+    console.error('[API_Service] Error creating review:', error);
+    throw error;
+  }
+};
+
+/**
+ * Fetches reviews for a specific product.
+ * GET /api/Reviews/ByProduct/{productId}
+ */
+export const getReviewsByProductId = async (productId: number): Promise<ApiReview[]> => {
+  try {
+    const response = await api.get<ApiReview[]>(`/api/Reviews/ByProduct/${productId}`);
+    console.log(`[API_Service] getReviewsByProductId for ${productId} response:`, response.data);
+    return response.data || []; // Ensure array is returned
+  } catch (error) {
+    console.error(`[API_Service] Error fetching reviews for product ${productId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Fetches all reviews written by a specific user (for "Completed reviews" tab).
+ * GET /api/Reviews/ByUser/{userId}
+ */
+export const getReviewsByUserId = async (userId: number): Promise<ApiReview[]> => {
+  try {
+    const response = await api.get<ApiReview[]>(`/api/Reviews/ByUser/${userId}`);
+    console.log(`[API_Service] getReviewsByUserId for user ${userId} response:`, response.data);
+    return response.data || []; // Ensure array is returned
+  } catch (error) {
+    console.error(`[API_Service] Error fetching reviews for user ${userId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Fetches details for a single review.
+ * GET /api/Reviews/details/{id}
+ */
+export const getReviewDetailsById = async (reviewId: number): Promise<ApiReview | null> => {
+  try {
+    const response = await api.get<ApiReview>(`/api/Reviews/details/${reviewId}`);
+    console.log(`[API_Service] getReviewDetailsById for ${reviewId} response:`, response.data);
+    return response.data; // Can be null if not found
   } catch (error: any) {
-     console.error('Error creating order:', error);
-     // Daha detaylı hata mesajı fırlat
+    if (error.response && error.response.status === 404) {
+        return null;
+    }
+    console.error(`[API_Service] Error fetching review details for ${reviewId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Deletes (soft delete via status update) a review by its ID.
+ * DELETE /api/Reviews/{id} (as per backend controller)
+ */
+export const deleteReviewById = async (reviewId: number): Promise<{ message: string } | null > => {
+  try {
+    const response = await api.delete<{ message: string }>(`/api/Reviews/${reviewId}`);
+    console.log(`[API_Service] deleteReviewById for ${reviewId} response:`, response.data);
+    return response.data;
+  } catch (error) {
+    console.error(`[API_Service] Error deleting review ${reviewId}:`, error);
+    throw error;
+  }
+};
+
+// --- ORDERS API FUNCTIONS ---
+
+// Interface for creating an order (matches C# OrderPayloadDTO)
+export interface OrderPayloadDTO {
+  userID: number; // Or string, depending on your User ID type. Assuming number from useAuth.
+  totalAmount: number;
+  shippingAddress?: string; // Optional
+  orderItems: Array<{
+    productID: number;
+    quantity: number;
+    priceAtPurchase: number;
+  }>;
+}
+
+// Interface for an Order (matches C# OrdersDTO or a simplified version)
+export interface OrderDto {
+  orderID: number;
+  userID: number;
+  orderDate: string; // ISO string
+  totalAmount: number;
+  status: string; // e.g., "Pending", "Shipped", "Delivered", "Cancelled"
+  shippingAddress?: string;
+  // Potentially include orderItems if the backend returns them directly with the order list
+  // orderItems?: ApiOrderItemDto[]; 
+}
+
+/**
+ * Fetches all orders for a specific user.
+ * GET /api/Orders/ByUser/{userId}
+ */
+export const getUserOrders = async (userId: number): Promise<OrderDto[]> => {
+  try {
+    const response = await api.get<OrderDto[]>(`/api/Orders/ByUser/${userId}`);
+    return response.data || []; // Ensure array is returned
+  } catch (error: any) {
+    if (error.response && error.response.status === 404) {
+      console.warn(`No orders found for user ${userId} (404).`);
+      return []; 
+    }
+    console.error(`Error fetching orders for user ${userId}:`, error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || `Failed to fetch orders for user ${userId}.`);
+  }
+};
+
+/**
+ * Creates a new order.
+ * POST /api/Orders
+ */
+export const createOrder = async (orderData: OrderPayloadDTO): Promise<OrderDto> => {
+  try {
+    const response = await api.post<OrderDto>('/api/Orders', orderData);
+    if (!response.data || !response.data.orderID) { // Basic validation
+        throw new Error("Invalid response from createOrder API");
+    }
+    return response.data;
+  } catch (error: any) {
+     console.error('Error creating order:', error.response?.data || error.message);
      const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Sipariş oluşturulamadı.';
      throw new Error(errorMessage);
   }
 };
 
-// Add function to get details of a single order
-export const getOrderDetails = async (orderId: number) => {
+/**
+ * Fetches details for a single order.
+ * GET /api/Orders/{orderId}
+ */
+export const getOrderDetails = async (orderId: number): Promise<OrderDto | null> => {
   try {
-    // Axios kullanıldı
-    const response = await api.get(`/api/Orders/${orderId}`);
-    return response.data;
+    const response = await api.get<OrderDto>(`/api/Orders/${orderId}`);
+    return response.data; // Can be null if not found
   } catch (error: any) {
-     console.error(`Error fetching details for order ${orderId}:`, error);
-     const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Sipariş detayları alınamadı.';
-     throw new Error(errorMessage);
+    if (error.response && error.response.status === 404) {
+        console.warn(`Order ${orderId} not found (404).`);
+        return null;
+    }
+    console.error(`Error fetching details for order ${orderId}:`, error.response?.data || error.message);
+    const errorMessage = error.response?.data?.message || error.response?.data?.title || error.message || 'Sipariş detayları alınamadı.';
+    throw new Error(errorMessage);
   }
 };
 
@@ -1453,5 +1556,34 @@ export const getOrderItemsByOrderId = async (orderId: number): Promise<ApiOrderI
     }
     console.error(`[getOrderItemsByOrderId] Error fetching order items for order ${orderId}:`, error.response?.data || error.message);
     throw new Error(error.response?.data?.message || `Failed to fetch order items for order ${orderId}.`);
+  }
+};
+
+// --- TOP REVIEWED PRODUCTS ---
+export interface ApiTopReviewedProduct {
+  productID: number;
+  productName: string;
+  price: number;
+  originalPrice?: number; // Optional, if backend provides it
+  imageUrl: string; // Assuming backend provides a direct or relative URL
+  averageRating: number;
+  // Fields like 'discount' string or 'isHot' might not be standard for this type of endpoint
+  // They can be derived on the frontend if originalPrice is available, or omitted.
+}
+
+/**
+ * Fetches the top N most reviewed products.
+ * Assumes backend endpoint: GET /api/products/top-reviewed?count={count}
+ */
+export const getTopReviewedProducts = async (count: number): Promise<ApiTopReviewedProduct[]> => {
+  try {
+    const response = await api.get<ApiTopReviewedProduct[]>(`/api/products/top-reviewed?count=${count}`);
+    console.log(`[getTopReviewedProducts] count=${count} response:`, response.data);
+    return response.data || []; // Ensure array is returned
+  } catch (error: any) {
+    console.error(`[getTopReviewedProducts] Error fetching top reviewed products (count=${count}):`, error.response?.data || error.message);
+    // Depending on how you want to handle errors, you might throw or return empty
+    // For a best-seller component, returning empty might be preferable to breaking the page
+    return []; 
   }
 };
