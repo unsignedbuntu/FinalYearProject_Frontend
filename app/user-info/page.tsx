@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/sidebar/Sidebar'
 import Arrowdown from '@/components/icons/Arrowdown'
@@ -10,6 +10,7 @@ import PersonalInformationTab from './components/PersonalInformationTab'
 import { useUserStore } from '@/app/stores/userStore'
 import { getCurrentUserAddresses, deleteUserAddress, UserAddressResponseDto } from '@/services/API_Service'
 import { toast } from 'react-hot-toast'
+import { useAuth } from '@/contexts/AuthContext';
 
 // Geçici İkon Tanımlamaları (Kendi ikonlarınızla değiştirin)
 const EditIconSvg = ({ className }: { className?: string }) => (
@@ -72,9 +73,13 @@ const AddressCard: React.FC<AddressCardProps> = ({ address, onEdit, onDelete }) 
 export default function UserInfoPage() {
   const router = useRouter();
   const { user } = useUserStore();
+  const { logout } = useAuth();
   const [activeTab, setActiveTab] = useState('personalInfo')
   const [showTransactionsDropdown, setShowTransactionsDropdown] = useState(false)
   const [showCloseAccountMessage, setShowCloseAccountMessage] = useState(false)
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownButtonRef = useRef<HTMLButtonElement>(null);
 
   // Adresler için state'ler
   const [addresses, setAddresses] = useState<UserAddressResponseDto[]>([])
@@ -134,6 +139,37 @@ export default function UserInfoPage() {
     }
   }
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success('Successfully logged out.');
+      router.push('/signin');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      toast.error('Logout failed. Please try again.');
+    }
+    setShowTransactionsDropdown(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showTransactionsDropdown &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        dropdownButtonRef.current &&
+        !dropdownButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowTransactionsDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTransactionsDropdown]);
+
   return (
     <div className="min-h-screen pt-[160px] relative">
       <Sidebar />
@@ -143,17 +179,18 @@ export default function UserInfoPage() {
             My Account
           </h1>
           <div 
+            ref={dropdownRef}
             className="relative group"
-            onMouseEnter={() => setShowTransactionsDropdown(true)}
-            onMouseLeave={() => setShowTransactionsDropdown(false)}
           >
             <button
+              ref={dropdownButtonRef}
+              onClick={() => setShowTransactionsDropdown(!showTransactionsDropdown)}
               className="flex items-center gap-2 cursor-pointer"
-            >
-              <span className="font-raleway text-[20px] font-normal group-hover:text-[#FF8800] transition-colors">
-                Transactions
-              </span>
-              <Arrowdown className="text-black group-hover:text-[#FF8800] transition-colors" />
+          >
+            <span className="font-raleway text-[20px] font-normal group-hover:text-[#FF8800] transition-colors">
+              Transactions
+            </span>
+            <Arrowdown className="text-black group-hover:text-[#FF8800] transition-colors" />
             </button>
             {showTransactionsDropdown && (
               <div className="absolute right-0 mt-2 w-[200px] bg-[#D9D9D9] rounded-lg p-4 shadow-lg z-50">
@@ -168,24 +205,23 @@ export default function UserInfoPage() {
                   <div className="flex flex-col">
                     <span className="font-raleway text-[16px] group-hover:text-[#FF8000] transition-colors">My user</span>
                     <span className="font-raleway text-[16px] group-hover:text-[#FF8000] transition-colors">information</span>
-                  </div>
-                </div>
+          </div>
+        </div>
                 <div 
                   className="flex items-center gap-2 group cursor-pointer pl-2 hover:bg-gray-200 p-1 rounded-md" 
                   onClick={() => {
-                      setShowTransactionsDropdown(false) 
-                      setShowCloseAccountMessage(true)
+                    handleLogout();
                   }}
                 >
                   <Exit className="w-6 h-6 group-hover:text-[#FF8000] transition-colors" />
                   <span className="font-raleway text-[16px] group-hover:text-[#FF8000] transition-colors">
                     Close account
                   </span>
-                </div>
               </div>
-            )}
-          </div>
-        </div>
+              </div>
+                )}
+              </div>
+                  </div>
 
         <div className="w-[1000px] mb-6">
           <div className="flex border-b border-gray-300">
@@ -200,7 +236,7 @@ export default function UserInfoPage() {
             >
               Personal Information
             </button>
-            <button 
+                  <button
               onClick={() => setActiveTab('addresses')}
               className={`py-3 px-6 font-raleway text-lg transition-colors 
                           ${
@@ -210,9 +246,9 @@ export default function UserInfoPage() {
                           }`}
             >
               My Addresses
-            </button>
-          </div>
-        </div>
+                  </button>
+                </div>
+              </div>
 
         {activeTab === 'personalInfo' && (
           <PersonalInformationTab />
@@ -221,7 +257,7 @@ export default function UserInfoPage() {
           <div className="w-[1000px] bg-[#F8F8F8] mt-8 p-8 rounded-lg">
             <div className="flex justify-between items-center mb-6">
               <h2 className="font-raleway text-[24px]">My Addresses</h2>
-              <button 
+              <button
                 onClick={handleAddNewAddress}
                 className="flex items-center bg-[#00EEFF] text-black px-4 py-2 rounded-lg font-raleway text-[16px] hover:bg-[#2F00FF] hover:text-white transition-all duration-200"
               >
@@ -241,9 +277,9 @@ export default function UserInfoPage() {
                 <p className="text-red-500 text-lg mb-2">{errorAddresses}</p>
                 <button onClick={fetchAddresses} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
                   Retry
-                </button>
-              </div>
-            )}
+                  </button>
+                </div>
+                )}
 
             {!isLoadingAddresses && !errorAddresses && addresses.length === 0 && (
               <div className="text-center py-10">

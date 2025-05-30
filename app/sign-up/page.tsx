@@ -1,11 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import Visible from "@/components/icons/Visible";
 import Unvisible from "@/components/icons/Unvisible";
 import { useAuth } from "@/contexts/AuthContext";
 import SignupSuccessMessage from "@/components/messages/SignupSuccessMessage";
+import { toast } from 'react-hot-toast';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function SignUpPage() {
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -26,6 +28,11 @@ export default function SignUpPage() {
     password: '',
     confirmPassword: ''
   });
+
+  // formData her değiştiğinde konsola yazdırmak için:
+  useEffect(() => {
+    console.log('formData state güncellendi:', formData);
+  }, [formData]);
 
   // Generate arrays for day, month, and year dropdowns
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -64,12 +71,43 @@ export default function SignUpPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const validatePassword = (password: string): { isValid: boolean; message?: string } => {
+    if (password.length < 10) {
+      return { isValid: false, message: "Şifreniz en az 10 karakter olmalıdır." };
+    }
+    if (!/[A-Z]/.test(password)) {
+      return { isValid: false, message: "Şifreniz en az bir büyük harf içermelidir." };
+    }
+    if (!/[a-z]/.test(password)) {
+      return { isValid: false, message: "Şifreniz en az bir küçük harf içermelidir." };
+    }
+    if (!/[0-9]/.test(password)) {
+      return { isValid: false, message: "Şifreniz en az bir rakam içermelidir." };
+    }
+    return { isValid: true };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
     setShowSuccess(false);
+    setPasswordError(null);
+
     if (validateForm()) {
       try {
+        const passwordValidation = validatePassword(formData.password);
+        if (!passwordValidation.isValid) {
+          setPasswordError(passwordValidation.message || "Şifre geçerli değil.");
+          toast.error(passwordValidation.message || "Lütfen şifre kurallarına uyun.");
+          return;
+        }
+
+        if (formData.password !== formData.confirmPassword) {
+          setErrors(prev => ({ ...prev, confirmPassword: "Şifreler eşleşmiyor." }));
+          toast.error("Şifreler eşleşmiyor.");
+          return;
+        }
+
         await register(formData);
         setShowSuccess(true);
         setTimeout(() => {
@@ -84,10 +122,16 @@ export default function SignUpPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    console.log(`handleInputChange çağırıldı: name="${name}", value="${value}"`);
+
+    setFormData(prevFormData => {
+      const newFormData = {
+        ...prevFormData,
+        [name]: value
+      };
+      console.log('setFormData içindeki yeni değer:', newFormData);
+      return newFormData;
+    });
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -172,37 +216,41 @@ export default function SignUpPage() {
             {errors.email && <div className="text-red-500 text-sm mt-1">{errors.email}</div>}
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          {/* Date of birth selects container with z-index */}
+          <div className="grid grid-cols-3 gap-2 relative z-20">
             <select
+              key="birthDaySelect"
               name="birthDay"
               value={formData.birthDay}
               onChange={handleInputChange}
               className="px-4 py-2 rounded-lg bg-[#B4D4FF] text-black"
             >
-          <option value="" disabled hidden>Day</option>
+              <option value="" disabled>Day</option> {/* Standart placeholder */}
                     {days.map(day => (
                     <option key={day} value={day}>{day}</option>
                      ))}
                     </select>
             <select
+              key="birthMonthSelect"
               name="birthMonth"
               value={formData.birthMonth}
               onChange={handleInputChange}
               className="px-4 py-2 rounded-lg bg-[#B4D4FF] text-black"
             >
-                 <option value="" disabled hidden>Month</option>
+                 <option value="" disabled>Month</option> {/* Standart placeholder */}
                     {months.map(month => (
                       <option key={month} value={month}>{month}</option>
                     ))}
                   </select>
 
             <select
+              key="birthYearSelect"
               name="birthYear"
               value={formData.birthYear}
               onChange={handleInputChange}
               className="px-4 py-2 rounded-lg bg-[#B4D4FF] text-black"
             >
-              <option value="" disabled hidden>Year</option>
+              <option value="" disabled>Year</option> {/* Standart placeholder */}
                     {years.map(year => (
                       <option key={year} value={year}>{year}</option>
                     ))}

@@ -79,7 +79,7 @@ export default function ListDetailPage() {
     productId: fp.ProductId,
     productName: fp.ProductName || 'Unnamed Product',
     price: fp.Price ?? 0, // Provide 0 as a fallback if Price is undefined
-    imageUrl: fp.ImageUrl,
+    imageUrl: fp.ProductId ? `/api-proxy/product-image/${fp.ProductId}` : (fp.ImageUrl || '/placeholder.png'), // Explicitly construct proxied URL
     inStock: fp.InStock,
     supplierName: fp.SupplierName || undefined,
   }));

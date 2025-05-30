@@ -20,6 +20,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 // Define the structure for registration data
@@ -27,9 +28,13 @@ interface RegisterData {
   firstName: string;
   lastName: string;
   email: string;
-  phoneNumber: string;
+  phoneNumber?: string; // Opsiyonel yaptık, çünkü sign-up formunda da opsiyonel
   password: string;
   confirmPassword: string;
+  // Doğum tarihi için sign-up formundan gelen alanlar
+  birthDay?: string;
+  birthMonth?: string;
+  birthYear?: string;
 }
 
 // Create the context with a default undefined value to check for provider presence
@@ -40,36 +45,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true); // Start loading
 
-  useEffect(() => {
-    // Check authentication status when the app loads
-    const checkAuth = async () => {
-      setIsLoading(true);
-      try {
-        // Call the /me endpoint to verify the cookie
-        const response = await api.get('/api/Auth/me');
-        if (response.data && response.data.user) {
-          setUser(response.data.user);
-          setIsAuthenticated(true);
-        } else {
-          // No user data means not authenticated
-          setUser(null);
-          setIsAuthenticated(false);
-        }
-      } catch (error) {
-        // Check if it's an Axios error and has a response (like 401)
-        if (axios.isAxiosError(error) && error.response) {
-           console.log(`Auth check failed: ${error.response.status}`);
-        } else {
-          console.error("Error checking auth status:", error);
-        }
+  const checkAuth = async () => {
+    console.log('[AuthContext] checkAuth called');
+    setIsLoading(true);
+    try {
+      const response = await api.get(`/api/Auth/me?timestamp=${Date.now()}`);
+      console.log('[AuthContext] /api/Auth/me response user data:', response.data.user);
+      if (response.data && response.data.user) {
+        setUser(response.data.user);
+        setIsAuthenticated(true);
+      } else {
         setUser(null);
         setIsAuthenticated(false);
       }
-      setIsLoading(false);
-    };
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+         console.log(`Auth check failed: ${error.response.status}`);
+      } else {
+        console.error("Error checking auth status:", error);
+      }
+      setUser(null);
+      setIsAuthenticated(false);
+    }
+    setIsLoading(false);
+  };
 
+  useEffect(() => {
     checkAuth();
   }, []);
+
+  const refreshUser = async () => {
+    console.log("[AuthContext] refreshUser called");
+    console.log("[AuthContext] Refreshing user data...");
+    await checkAuth();
+  };
 
   const login = async (email: string, password: string) => {
     try {
@@ -102,10 +111,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const register = async (data: RegisterData) => {
+  const register = async (signUpFormData: RegisterData) => {
     try {
+      let dateOfBirthString: string | null = null;
+
+      if (signUpFormData.birthDay && signUpFormData.birthMonth && signUpFormData.birthYear) {
+        const monthMap: { [key: string]: number } = {
+            "January": 1, "February": 2, "March": 3, "April": 4, "May": 5, "June": 6,
+            "July": 7, "August": 8, "September": 9, "October": 10, "November": 11, "December": 12
+        };
+        const monthNumber = monthMap[signUpFormData.birthMonth];
+
+        if (monthNumber) {
+            const day = parseInt(signUpFormData.birthDay, 10);
+            const year = parseInt(signUpFormData.birthYear, 10);
+            if (!isNaN(day) && !isNaN(year)) {
+                dateOfBirthString = `${year}-${String(monthNumber).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            }
+        }
+      }
+
+      const payload = {
+        firstName: signUpFormData.firstName,
+        lastName: signUpFormData.lastName,
+        email: signUpFormData.email,
+        phoneNumber: signUpFormData.phoneNumber || null,
+        password: signUpFormData.password,
+        // confirmPassword backend DTO'sunda yoksa gönderilmesine gerek yok,
+        // backend zaten Password ve ConfirmPassword eşleşmesini RegisterDto içinde [Compare] attribute ile yapıyor.
+        // Eğer backend DTO'nuzda ConfirmPassword yoksa bu satırı kaldırabilirsiniz.
+        // Şimdilik backend DTO'nuzda olduğunu varsayarak bırakıyorum, RegisterDto.cs'i kontrol edin.
+         confirmPassword: signUpFormData.confirmPassword, 
+        dateOfBirth: dateOfBirthString,
+      };
+
+      console.log("[AuthContext] Register payload to API:", payload); // API'ye giden payload'ı logla
+
       // Register endpoint doesn't automatically log in or set a cookie
-      await api.post('/api/Auth/register', data);
+      await api.post('/api/Auth/register', payload);
        console.log("Registration successful.");
       // Optionally redirect to login or show success message
       // No state change needed here as register doesn't log the user in
@@ -148,7 +191,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

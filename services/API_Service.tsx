@@ -731,7 +731,15 @@ export const getUserFavorites = async (): Promise<FavoriteDto[]> => {
     const response = await api.get<FavoriteDto[]>('/api/Favorites');
     console.log("getUserFavorites response:", response.data);
     // Gerekirse backend DTO alan adlarıyla map'leme yapın (productId, productName, imageUrl vb.)
-    return response.data || [];
+    // Gelen her bir favori ürün için ImageUrl'i proxy üzerinden oluştur
+    return (response.data || []).map(fav => ({
+      ...fav,
+      // Varsayıyoruz ki fav.ProductId mevcut ve ImageUrl bununla oluşturulacak.
+      // Eğer backend'den gelen ImageUrl zaten tam bir URL ise bu satırı kaldırabilirsiniz
+      // veya koşullu olarak proxy kullanabilirsiniz.
+      // Şimdilik, ProductId kullanarak proxy URL oluşturuyoruz.
+      ImageUrl: fav.ProductId ? `/api-proxy/product-image/${fav.ProductId}` : (fav.ImageUrl || '/placeholder.png') 
+    }));
   } catch (error: any) {
      if (error.response && error.response.status === 401) {
       console.warn('Kullanıcı favorileri alınamadı (Yetkisiz 401)');
@@ -850,7 +858,11 @@ export const getFavoriteListItems = async (listId: number): Promise<ApiFavoriteL
   try {
     const response = await api.get<ApiFavoriteListItemDto[]>(`/api/FavoriteLists/${listId}/products`);
     console.log(`getFavoriteListItems for list ${listId} response:`, response.data);
-    return response.data || [];
+    const itemsWithImages = (response.data || []).map(item => ({
+      ...item,
+      productImageUrl: `/api-proxy/product-image/${item.productID}` // Proxy URL'i oluştur
+    }));
+    return itemsWithImages; // Return the processed items
   } catch (error: any) {
     if (error.response && error.response.status === 401) {
       console.warn(`Favori listesi ${listId} ürünleri alınamadı (Yetkisiz 401)`);
@@ -1329,4 +1341,117 @@ export const getProxiedProductImageUrl = (productId: number): string => {
 
 export const getProxiedSupplierImageUrl = (supplierId: number): string => {
   return `/api-proxy/supplier-image/${supplierId}`;
+};
+
+// --- User Followed Suppliers DTO and API Functions ---
+
+export interface FollowedSupplierDto {
+  supplierID: number;
+  supplierName: string;
+  contactEmail?: string;
+  // Add other relevant fields if your backend provides them for a "followed supplier" context
+}
+
+/**
+ * Gets all suppliers followed by a specific user.
+ * Assumes backend endpoint: GET /api/users/{userId}/followed-suppliers
+ */
+export const getFollowedSuppliers = async (userId: number): Promise<ApiResponse<FollowedSupplierDto[] | null>> => {
+  if (!userId) {
+    console.warn('[getFollowedSuppliers] User ID is required.');
+    return { success: false, message: 'User ID is required.', data: null };
+  }
+  try {
+    const response = await api.get<ApiResponse<FollowedSupplierDto[]>>(`/api/users/${userId}/followed-suppliers`);
+    // Assuming the backend returns ApiResponseDto<FollowedSupplierDto[]>
+    return response.data;
+  } catch (error: any) {
+    console.error(`[getFollowedSuppliers] Error fetching followed suppliers for user ${userId}:`, error.response?.data || error.message);
+    return { 
+      success: false, 
+      message: error.response?.data?.message || `Failed to fetch followed suppliers for user ${userId}.`, 
+      data: null 
+    };
+  }
+};
+
+/**
+ * Marks a supplier as followed by a user.
+ * Assumes backend endpoint: POST /api/users/{userId}/followed-suppliers/{supplierId}
+ */
+export const followSupplier = async (userId: number, supplierId: number): Promise<ApiResponse<null>> => {
+  if (!userId || !supplierId) {
+    console.warn('[followSupplier] User ID and Supplier ID are required.');
+    return { success: false, message: 'User ID and Supplier ID are required.' };
+  }
+  try {
+    // Backend might return 201 Created with no content or an ApiResponse indicating success
+    const response = await api.post<ApiResponse<null>>(`/api/users/${userId}/followed-suppliers/${supplierId}`);
+    return response.data || { success: true, message: 'Supplier followed successfully.' }; // Fallback if response.data is empty but successful
+  } catch (error: any) {
+    console.error(`[followSupplier] Error following supplier ${supplierId} for user ${userId}:`, error.response?.data || error.message);
+    return { 
+      success: false, 
+      message: error.response?.data?.message || `Failed to follow supplier ${supplierId}.`,
+      errors: error.response?.data?.errors 
+    };
+  }
+};
+
+/**
+ * Marks a supplier as unfollowed by a user.
+ * Assumes backend endpoint: DELETE /api/users/{userId}/followed-suppliers/{supplierId}
+ */
+export const unfollowSupplier = async (userId: number, supplierId: number): Promise<ApiResponse<null>> => {
+  if (!userId || !supplierId) {
+    console.warn('[unfollowSupplier] User ID and Supplier ID are required.');
+    return { success: false, message: 'User ID and Supplier ID are required.' };
+  }
+  try {
+    // Backend might return 204 No Content or an ApiResponse indicating success
+    const response = await api.delete<ApiResponse<null>>(`/api/users/${userId}/followed-suppliers/${supplierId}`);
+    return response.data || { success: true, message: 'Supplier unfollowed successfully.' }; // Fallback if response.data is empty but successful
+  } catch (error: any) {
+    console.error(`[unfollowSupplier] Error unfollowing supplier ${supplierId} for user ${userId}:`, error.response?.data || error.message);
+    return { 
+      success: false, 
+      message: error.response?.data?.message || `Failed to unfollow supplier ${supplierId}.`,
+      errors: error.response?.data?.errors
+    };
+  }
+};
+
+// Corresponds to C# OrderItemsResponseDTO
+export interface ApiOrderItemDto { 
+  orderItemID: number;
+  orderID: number;
+  productID: number;
+  quantity: number;
+  priceAtPurchase: number;
+  productName: string;
+  barcode?: string | null; 
+  productImageUrl?: string; // Yeni alan eklendi
+}
+
+/**
+ * Belirli bir siparişe ait tüm sipariş kalemlerini getirir.
+ * GET /api/OrderItems/ByOrder/{orderId}
+ */
+export const getOrderItemsByOrderId = async (orderId: number): Promise<ApiOrderItemDto[]> => {
+  try {
+    const response = await api.get<ApiOrderItemDto[]>(`/api/OrderItems/ByOrder/${orderId}`);
+    const itemsWithImages = (response.data || []).map(item => ({
+      ...item,
+      productImageUrl: `/api-proxy/product-image/${item.productID}` // Proxy URL'i oluştur
+    }));
+    console.log(`[getOrderItemsByOrderId] Response for order ${orderId}:`, itemsWithImages);
+    return itemsWithImages; 
+  } catch (error: any) {
+    if (error.response && error.response.status === 404) {
+      console.warn(`[getOrderItemsByOrderId] No order items found for order ${orderId} (404).`);
+      return []; 
+    }
+    console.error(`[getOrderItemsByOrderId] Error fetching order items for order ${orderId}:`, error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || `Failed to fetch order items for order ${orderId}.`);
+  }
 };

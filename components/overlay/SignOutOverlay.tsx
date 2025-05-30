@@ -16,6 +16,7 @@ export default function SignOutOverlay({ isOpen, onClose }: SignOutOverlayProps)
   const overlayRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { logout, user } = useAuth(); // Get logout function and user from context
+  console.log('[SignOutOverlay] Rendering with user:', user); // Log user AFTER declaration
 
   // Sadece overlay dışındaki alana tıklandığında kapanacak
   const handleClickOutside = (event: React.MouseEvent<HTMLDivElement>) => {

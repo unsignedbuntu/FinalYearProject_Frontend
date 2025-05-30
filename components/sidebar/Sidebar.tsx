@@ -40,7 +40,7 @@ export default function Sidebar() {
               </span>
             </div>
           </Link>
-
+          
           <div 
             className={`flex items-center gap-2 mb-2 p-2 hover:bg-[#FFE8D6] rounded-md transition-colors -mx-4 pl-2 cursor-pointer ${pathname === '/cart' ? 'bg-[#00EEFF]' : ''}`}
             onClick={handleCartClick}

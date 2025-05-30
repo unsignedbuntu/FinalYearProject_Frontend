@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation'; // Gerekirse yönlendirme için
 import { toast } from 'react-hot-toast';
 import { useUserStore, User } from '@/app/stores/userStore';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   getCurrentUserInformation,
   createOrUpdateCurrentUserInformation,
@@ -22,7 +23,8 @@ const years = Array.from({ length: 100 }, (_, i) => (currentYear - i).toString()
 
 export default function PersonalInformationTab() {
   const router = useRouter();
-  const { user } = useUserStore();
+  const { user: userFromStore } = useUserStore();
+  const { refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
 
   const [formData, setFormData] = useState<UserInformationRequestDto & { 
@@ -58,17 +60,22 @@ export default function PersonalInformationTab() {
   });
 
   useEffect(() => {
-    if (user?.id) {
+    if (userFromStore?.id) {
       const fetchUserInfo = async () => {
         setIsLoading(true);
         setFormData(prev => ({
           ...prev,
-          email: user.email || '' 
+          email: userFromStore.email || '' 
         }));
 
         const response = await getCurrentUserInformation();
+        console.log('[PersonalInformationTab] Raw API Response:', response);
+
         if (response.success && response.data) {
           const userInfo = response.data;
+          console.log('[PersonalInformationTab] UserInfo Data from API:', userInfo);
+          console.log('[PersonalInformationTab] Date of Birth string from API:', userInfo.dateOfBirth);
+
           setFormData(prev => ({
             ...prev,
             firstName: userInfo.firstName || '',
@@ -81,14 +88,22 @@ export default function PersonalInformationTab() {
             try {
                 const dob = new Date(userInfo.dateOfBirth);
                 if (!isNaN(dob.getTime())) {
+                    console.log('[PersonalInformationTab] Parsed Date Object:', dob);
                     setBirthDay(dob.getDate().toString());
                     setBirthMonth(months[dob.getMonth()]);
                     setBirthYear(dob.getFullYear().toString());
+                    console.log('[PersonalInformationTab] Set Day, Month, Year states:', dob.getDate().toString(), months[dob.getMonth()], dob.getFullYear().toString());
+                } else {
+                    console.error('[PersonalInformationTab] Invalid Date after parsing:', userInfo.dateOfBirth);
+                    setBirthDay(''); setBirthMonth(''); setBirthYear('');
                 }
             } catch (e) {
-                console.error("Error parsing dateOfBirth from API:", userInfo.dateOfBirth, e);
+                console.error("[PersonalInformationTab] Error parsing dateOfBirth from API:", userInfo.dateOfBirth, e);
                 setBirthDay(''); setBirthMonth(''); setBirthYear('');
             }
+          } else {
+            console.log('[PersonalInformationTab] dateOfBirth is null or undefined from API');
+            setBirthDay(''); setBirthMonth(''); setBirthYear('');
           }
         } else if (!response.success && response.message !== "User information not found.") {
           toast.error(response.message || "Failed to load user information.");
@@ -97,7 +112,7 @@ export default function PersonalInformationTab() {
       };
       fetchUserInfo();
     } else {
-      if (useUserStore.getState().hasCheckedAuth && !user) {
+      if (useUserStore.getState().hasCheckedAuth && !userFromStore) {
         setIsLoading(false);
       } else if (!useUserStore.getState().hasCheckedAuth) {
         // Oturum kontrolü bekleniyor
@@ -105,7 +120,7 @@ export default function PersonalInformationTab() {
         setIsLoading(false);
       }
     }
-  }, [user]);
+  }, [userFromStore]);
 
   const validatePassword = (password: string) => {
     const hasUpperCase = /[A-Z]/.test(password);
@@ -153,6 +168,7 @@ export default function PersonalInformationTab() {
 
     if (response.success && response.data) {
       toast.success(response.message || 'Information updated successfully!');
+      await refreshUser();
       const updatedInfo = response.data;
       setFormData(prev => ({
         ...prev,
@@ -197,7 +213,7 @@ export default function PersonalInformationTab() {
     }, 1000);
   };
 
-  if (isLoading && !user?.id && !useUserStore.getState().hasCheckedAuth) {
+  if (isLoading && !userFromStore?.id && !useUserStore.getState().hasCheckedAuth) {
     return (
       <div className="flex justify-center items-center min-h-[300px]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
