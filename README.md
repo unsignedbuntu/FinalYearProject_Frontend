@@ -22,8 +22,14 @@ This platform provides a complete e-commerce experience with a wide range of fea
 - **Account Management:** Users can sign up, log in, and log out securely.
 
 ### Advanced & AI-Powered Features
-- **AI Image Generation:** An integrated service that uses a Stable Diffusion model to generate product images from text prompts, with a caching layer for performance.
-- **Gamified Loyalty Program:** A unique loyalty program integrated via a Python microservice, allowing users to earn points through a simple game.
+- **AI Image Generation with Multi-Layer Caching:** The platform integrates a powerful feature for generating images from text prompts using a Stable Diffusion model.
+  - **Smart Caching:** To optimize performance and reduce redundant, costly API calls, a multi-layer caching strategy is implemented. When an image is requested, the system first queries a high-speed **Redis cache**. If it's a miss, it checks a persistent **database cache**. The Stable Diffusion model is only invoked if the image is absent from both caches.
+  - **Dockerized Redis:** The Redis cache runs within a **Docker container**, ensuring a consistent and isolated environment for development and deployment.
+  - **Frontend Integration:** This functionality is exposed to users on pages like `MyFollowedStores/page.tsx`, where they can input prompts to generate visuals. The request is handled by a dedicated `/api/ImageCache` Next.js API route.
+
+- **Gamified Loyalty Program with Python Microservice:** A unique loyalty program enhances user engagement.
+  - **Integration:** Users can access the game via the `loyalty-program/page.tsx` page, which triggers a `/api/run-game` endpoint.
+  - **Decoupled Architecture:** This Next.js API route communicates with a separate, **Python-based microservice**. This microservice contains the game's logic, and its decoupled nature allows it to be developed, scaled, and maintained independently from the main frontend application.
 
 ### User Interface & Experience
 - **Responsive Design:** Fully responsive layout built with Tailwind CSS, ensuring a seamless experience on all devices.
