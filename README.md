@@ -78,7 +78,18 @@ The project follows a feature-oriented directory structure, organized for scalab
 
 ## 🖼️ Project Gallery
 
-*(This is a placeholder section. You can add screenshots of your application here.)*
+![image](https://github.com/user-attachments/assets/5c33dbfc-fd2a-4efb-96fd-9e42cf49bcd3)
+![image](https://github.com/user-attachments/assets/fc960113-a34d-4c0e-a16d-ff841bd983a5)
+![image](https://github.com/user-attachments/assets/52a453da-d332-43a2-82da-800b5c11f749)
+![image](https://github.com/user-attachments/assets/0508bfda-a2bd-454b-a392-0dba1c75da04)
+![image](https://github.com/user-attachments/assets/bc319943-2c67-4365-8aef-20bfc35f810c)
+![image](https://github.com/user-attachments/assets/686a47a2-34db-46bb-913d-4a8be4239c5e)
+![image](https://github.com/user-attachments/assets/bc33d204-ff34-4e9b-9593-841ce7e3ae09)
+![image](https://github.com/user-attachments/assets/ac6737e5-2399-4c46-b0a2-5bea88f8e99e)
+
+
+
+
 
 <!-- 
 Example:
