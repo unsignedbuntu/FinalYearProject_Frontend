@@ -18,7 +18,7 @@
     "clsx": "^2.1.1",
     "dotenv": "^16.4.7",
     "google-auth-library": "^9.15.0",
-    "http-proxy-middleware": "^3.0.3",
+    "http-proxy-middleware": "^3.0.5",
     "https-browserify": "^1.0.0",
     "jwt-decode": "^4.0.0",
     "lottie-react": "^2.4.0",
