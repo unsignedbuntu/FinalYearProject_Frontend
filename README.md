@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Final Year Project - Modern E-commerce Frontend
 
 This repository contains the source code for the frontend of a feature-rich, modern e-commerce platform. It is built using the latest web technologies, focusing on performance, scalability, and a great user experience. This project was developed as a final year university project.
