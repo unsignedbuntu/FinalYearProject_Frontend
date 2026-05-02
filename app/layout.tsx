@@ -5,9 +5,12 @@ import "./globals.css";
 import Header from "@/components/header/Header";
 import NavigationBar from "@/components/navigation/NavigationBar";
 import { usePathname } from "next/navigation";
+<<<<<<< HEAD
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import StoreInitializer from "@/components/providers/StoreInitializer";
+=======
+>>>>>>> main
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,6 +36,7 @@ export default function RootLayout({
   const pathname = usePathname();
   const isAuthPage = pathname === "/signin" || pathname === "/sign-up" || pathname === "/forgot-password";
 
+<<<<<<< HEAD
   // Add flex classes for full height background
   const bodyBaseClasses = "flex flex-col min-h-screen"; 
   const bodyBackgroundClass = !isAuthPage
@@ -56,6 +60,18 @@ export default function RootLayout({
           <main className="flex flex-col flex-grow min-h-0">{children}</main>
           <Toaster position="bottom-center" />
         </AuthProvider>
+=======
+  return (
+    <html lang="en">
+      <body>
+        {!isAuthPage && (
+          <>
+            <Header />
+            <NavigationBar />
+          </>
+        )}
+        <main>{children}</main>
+>>>>>>> main
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Image from 'next/image'
+<<<<<<< HEAD
 import MenuIcon from '@/components/icons/Menu'
 import MenuOverlay from '@/components/overlay/MenuOverlay'
 import CartSuccessMessage from '@/components/messages/CartSuccessMessage'
@@ -37,6 +38,24 @@ interface ProductGridProps {
   onProductMenuClick?: (productId: number) => void;
   onAddToCartClick?: (productId: number) => void;
   onDirectDeleteClick?: (productId: number) => void;
+=======
+import Menu from '@/components/icons/Menu'
+import CartFavorites from '@/components/icons/CartFavorites'
+import MenuOverlay from '@/components/overlay/MenuOverlay'
+import CartSuccessMessage from '@/components/messages/CartSuccessMessage'
+
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  image: string;
+  inStock?: boolean;
+}
+
+interface ProductGridProps {
+  products: Product[];
+  showInStock: boolean;
+>>>>>>> main
 }
 
 const RatingStars = ({ rating }: { rating: number }) => {
@@ -56,6 +75,7 @@ const RatingStars = ({ rating }: { rating: number }) => {
   )
 }
 
+<<<<<<< HEAD
 export default function ProductGrid({ products, isLoading, context = 'products', onProductMenuClick, onAddToCartClick, onDirectDeleteClick }: ProductGridProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null)
@@ -104,10 +124,78 @@ export default function ProductGrid({ products, isLoading, context = 'products',
             <div className="p-4 space-y-2">
               <div className="h-4 bg-gray-200 rounded w-3/4"></div>
               <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+=======
+export default function ProductGrid({ products, showInStock }: ProductGridProps) {
+  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedProduct, setSelectedProduct] = useState<number | null>(null)
+  const [showCartSuccess, setShowCartSuccess] = useState(false)
+  const productsPerPage = 8
+
+  // 16 örnek ürün oluştur
+  const dummyProducts = Array.from({ length: 16 }, (_, i) => ({
+    id: i + 1,
+    name: i < 2 ? products[i]?.name || `Nike Air Max 270 React` : `Adidas Superstar`,
+    price: i < 2 ? products[i]?.price || 299.99 : 399.99,
+    image: i < 2 ? products[i]?.image : '/placeholder.jpg',
+    inStock: i < 8,
+    rating: Math.floor(Math.random() * 2) + 3
+  }))
+
+  const filteredProducts = dummyProducts.filter(p => 
+    showInStock ? p.inStock : !p.inStock
+  )
+
+  // Sayfalama için ürünleri böl
+  const indexOfLastProduct = currentPage * productsPerPage
+  const indexOfFirstProduct = indexOfLastProduct - productsPerPage
+  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct)
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
+  
+  return (
+    <div className="flex flex-col items-center">
+      <div className="grid grid-cols-4 gap-6 mt-8">
+        {currentProducts.map((product) => (
+          <div 
+            key={product.id} 
+            className="w-[200px] h-[200px] rounded-lg relative"
+          >
+            <div className="h-[140px] relative overflow-hidden rounded-t-lg bg-[#D9D9D9]">
+              {product.image === '/placeholder.jpg' ? (
+                <div className="w-full h-full" />
+              ) : (
+                <Image
+                  src={product.image}
+                  alt={product.name}
+                  fill
+                  className="object-cover"
+                />
+              )}
+              <button 
+                className="absolute top-2 right-2 z-10"
+                onClick={() => setSelectedProduct(product.id)}
+              >
+                <Menu />
+              </button>
+            </div>
+            <div className="p-2 flex flex-col items-start bg-white rounded-b-lg">
+              <h3 className="font-poppins text-[14px] font-bold text-[#223263] truncate w-full">
+                {product.name}
+              </h3>
+              <RatingStars rating={product.rating} />
+              <div className="absolute bottom-1 right-1">
+                <button onClick={() => setShowCartSuccess(true)}>
+                  <CartFavorites />
+                </button>
+              </div>
+              <div className="font-poppins text-[14px] font-bold text-[#40BFFF] mt-1">
+                {product.price.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+              </div>
+>>>>>>> main
             </div>
           </div>
         ))}
       </div>
+<<<<<<< HEAD
     )
   }
 
@@ -254,6 +342,47 @@ export default function ProductGrid({ products, isLoading, context = 'products',
           </div>
         )
       })}
+=======
+
+      {selectedProduct && (
+        <MenuOverlay onClose={() => setSelectedProduct(null)} />
+      )}
+
+      {showCartSuccess && (
+        <CartSuccessMessage onClose={() => setShowCartSuccess(false)} />
+      )}
+
+      {/* Sayfalama */}
+      {totalPages > 1 && (
+        <div className="flex gap-2 mt-6">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
+          >
+            Önceki
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i + 1}
+              onClick={() => setCurrentPage(i + 1)}
+              className={`px-4 py-2 rounded-lg ${
+                currentPage === i + 1 ? 'bg-[#40BFFF] text-white' : 'bg-gray-200'
+              }`}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50"
+          >
+            Sonraki
+          </button>
+        </div>
+      )}
+>>>>>>> main
     </div>
   )
 } 

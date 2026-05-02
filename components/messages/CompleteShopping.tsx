@@ -1,7 +1,11 @@
 import { useEffect } from 'react';
 import Information from '../icons/Information';
 import Image from 'next/image';
+<<<<<<< HEAD
 
+=======
+import Close from '../icons/Close.png';
+>>>>>>> main
 
 interface CompleteShoppingProps {
   onClose: () => void;
@@ -32,7 +36,11 @@ export default function CompleteShopping({ onClose }: CompleteShoppingProps) {
           className="absolute right-[14px] top-[14px] hover:opacity-80 transition-opacity
                    active:scale-95 transform duration-150"
         >
+<<<<<<< HEAD
           <Image src="/Close.png" alt="Close Icon" width={12} height={12} />
+=======
+          <Image src={Close} alt="Close Icon" width={12} height={12} />
+>>>>>>> main
         </button>
 
         <div className="absolute left-0 top-0 w-[20px] h-full bg-[#56C8FA]">
