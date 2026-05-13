@@ -3,7 +3,7 @@ import axios from 'axios';
 import https from 'https';
 
 const AUTOMATIC1111_API_URL = 'http://127.0.0.1:7860';
-const API_URL = process.env.URL;
+const API_URL = process.env.NEXT_PUBLIC_URL;
 
 // GET /api/ImageCache - Get cached image by pageId and prompt
 export async function GET(req: Request) {

@@ -12,7 +12,7 @@ export async function GET(
     return new NextResponse('Invalid product ID', { status: 400 });
   }
 
-  const backendImageUrl = `${process.env.URL || 'https://localhost:7296'}/api/ImageServe/${productId}`;
+  const backendImageUrl = `${process.env.NEXT_PUBLIC_URL || 'https://localhost:7296'}/api/ImageServe/${productId}`;
 
   try {
     // Use your 'api' axios instance which is configured to handle self-signed certs

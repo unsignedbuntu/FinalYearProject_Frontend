@@ -20,7 +20,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.URL}/:path*`,
+        destination: `${process.env.NEXT_PUBLIC_URL}/:path*`,
       },
     ];
   },
@@ -38,7 +38,7 @@ const nextConfig = {
     ];
   },
   env: {
-    URL: process.env.URL,
+    URL: process.env.NEXT_PUBLIC_URL,
   },
  
 };

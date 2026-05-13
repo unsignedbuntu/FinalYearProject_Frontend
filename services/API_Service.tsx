@@ -4,7 +4,7 @@ import { AxiosResponse } from 'axios';
 
 // Create an Axios instance
 const api = axios.create({
-  baseURL: process.env.URL || 'https://localhost:7296', // Backend URL'nizi buraya ekleyin veya environment'tan alın
+  baseURL: process.env.NEXT_PUBLIC_URL || 'https://localhost:7296', // Backend URL'nizi buraya ekleyin veya environment'tan alın
   httpsAgent: new https.Agent({ rejectUnauthorized: false }), // Development için
   withCredentials: true // Oturum/Cookie tabanlı kimlik doğrulama için önemli
 });
@@ -30,7 +30,7 @@ const api = axios.create({
 export { api };
 
 // Ensure fetch calls use the correct environment variable or default
-const getApiUrl = () => process.env.URL || 'https://localhost:7296';
+const getApiUrl = () => process.env.NEXT_PUBLIC_URL || 'https://localhost:7296';
 
 // --- DTO Arayüzleri ---
 // (Backend'deki DTO'larla eşleşmeli - Gerekirse alanları güncelleyin)

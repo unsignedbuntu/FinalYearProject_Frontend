@@ -3,7 +3,7 @@ import https from 'https';
 
 export const getCategories = async () => {
   try {
-    const result = await fetch(`${process.env.URL}/api/Categories`, { 
+    const result = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Categories`, { 
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -27,7 +27,7 @@ export const getCategories = async () => {
 
 export const getCategoriesById = async (id: number) => {
 
-  const response = await fetch(`${process.env.URL}/api/Categories/${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Categories/${id}`, {
     method: 'GET',
     headers: {
       'Accept': 'application/json',
@@ -42,7 +42,7 @@ export const getCategoriesById = async (id: number) => {
 
 export const createCategory = async (data: any) => {
 
-  const response = await fetch(`${process.env.URL}/api/Categories`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Categories`, {
 
     method: 'POST',
     headers: {
@@ -59,7 +59,7 @@ export const createCategory = async (data: any) => {
 
 export const updateCategory = async (id: number, data: any) => {
 
-  const response = await fetch(`${process.env.URL}/api/Categories/${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Categories/${id}`, {
 
     method: 'PUT',
     headers: {
@@ -76,7 +76,7 @@ export const updateCategory = async (id: number, data: any) => {
 
 export const deleteCategory = async (id: number) => {
 
-  const response = await fetch(`${process.env.URL}/api/Categories/SoftDelete_Status${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Categories/SoftDelete_Status${id}`, {
     method: 'DELETE',
   });
 
@@ -86,7 +86,7 @@ export const deleteCategory = async (id: number) => {
 //Products
 export const getProducts = async () => {
   try {
-    const result = await fetch(`${process.env.URL}/api/Products`, { 
+    const result = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Products`, { 
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -109,7 +109,7 @@ export const getProducts = async () => {
 
 export const getProductById = async (id: number) => {
 
-  const response = await fetch(`${process.env.URL}/api/Products/${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Products/${id}`, {
     method: 'GET',
     headers: {
       'Accept': 'application/json',
@@ -124,7 +124,7 @@ export const getProductById = async (id: number) => {
 
 export const createProduct = async (data: any) => {
 
-  const response = await fetch(`${process.env.URL}/api/Products`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Products`, {
 
     method: 'POST',
     headers: {
@@ -141,7 +141,7 @@ export const createProduct = async (data: any) => {
 
 export const updateProduct = async (id: number, data: any) => {
 
-  const response = await fetch(`${process.env.URL}/api/Products/${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Products/${id}`, {
 
     method: 'PUT',
     headers: {
@@ -158,7 +158,7 @@ export const updateProduct = async (id: number, data: any) => {
 
 export const deleteProduct = async (id: number) => {
 
-  const response = await fetch(`${process.env.URL}/api/Products/SoftDelete_Status${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Products/SoftDelete_Status${id}`, {
     method: 'DELETE',
   });
 
@@ -168,7 +168,7 @@ export const deleteProduct = async (id: number) => {
 //Stores
 export const getStores = async () => {
   try {
-    const result = await fetch(`${process.env.URL}/api/Stores`, { 
+    const result = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Stores`, { 
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -191,7 +191,7 @@ export const getStores = async () => {
 
 export const getStoreById = async (id: number) => {
 
-  const response = await fetch(`${process.env.URL}/api/Stores/${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Stores/${id}`, {
     method: 'GET',
     headers: {
       'Accept': 'application/json',
@@ -206,7 +206,7 @@ export const getStoreById = async (id: number) => {
 
 export const createStore = async (data: any) => {
 
-  const response = await fetch(`${process.env.URL}/api/Stores`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Stores`, {
 
     method: 'POST',
     headers: {
@@ -223,7 +223,7 @@ export const createStore = async (data: any) => {
 
 export const updateStore = async (id: number, data: any) => {
 
-  const response = await fetch(`${process.env.URL}/api/Stores/${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Stores/${id}`, {
 
     method: 'PUT',
     headers: {
@@ -240,7 +240,7 @@ export const updateStore = async (id: number, data: any) => {
 
 export const deleteStore = async (id: number) => {
 
-  const response = await fetch(`${process.env.URL}/api/Stores/SoftDelete_Status${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Stores/SoftDelete_Status${id}`, {
     method: 'DELETE',
   });
 
@@ -250,7 +250,7 @@ export const deleteStore = async (id: number) => {
 // Suppliers
 export const getProductSuppliers = async () => {
   try {
-    const response = await fetch(`${process.env.URL}/api/ProductSuppliers`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/ProductSuppliers`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -272,7 +272,7 @@ export const getProductSuppliers = async () => {
 };
 
 export const getProductSupplierById = async (id: number) => {
-    const response = await fetch(`${process.env.URL}/api/ProductSuppliers/${id}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/ProductSuppliers/${id}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -285,7 +285,7 @@ export const getProductSupplierById = async (id: number) => {
 };
 
 export const createProductSupplier = async (data: any) => {
-  const response = await fetch(`${process.env.URL}/api/ProductSuppliers`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/ProductSuppliers`, {
     method: 'POST',
     headers: {
       'Accept': 'application/json',
@@ -300,7 +300,7 @@ export const createProductSupplier = async (data: any) => {
 };
 
 export const updateProductSupplier = async (id: number, data: any) => {
-  const response = await fetch(`${process.env.URL}/api/ProductSuppliers/${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/ProductSuppliers/${id}`, {
     method: 'PUT',
     headers: {
       'Accept': 'application/json',
@@ -315,7 +315,7 @@ export const updateProductSupplier = async (id: number, data: any) => {
 };
 
 export const deleteProductSupplier = async (id: number) => {
-  const response = await fetch(`${process.env.URL}/api/ProductSuppliers/SoftDelete_Status${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/ProductSuppliers/SoftDelete_Status${id}`, {
     method: 'DELETE',
   });
 
@@ -324,7 +324,7 @@ export const deleteProductSupplier = async (id: number) => {
 
 export const getSuppliers = async () => {
   try {
-    const response = await fetch(`${process.env.URL}/api/Suppliers`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Suppliers`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -346,7 +346,7 @@ export const getSuppliers = async () => {
 };
 
 export const getSupplierById = async (id: number) => {
-    const response = await fetch(`${process.env.URL}/api/Suppliers/${id}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Suppliers/${id}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -359,7 +359,7 @@ export const getSupplierById = async (id: number) => {
 };
 
 export const createSupplier = async (data: any) => {
-  const response = await fetch(`${process.env.URL}/api/Suppliers`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Suppliers`, {
     method: 'POST',
     headers: {
       'Accept': 'application/json',
@@ -374,7 +374,7 @@ export const createSupplier = async (data: any) => {
 };
 
 export const updateSupplier = async (id: number, data: any) => {
-  const response = await fetch(`${process.env.URL}/api/Suppliers/${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Suppliers/${id}`, {
     method: 'PUT',
     headers: {
       'Accept': 'application/json',
@@ -389,7 +389,7 @@ export const updateSupplier = async (id: number, data: any) => {
 };
 
 export const deleteSupplier = async (id: number) => {
-  const response = await fetch(`${process.env.URL}/api/Suppliers/SoftDelete_Status${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/Suppliers/SoftDelete_Status${id}`, {
     method: 'DELETE',
   });
 
@@ -400,7 +400,7 @@ export async function getImageFromCache(pageId: string, prompt: string) {
   try {
       // Create the same short hash for consistency
       
-      const response = await axios.get(`${process.env.URL}/api/ImageCache/${pageId}/${prompt}`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_URL}/api/ImageCache/${pageId}/${prompt}`, {
         
           headers: {
               'Content-Type': 'application/json',
@@ -424,7 +424,7 @@ export async function getImageFromCache(pageId: string, prompt: string) {
 
 export const getCacheImageById = async (pageId: string, prompt: string, id: number) => {
 
-  const response = await fetch(`${process.env.URL}/api/ImageCache?pageId=${pageId}&prompt=${prompt}&id=${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/ImageCache?pageId=${pageId}&prompt=${prompt}&id=${id}`, {
     
     method: 'GET',
     headers: {
@@ -461,7 +461,7 @@ export const createCacheImage = async ({ pageID, prompt}: CreateCacheImageParams
           };
       } 
 
-      const response = await axios.post(`${process.env.URL}/api/ImageCache`, {
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_URL}/api/ImageCache`, {
           pageID: pageID,
           prompt: prompt,
   
@@ -494,7 +494,7 @@ export const createCacheImage = async ({ pageID, prompt}: CreateCacheImageParams
 };
 
 export const deleteCacheImage = async (id: number) => {
-  const response = await fetch(`${process.env.URL}/api/ImageCache/SoftDelete_Status${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/ImageCache/SoftDelete_Status${id}`, {
     method: 'DELETE',
   });
 

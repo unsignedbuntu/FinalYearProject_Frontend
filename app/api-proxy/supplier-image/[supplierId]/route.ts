@@ -14,7 +14,7 @@ export async function GET(
   // ASSUMPTION: Backend has an endpoint like /api/ImageServe/supplier/{supplierId}
   // If your C# backend endpoint for serving supplier images by ID is different,
   // please update this URL.
-  const backendImageUrl = `${process.env.URL || 'https://localhost:7296'}/api/ImageServe/supplier/${supplierId}`;
+  const backendImageUrl = `${process.env.NEXT_PUBLIC_URL || 'https://localhost:7296'}/api/ImageServe/supplier/${supplierId}`;
 
   try {
     const response = await api.get(backendImageUrl, {
