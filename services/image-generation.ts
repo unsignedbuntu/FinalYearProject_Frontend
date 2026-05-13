@@ -37,60 +37,6 @@ export const generateImage = async ({
             sampler_name
         });
 
-<<<<<<< HEAD
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 saniye timeout
-        
-        try {
-            const response = await fetch('/api/generate-image', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    prompt,
-                    negative_prompt,
-                    width,
-                    height,
-                    steps,
-                    cfg_scale,
-                    sampler_name
-                }),
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status} ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            console.log('Response received:', response.status);
-
-            if (data && data.success && data.image) {
-                return {
-                    success: true,
-                    image: data.image
-                };
-            }
-
-            const errorMessage = data?.error || 'No image generated';
-            console.error('API Error:', errorMessage);
-            throw new Error(errorMessage);
-            
-        } catch (fetchError: any) {
-            clearTimeout(timeoutId);
-            
-            if (fetchError.name === 'AbortError') {
-                console.error('Request timed out after 60 seconds');
-                throw new Error('Request timed out after 60 seconds');
-            }
-            
-            throw fetchError;
-        }
-
-=======
         const response = await axios.post('/api/generate-image', {
             prompt,
             negative_prompt,
@@ -114,17 +60,12 @@ export const generateImage = async ({
         console.error('API Error:', errorMessage);
         throw new Error(errorMessage);
 
->>>>>>> main
     } catch (error) {
         console.error('Error generating image:', error);
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Failed to generate image',
-<<<<<<< HEAD
-            details: error instanceof Error ? error.stack : null
-=======
             details: error instanceof axios.AxiosError ? error.response?.data : null
->>>>>>> main
         };
     }
 };
