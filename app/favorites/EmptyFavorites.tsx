@@ -1,16 +1,8 @@
 "use client"
 import FavoriteIcon from '../../components/icons/FavoriteIcon'
-<<<<<<< HEAD
-import { useUIStore } from '@/app/stores/uiStore'
-
-export default function EmptyFavorites() {
-  const openStoresMegaMenu = useUIStore((state) => state.openStoresMegaMenu)
-
-=======
 import Link from 'next/link'
 
 export default function EmptyFavorites() {
->>>>>>> main
   return (
     <div className="flex flex-col items-center justify-center min-h-screen">
       <div className="w-[835px] h-[300px] flex flex-col items-center justify-center bg-[#D9D9D9]">
@@ -22,24 +14,6 @@ export default function EmptyFavorites() {
           my favorites list yet.
         </h1>
 
-<<<<<<< HEAD
-        <div 
-          onClick={openStoresMegaMenu}
-          className="relative w-[354px] h-[74px] rounded-[15px] flex items-center justify-center transition-all duration-300 group cursor-pointer"
-          style={{ backgroundColor: '#00EEFF' }}
-        >
-          <span 
-            className="relative z-10 font-inter text-[24px] font-normal text-[#FF0000] group-hover:text-[#FFFFFF] transition-colors"
-          >
-            Start shopping now and add your favorite products!
-          </span>
-
-          <div 
-            className="absolute inset-0 rounded-[15px] opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ backgroundColor: '#2F00FF' }}
-          />
-        </div>
-=======
         <Link href="/products">
           <div 
             className="relative w-[354px] h-[74px] rounded-[15px] flex items-center justify-center transition-all duration-300 group"
@@ -57,7 +31,6 @@ export default function EmptyFavorites() {
             />
           </div>
         </Link>
->>>>>>> main
       </div>
     </div>
   )

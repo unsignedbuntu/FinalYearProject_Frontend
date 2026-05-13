@@ -11,28 +11,6 @@ import Image from 'next/image'
 import FavoriteHover from '../icons/FavoritesPageHover'
 import CartHover from '../icons/CartHover'
 import SignInOverlay from '../overlay/SignInOverlay'
-<<<<<<< HEAD
-import SignOutOverlay from '../overlay/SignOutOverlay'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthContext'
-import GlobalSearch from '../layout/GlobalSearch'
-
-export default function Header() {
-  const [isSignInOpen, setIsSignInOpen] = useState(false)
-  const [isSignOutOpen, setIsSignOutOpen] = useState(false)
-  const router = useRouter()
-  const { user, logout, isAuthenticated } = useAuth()
-
-  const handleUserButtonClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (isAuthenticated) {
-      setIsSignOutOpen(prev => !prev);
-      setIsSignInOpen(false);
-    } else {
-      setIsSignInOpen(prev => !prev);
-      setIsSignOutOpen(false);
-    }
-=======
 import { useRouter } from 'next/navigation'
 
 export default function Header() {
@@ -48,7 +26,6 @@ export default function Header() {
     e.preventDefault();
     // Burada sepet kontrolü yapılacak, şimdilik cart sayfasına yönlendir
     router.push('/cart');
->>>>>>> main
   };
 
   return (
@@ -73,9 +50,6 @@ export default function Header() {
        
 
         <div className="flex-grow max-w-2xl" style={{ marginLeft: '-150px', marginTop: '10px' }}>
-<<<<<<< HEAD
-          <GlobalSearch />
-=======
           <div className="relative">
             <input
               type="text"
@@ -88,59 +62,25 @@ export default function Header() {
               </svg>
             </button>
           </div>
->>>>>>> main
         </div>
 
         
         <div className="flex items-center gap-7">
         
-<<<<<<< HEAD
-          <button
-            onClick={handleUserButtonClick}
-=======
           <Link 
             href="/sign-up"
             onClick={toggleSignIn}
->>>>>>> main
             className="relative w-[182px] h-[58px] bg-[#8CFF75] hover:bg-[#7ee569] rounded-lg transition-colors flex items-center group cursor-pointer"
           >
             <div className="pl-4 flex items-center">
               <div className="group-hover:hidden">
-<<<<<<< HEAD
-                {isAuthenticated ? <GroupTeamHover /> : <UserIcon />}
-=======
                 <UserIcon />
->>>>>>> main
               </div>
               <div className="hidden group-hover:block">
                 <GroupTeamHover />
               </div>
             </div>
             <div className="flex flex-col ml-2" style={{ marginRight: '24px' }}>
-<<<<<<< HEAD
-              {isAuthenticated && user ? (
-                <>
-                   <span className="text-[18px] group-hover:text-[22px] text-black group-hover:text-[#792AE8] transition-all whitespace-nowrap truncate" title={user.fullName}>Hi, {user.fullName.split(' ')[0]}</span>
-                </>
-              ) : (
-                <>
-                  <span className="text-[20px] group-hover:text-[25px] text-black group-hover:text-[#792AE8] transition-all whitespace-nowrap">Sign in</span>
-                  <span className="text-[16px] group-hover:text-[20px] text-gray-700 group-hover:text-[#792AE8] transition-all whitespace-nowrap">or sign up</span>
-                </>
-              )}
-            </div>
-            {!isAuthenticated && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="group-hover:hidden">
-                  <Arrowdown />
-                </div>
-                <div className="hidden group-hover:block">
-                  <ArrowdownHover />
-                </div>
-              </div>
-            )}
-          </button>
-=======
               <span className="text-[20px] group-hover:text-[25px] text-black group-hover:text-[#792AE8] transition-all whitespace-nowrap">Sign in</span>
               <span className="text-[20px] group-hover:text-[25px] text-black group-hover:text-[#792AE8] transition-all whitespace-nowrap">or sign up</span>
             </div>
@@ -153,16 +93,11 @@ export default function Header() {
               </div>
             </div>
           </Link>
->>>>>>> main
 
          
           <Link 
             href="/favorites" 
-<<<<<<< HEAD
-            className="w-[162px] h-[58px] bg-[#ED7375] hover:bg-[#d46769] rounded-lg transition-colors flex items-center justify-center gap-2 group"
-=======
             className="w-[162px] h-[58px] bg-[#ED7375] hover:bg-[#ED7375] rounded-lg transition-colors flex items-center justify-center gap-2 group"
->>>>>>> main
           >
             <div className="group-hover:hidden">
                 <FavoriteIcon width={24} height={24} />
@@ -177,10 +112,7 @@ export default function Header() {
 
           <Link 
             href="/cart" 
-<<<<<<< HEAD
-=======
             onClick={handleCartClick}
->>>>>>> main
             className="w-[162px] h-[58px] bg-[#D9D9D9] hover:bg-[#c2c2c2] rounded-lg transition-colors flex items-center justify-center gap-2 group"
           >
             <div className="group-hover:hidden">
@@ -196,25 +128,10 @@ export default function Header() {
         </div>
       </div>
 
-<<<<<<< HEAD
-      {!isAuthenticated && isSignInOpen && (
-        <SignInOverlay 
-          isOpen={isSignInOpen}
-          onClose={() => setIsSignInOpen(false)}
-        />
-      )}
-      {isAuthenticated && isSignOutOpen && (
-        <SignOutOverlay 
-          isOpen={isSignOutOpen}
-          onClose={() => setIsSignOutOpen(false)}
-        />
-      )}
-=======
       <SignInOverlay 
         isOpen={isSignInOpen}
         onClose={() => setIsSignInOpen(false)}
       />
->>>>>>> main
     </header>
   )
 }

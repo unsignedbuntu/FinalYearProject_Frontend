@@ -1,10 +1,7 @@
 import { useEffect } from 'react';
 import TickGreen from '../icons/TickGreen';
 import Image from 'next/image';
-<<<<<<< HEAD
-=======
 import Close from '../icons/Close.png';
->>>>>>> main
 
 interface DeleteMessageFavoritesProps {
   onClose: () => void;

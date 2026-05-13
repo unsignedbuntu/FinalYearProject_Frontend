@@ -1,16 +1,6 @@
 import { useEffect } from 'react';
 import Information from '../icons/Information';
 import Image from 'next/image';
-<<<<<<< HEAD
-
-interface MyCartMessageProps {
-  productName: string;
-  onClose: () => void;
-  onUndo: () => void;
-}
-
-export default function MyCartMessage({ productName, onClose, onUndo }: MyCartMessageProps) {
-=======
 import Close from '../icons/Close.png';
 
 interface MyCartMessageProps {
@@ -18,7 +8,6 @@ interface MyCartMessageProps {
 }
 
 export default function MyCartMessage({ onClose }: MyCartMessageProps) {
->>>>>>> main
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -43,11 +32,7 @@ export default function MyCartMessage({ onClose }: MyCartMessageProps) {
           className="absolute right-[14px] top-[14px] hover:opacity-80 transition-opacity
                    active:scale-95 transform duration-150"
         >
-<<<<<<< HEAD
-          <Image src="/Close.png" alt="Close Icon" width={12} height={12} />
-=======
           <Image src={Close} alt="Close Icon" width={12} height={12} />
->>>>>>> main
         </button>
 
         <div className="absolute left-0 top-0 w-[20px] h-full bg-[#56C8FA]">
@@ -63,19 +48,11 @@ export default function MyCartMessage({ onClose }: MyCartMessageProps) {
                    font-inter text-[16px] text-black leading-tight max-w-[230px]
                    animate-fade-in"
         >
-<<<<<<< HEAD
-          {productName} removed from cart.
-        </div>
-
-        <span
-          onClick={onUndo}
-=======
           The product has been removed from your cart.
         </div>
 
         <span
           onClick={onClose}
->>>>>>> main
           className="absolute left-[80px] top-[78px] font-inter text-[40px] text-[#6C84FA] 
                         hover:opacity-90 transition-opacity cursor-pointer"
         >

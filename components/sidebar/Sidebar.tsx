@@ -6,10 +6,7 @@ import MyReviews from '../icons/MyReviews'
 import Coupon from '../icons/Coupon'
 import Stores from '../icons/Stores'
 import UserInfSidebar from '../icons/UserInfSidebar'
-<<<<<<< HEAD
-=======
 import Address from '../icons/Address'
->>>>>>> main
 import FavoriteSidebar from '../icons/FavoriteSidebar'
 import KtunGPT from '../icons/KtunGPT'
 
@@ -28,30 +25,12 @@ export default function Sidebar() {
     >
       {/* My Orders Section */}
       <div className="mb-[36px]">
-<<<<<<< HEAD
-        <div className="w-[250px] h-[240px] bg-white m-[0_7px_36px_3px] p-4">
-=======
         <div className="w-[250px] h-[190px] bg-white m-[0_7px_36px_3px] p-4">
->>>>>>> main
           <h2 className="w-[115px] h-[28px] font-raleway text-[24px] text-black mb-4">
             My Orders
           </h2>
           <div className="w-[250px] h-[1px] bg-red-500 mb-1 ml-[-16px]" />
           
-<<<<<<< HEAD
-          <Link href="/my-orders">
-            <div className={`flex items-center gap-2 mb-2 p-2 hover:bg-[#FFE8D6] rounded-md transition-colors -mx-4 pl-2 ${pathname === '/my-orders' ? 'bg-[#00EEFF]' : ''}`}>
-              <div className="w-[40px] flex justify-start">
-                <Stores width={37} height={37} />
-              </div>
-              <span className="font-raleway text-[20px] text-black whitespace-nowrap">
-                All My Orders
-              </span>
-            </div>
-          </Link>
-          
-=======
->>>>>>> main
           <div 
             className={`flex items-center gap-2 mb-2 p-2 hover:bg-[#FFE8D6] rounded-md transition-colors -mx-4 pl-2 cursor-pointer ${pathname === '/cart' ? 'bg-[#00EEFF]' : ''}`}
             onClick={handleCartClick}
@@ -112,11 +91,7 @@ export default function Sidebar() {
 
       {/* My Account Section */}
       <div className="mb-[36px]">
-<<<<<<< HEAD
-        <div className="w-[250px] h-[190px] bg-white m-[0_7px_36px_3px] p-4">
-=======
         <div className="w-[250px] h-[240px] bg-white m-[0_7px_36px_3px] p-4">
->>>>>>> main
           <h2 className="w-[164px] h-[21.6px] font-raleway text-[24px] text-black mb-4">
             My Account
           </h2>
@@ -133,8 +108,6 @@ export default function Sidebar() {
             </div>
           </Link>
 
-<<<<<<< HEAD
-=======
           <Link href="/address-info">
             <div className={`flex items-center gap-2 mb-2 p-2 hover:bg-[#FFE8D6] rounded-md transition-colors -mx-4 pl-2 ${pathname === '/address-info' ? 'bg-[#00EEFF]' : ''}`}>
               <div className="w-[40px] flex justify-start">
@@ -146,7 +119,6 @@ export default function Sidebar() {
             </div>
           </Link>
 
->>>>>>> main
           <Link href="/favorites">
             <div className={`flex items-center gap-2 mb-2 p-2 hover:bg-[#FFE8D6] rounded-md transition-colors -mx-4 pl-2 ${pathname === '/favorites' ? 'bg-[#00EEFF]' : ''}`}>
               <div className="w-[40px] flex justify-start">

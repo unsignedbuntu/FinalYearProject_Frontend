@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-import LandingPage from '@/components/LandingPage';
-
-export default function Home() {
-  return <LandingPage />;
-}
-=======
 import HeroSlider from '@/components/HeroSlider'
 import BestSeller from '@/components/BestSeller'
 import Footer from '@/components/Footer'
@@ -36,4 +29,3 @@ export default async function Home() {
   )
 }
 
->>>>>>> main
