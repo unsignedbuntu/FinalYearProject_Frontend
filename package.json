@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@google-cloud/vertexai": "^1.9.2",
-    "axios": "^1.7.9",
+    "axios": "^1.16.1",
     "dotenv": "^16.4.7",
     "google-auth-library": "^9.15.0",
     "http-proxy-middleware": "^3.0.3",
