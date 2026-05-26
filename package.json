@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@google-cloud/vertexai": "^1.9.2",
     "axios": "^1.7.9",
     "dotenv": "^16.4.7",
     "google-auth-library": "^9.15.0",
