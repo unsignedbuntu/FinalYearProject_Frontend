@@ -4,30 +4,28 @@ import Link from 'next/link'
 import TicIcon from '../icons/TicIcon'
 import TicHover from '../icons/Tic_Hover'
 import ArrowRight from '../icons/ArrowRight'
-import { getStores, getCategories, getProducts } from '@/services/Category_Actions'
+import { getStores, getCategories, getProducts } from '@/services/API_Service'
+import { useUIStore } from '@/app/stores/uiStore'
 
 interface Store {
   storeID: number;
   storeName: string;
-  categories?: Category[];
 }
 
 interface Category {
   categoryID: number;
   categoryName: string;
-  storeID: number;
-  products?: Product[];
+  storeName: string;
 }
 
 interface Product {
   productID: number;
   productName: string;
-  categoryID: number;
-  storeID: number;
+  categoryName: string;
+  storeName: string;
 }
 
 export default function StoresMegaMenu() {
-  const [isOpen, setIsOpen] = useState(false);
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -36,6 +34,9 @@ export default function StoresMegaMenu() {
   const [error, setError] = useState<string | null>(null);
   const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const isOpen = useUIStore((state) => state.isStoresMegaMenuOpen);
+  const closeMenu = useUIStore((state) => state.closeStoresMegaMenu);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -49,16 +50,18 @@ export default function StoresMegaMenu() {
         ]);
 
         if (Array.isArray(storesData)) {
-          setStores(storesData);
+          // Çift mağazaları filtrele
+          const uniqueStores = storesData.filter(
+            (store, index, self) =>
+              index === self.findIndex((s) => s.storeID === store.storeID)
+          );
+          setStores(uniqueStores);
+          if (uniqueStores.length > 0) setSelectedStore(uniqueStores[0]);
         }
-        
-        if (Array.isArray(categoriesData)) {
-          setCategories(categoriesData);
-        }
-        
-        if (Array.isArray(productsData)) {
-          setProducts(productsData);
-        }
+
+        if (Array.isArray(categoriesData)) setCategories(categoriesData);
+        if (Array.isArray(productsData)) setProducts(productsData);
+
       } catch (error) {
         console.error('Error fetching data:', error);
         setError('Failed to load data. Please try again later.');
@@ -72,16 +75,15 @@ export default function StoresMegaMenu() {
 
   const handleMouseEnter = useCallback(() => {
     if (timeoutId) clearTimeout(timeoutId);
-    setIsOpen(true);
+    useUIStore.getState().openStoresMegaMenu();
   }, [timeoutId]);
 
   const handleMouseLeave = useCallback(() => {
     const id = setTimeout(() => {
-      setIsOpen(false);
-      setSelectedStore(null);
-    }, 300); // 300ms gecikme
+      closeMenu();
+    }, 300);
     setTimeoutId(id);
-  }, []);
+  }, [closeMenu]);
 
   useEffect(() => {
     return () => {
@@ -97,16 +99,13 @@ export default function StoresMegaMenu() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-        setSelectedStore(null);
+        closeMenu();
       }
     };
 
     document.addEventListener('mouseover', handleClickOutside);
-    return () => {
-      document.removeEventListener('mouseover', handleClickOutside);
-    };
-  }, []);
+    return () => document.removeEventListener('mouseover', handleClickOutside);
+  }, [closeMenu]);
 
   return (
     <div 
@@ -119,7 +118,7 @@ export default function StoresMegaMenu() {
         className="h-[47px] w-[180px] flex items-center group-hover:justify-start pl-4 rounded-lg text-black hover:bg-opacity-40 transition-all group relative"
         style={{ backgroundColor: 'rgba(255, 255, 0, 0.35)' }}
       >
-        <span className="font-satisfy text-2xl group-hover:text-[#FF9D00] group-hover:text-[28px]  transition-all">
+        <span className="font-satisfy text-2xl group-hover:text-[#FF9D00] group-hover:text-[28px] transition-all">
           Stores
         </span>
         <span className="absolute right-2 group-hover:hidden">
@@ -136,68 +135,103 @@ export default function StoresMegaMenu() {
             className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
             onMouseEnter={handleMouseLeave}
           />
-          
+
+          {/* DÜZELTİLEN YER: left:-750px yerine ekranın tam ortasına hizalandı */}
           <div
-            className="absolute top-full left-0 w-[800px] bg-white shadow-xl rounded-lg p-6 z-50"
+            className="fixed top-[100px] left-1/2 -translate-x-1/2 w-[90vw] max-w-[1400px] bg-white shadow-2xl rounded-xl p-8 z-50 flex min-h-[600px] max-h-[80vh] overflow-hidden"
             onMouseEnter={handleMouseEnter}
           >
             {isLoading ? (
-              <div className="flex justify-center items-center h-40">
-                <span className="text-gray-500">Loading...</span>
+              <div className="flex justify-center items-center w-full">
+                <span className="text-gray-500 text-xl font-bold">Loading...</span>
               </div>
             ) : error ? (
-              <div className="flex justify-center items-center h-40">
-                <span className="text-red-500">{error}</span>
+              <div className="flex justify-center items-center w-full">
+                <span className="text-red-500 text-xl font-bold">{error}</span>
               </div>
             ) : (
-              <div className="flex">
-                {/* Mağazalar Listesi */}
-                <div className="w-1/4 border-r border-gray-200 pr-4">
-                  {stores.length > 0 ? (
-                    stores.map((store) => (
-                      <div
-                        key={store.storeID}
-                        className="py-2 px-4 hover:bg-gray-50 cursor-pointer rounded-md group/store transition-colors"
-                        onMouseEnter={() => handleStoreHover(store)}
-                      >
-                        <div className="flex items-center justify-between group-hover/store:text-[#1D4ED8]">
-                          <span className="font-medium">{store.storeName}</span>
-                          <ArrowRight className="w-4 h-4 transition-colors" />
+              <div className="flex w-full h-full">
+                {/* Mağazalar Listesi (Sol Sütun) */}
+                <div className="w-1/4 border-r border-gray-200 pr-6 overflow-y-auto">
+                  <h2 className="font-bold text-2xl text-[#FF9D00] mb-6">Stores</h2>
+                  <div className="flex flex-col gap-2">
+                    {stores.length > 0 ? (
+                      stores.map((store) => (
+                        <div
+                          key={store.storeID}
+                          className={`py-3 px-4 hover:bg-gray-100 cursor-pointer rounded-lg group/store transition-all ${selectedStore?.storeID === store.storeID ? 'bg-blue-50 border-l-4 border-blue-600' : ''}`}
+                          onMouseEnter={() => handleStoreHover(store)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`font-semibold ${selectedStore?.storeID === store.storeID ? 'text-blue-700' : 'text-gray-700'}`}>
+                              {store.storeName}
+                            </span>
+                            <ArrowRight className={`w-5 h-5 transition-colors ${selectedStore?.storeID === store.storeID ? 'text-blue-700' : 'text-gray-400'}`} />
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="py-2 px-4 text-gray-500">No stores available</div>
-                  )}
+                      ))
+                    ) : (
+                      <div className="text-gray-500">No stores available</div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Kategoriler ve Ürünler */}
+                {/* Kategoriler ve Ürünler (Sağ Taraf) */}
                 {selectedStore && (
-                  <div className="w-3/4 pl-6">
-                    <div className="grid grid-cols-5 gap-6">
+                  <div className="w-3/4 pl-8 overflow-y-auto">
+                    <h2 className="text-3xl font-bold text-gray-800 mb-6 border-b pb-4">{selectedStore.storeName} Products</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                      
                       {categories
-                        .filter(category => category.storeID === selectedStore.storeID)
-                        .map((category, index, arr) => (
-                          <div key={category.categoryID} className="space-y-3">
-                            <h3 className="font-bold text-lg text-[#FF9D00] pb-2 border-b border-gray-200">
-                              {category.categoryName}
+                        .filter(category => category.storeName === selectedStore.storeName)
+                        .map((category) => (
+                          <div key={category.categoryID} className="bg-gray-50 p-4 rounded-xl shadow-sm border border-gray-100">
+                            <h3 className="font-bold text-xl text-[#FF9D00] mb-4">
+                              <Link href={`/store/details/${category.categoryID}`} className="hover:text-blue-600 transition-colors">
+                                {category.categoryName}
+                              </Link>
                             </h3>
-                            <ul className="space-y-2">
+                            <ul className="space-y-3">
                               {products
                                 .filter(product => 
-                                  product.categoryID === category.categoryID && 
-                                  product.storeID === selectedStore.storeID
+                                  product.categoryName === category.categoryName && 
+                                  product.storeName === selectedStore.storeName 
                                 )
+                                .slice(0, 5) // 5 ürün göster
                                 .map((product) => (
-                                  <li key={product.productID}>
+                                  <li key={product.productID} className="flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
                                     <Link 
                                       href={`/product/${product.productID}`}
-                                      className="text-gray-600 hover:text-[#1D4ED8] transition-colors block py-1"
+                                      className="text-gray-700 hover:text-blue-600 hover:font-medium transition-all text-sm truncate"
                                     >
                                       {product.productName}
                                     </Link>
                                   </li>
                                 ))}
+
+                              {/* Ürün Fazlaysa View All Yazısı */}
+                              {products.filter(product => 
+                                product.categoryName === category.categoryName && 
+                                product.storeName === selectedStore.storeName
+                              ).length > 5 && (
+                                <li className="pt-2 border-t border-gray-200 mt-2">
+                                  <Link 
+                                    href={`/store/details/${category.categoryID}`}
+                                    className="text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-1"
+                                  >
+                                    View all products <ArrowRight className="w-3 h-3" />
+                                  </Link>
+                                </li>
+                              )}
+
+                              {/* Ürün Yoksa */}
+                              {products.filter(product => 
+                                product.categoryName === category.categoryName && 
+                                product.storeName === selectedStore.storeName
+                              ).length === 0 && (
+                                <li className="text-sm text-gray-400 italic">No products found.</li>
+                              )}
                             </ul>
                           </div>
                         ))}
@@ -211,4 +245,4 @@ export default function StoresMegaMenu() {
       )}
     </div>
   );
-} 
+}

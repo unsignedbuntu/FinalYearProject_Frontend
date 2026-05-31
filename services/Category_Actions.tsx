@@ -1,5 +1,4 @@
 import axios from 'axios';
-import https from 'https';
 
 export const getCategories = async () => {
   try {
@@ -396,32 +395,6 @@ export const deleteSupplier = async (id: number) => {
   return response.json();
 };
 
-export async function getImageFromCache(pageId: string, prompt: string) {
-  try {
-      // Create the same short hash for consistency
-      
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_URL}/api/ImageCache/${pageId}/${prompt}`, {
-        
-          headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-          },
-          httpsAgent: new https.Agent({ rejectUnauthorized: false })
-      });
-
-      console.log('Cache response:', response.data);
-      return response.data;
-  } catch (error: any) {
-      console.error('Error fetching from cache:', error);
-      if (error.response) {
-          console.error('Error response:', error.response.data);
-          console.error('Error status:', error.response.status);
-      }
-      return { cached: false, error: error.message };
-  }
-}
-
-
 export const getCacheImageById = async (pageId: string, prompt: string, id: number) => {
 
   const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/ImageCache?pageId=${pageId}&prompt=${prompt}&id=${id}`, {
@@ -443,34 +416,21 @@ interface CreateCacheImageParams {
   prompt: string;
 
 }
-
-export const createCacheImage = async ({ pageID, prompt}: CreateCacheImageParams) => {
+export const createCacheImage = async ({ pageID, prompt }: CreateCacheImageParams) => {
   try {
-      if ( !pageID || !prompt  ) {
-          console.error("HATA: pageID veya prompt veya image eksik!", { pageID, prompt });
-          return { success: false, error: "PageID ve Prompt,Image zorunludur!" };
+      if (!pageID || !prompt) {
+          return { success: false, error: "PageID ve Prompt zorunludur!" };
       }
 
-      // Önce cache'de var mı kontrol et
-      const existingImage = await getImageFromCache(pageID, prompt);
-      if (existingImage.cached && existingImage.image) {
-          console.log("Görsel zaten cache'de mevcut, varolan görseli döndürüyorum");
-          return {
-              success: true,
-              image: existingImage.image
-          };
-      } 
-
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_URL}/api/ImageCache`, {
+      // Next.js Route'umuza (yukarıda yazdığımız POST dosyasına) istek atıyoruz
+      const response = await axios.post(`/api/ImageCache`, {
           pageID: pageID,
           prompt: prompt,
-  
       }, {
           headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json'
-          },
-          httpsAgent: new https.Agent({ rejectUnauthorized: false })
+          }
       });
 
       if (response.data && response.data.image) {
@@ -480,23 +440,17 @@ export const createCacheImage = async ({ pageID, prompt}: CreateCacheImageParams
         };
       }
   
-      return {
-        success: false,
-        error: 'Failed to create image'
-      };
-    } catch (error: any) {
+      return { success: false, error: 'Failed to create image' };
+    } catch( error) { 
         console.error('Error in createCacheImage:', error);
-        return { 
-            success: false, 
-            error: error.message || 'Failed to create and cache image' 
-        };
+        const err = error as Error;
+        return { success: false, error: err.message || 'Failed to create and cache image' };
     }
 };
 
 export const deleteCacheImage = async (id: number) => {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/ImageCache/SoftDelete_Status${id}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/ImageCache/${id}`, {
     method: 'DELETE',
   });
-
   return response.json();
 };

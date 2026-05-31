@@ -2,51 +2,8 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import https from 'https';
 
-const AUTOMATIC1111_API_URL = 'http://127.0.0.1:7860';
 const API_URL = process.env.NEXT_PUBLIC_URL;
 
-// GET /api/ImageCache - Get cached image by pageId and prompt
-export async function GET(req: Request) {
-    try {
-        const { searchParams } = new URL(req.url);
-        const pageID = searchParams.get('pageID');
-        const prompt = searchParams.get('prompt');
-        console.log("GET isteği - PageID:", pageID, "Prompt:", prompt);
-
-        if (!pageID || !prompt) {
-            return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
-        }
-
-        try {
-            // URL yapısını backend'in beklediği formata uygun hale getiriyoruz
-            const response = await axios.get(`${API_URL}/api/ImageCache/${pageID}/${prompt}`, {
-                httpsAgent: new https.Agent({ rejectUnauthorized: false })
-            });
-
-            if (response.data && response.data.cached) {
-                console.log("Cache'den görsel bulundu");
-                return NextResponse.json({
-                    cached: true,
-                    image: response.data.image
-                });
-            }
-
-            console.log("Response:", response.data.image);
-            return NextResponse.json({ cached: false });
-
-        } catch (error) {
-            console.error("Backend API hatası:", error);
-            return NextResponse.json({ error: "Backend API error" }, { status: 500 });
-        }
-
-    } catch (error: any) {
-        console.error('Genel hata:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
-
-
-// POST /api/ImageCache - Generate and cache new image
 export async function POST(req: Request) {
     try {
         const body = await req.json();
@@ -60,36 +17,30 @@ export async function POST(req: Request) {
         }
 
         try {
-            // Cache kontrolü
+            // 1. C# BACKEND'DE VAR MI DİYE KONTROL ET (Düzeltilmiş URL)
             const cacheResponse = await axios.get(
-                `${API_URL}/api/ImageCache/${pageID}/${encodeURIComponent(prompt)}`,
+                `${API_URL}/api/ImageCache/prompt/${encodeURIComponent(prompt)}`,
                 {
                     httpsAgent: new https.Agent({ rejectUnauthorized: false })
                 }
             );
 
             // Cache'de varsa direkt dön
-            if (cacheResponse.status === 200 && cacheResponse.data?.image) {
+            if (cacheResponse.status === 200 && cacheResponse.data?.data?.base64Image) {
                 return NextResponse.json({
                     success: true,
-                    image: cacheResponse.data.image,
+                    image: cacheResponse.data.data.base64Image,
                     cached: true
                 });
             }
 
         } catch (error: any) {
-            // 404 hatası normal akış, devam et
             if (error.response?.status !== 404) {
                 console.error('Cache check error:', error);
-                return NextResponse.json({
-                    success: false,
-                    error: 'Cache kontrol hatası',
-                    details: error.message
-                }, { status: 500 });
             }
         }
 
-        // Yeni görsel üret
+        // 2. YENİ GÖRSEL ÜRET (Stable Diffusion)
         const response = await axios.post('http://127.0.0.1:7860/sdapi/v1/txt2img', {
             prompt,
             steps: 15,
@@ -106,22 +57,23 @@ export async function POST(req: Request) {
 
         const base64Image = response.data.images[0];
 
-        // Cache'e kaydet
+        // 3. CACHE'E KAYDET (C# Backend'ine)
         try {
             await axios.post(`${API_URL}/api/ImageCache`, {
-                PageID: pageID,
                 Prompt: prompt,
-                Image: base64Image,
-                Status: true
+                Base64Image: base64Image, 
+                EntityType: "Product",    
+                EntityId: parseInt(pageID) 
             }, {
                 headers: { 'Content-Type': 'application/json' },
                 httpsAgent: new https.Agent({ rejectUnauthorized: false })
             });
-        } catch (error: any) {
+        } catch (error: any) { 
+            // Burada o üç noktayı sildik ve hatayı konsola yazdırdık
             console.error('Cache save error:', error);
-            // Cache kayıt hatası kritik değil, görseli yine de dönelim
         }
 
+        // 4. KULLANICIYA DÖN
         return NextResponse.json({
             success: true,
             image: base64Image,
@@ -137,4 +89,3 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 }
-// GET endpoint'i aynı kalabilir...

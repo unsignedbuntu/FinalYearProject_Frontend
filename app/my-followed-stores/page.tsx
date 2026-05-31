@@ -1,8 +1,8 @@
 "use client"
 import { useState, useEffect } from 'react';
 import { getSuppliers } from '@/services/Category_Actions';
-import { generateImage, generatePrompt } from '@/services/image-generation';
-import { getImageFromCache, createCacheImage } from '@/services/Category_Actions';
+import { generatePrompt } from '@/services/image-generation'; // generateImage'i sildik!
+import { createCacheImage } from '@/services/Category_Actions'; // getImageFromCache'i sildik!
 import Image from 'next/image';
 
 interface Supplier {
@@ -26,73 +26,40 @@ export default function MyFollowedStores() {
             setIsGenerating(prev => ({ ...prev, [supplierID]: true }));
             
             // Başlangıçta placeholder göster
-            setSupplierImages(prev => ({
-                ...prev,
-                [supplierID]: DEFAULT_PLACEHOLDER
-            }));
+            if (!supplierImages[supplierID]) {
+                setSupplierImages(prev => ({ ...prev, [supplierID]: DEFAULT_PLACEHOLDER }));
+            }
 
-            const generatedPrompt = generatePrompt(
+            // Eğer kullanıcı kutuya özel bir şey yazdıysa onu kullan, yoksa otomatik üret
+            const finalPrompt = customPrompt || generatePrompt(
                 supplierName,
                 "modern storefront design with professional appearance"
-            );
+            ).prompt;
 
-            const finalPrompt =  generatedPrompt.prompt;
-            console.log('Using prompt:', finalPrompt);
+            console.log('İstek atılıyor, Prompt:', finalPrompt);
 
-            // Önce cache'den kontrol et
-            console.log('Checking cache for:', { supplierID, finalPrompt });
-            const cacheResult = await getImageFromCache('my-followed-stores', finalPrompt);
-            console.log('Cache result:', cacheResult);
+            // SİHİRLİ DOKUNUŞ: Tek bir fonksiyon her şeyi hallediyor!
+            // Cache'de varsa getirir, yoksa çizer ve kaydeder.
+            const result = await createCacheImage({
+                pageID: supplierID.toString(), // DB'de sayıya çevrilebilmesi için ID gönderiyoruz
+                prompt: finalPrompt,
+            });
 
-            if (cacheResult && cacheResult.cached && cacheResult.image) {
-                console.log('Image found in cache');
+            if (result.success && result.image) {
                 setSupplierImages(prev => ({
                     ...prev,
-                    [supplierID]: `data:image/jpeg;base64,${cacheResult.image}`
+                    [supplierID]: `data:image/jpeg;base64,${result.image}`
                 }));
-                return;
+            } else {
+                throw new Error(result.error || 'Görsel getirilemedi.');
             }
-
-            // Cache'de yoksa yeni görsel oluştur
-            console.log('Creating new image for:', supplierName);
-            const result = await generateImage({
-                prompt: finalPrompt,
-                negative_prompt: generatedPrompt.negative_prompt,
-                width: 512,
-                height: 512,
-                steps: 15,
-                cfg_scale: 7,
-                sampler_name: "DPM++ 2M a"
-            });
-
-            if (!result.success || !result.image) {
-                throw new Error(result.error || 'Failed to generate image');
-            }
-
-            // Oluşturulan görseli cache'e kaydet
-            console.log('Caching generated image...');
-            const cacheSaveResult = await createCacheImage({
-                pageID: 'my-followed-stores',
-                prompt: finalPrompt,
-            });
-
-            if (!cacheSaveResult.success) {
-                console.warn('Failed to cache the image:', cacheSaveResult.error);
-            }
-
-            setSupplierImages(prev => ({
-                ...prev,
-                [supplierID]: `data:image/jpeg;base64,${result.image}`
-            }));
 
         } catch (error: any) {
             console.error('Error in generateStoreImage:', error);
             setError(error instanceof Error ? error.message : 'Failed to generate image');
+            
             // Hata durumunda placeholder'a geri dön
-            setSupplierImages(prev => ({
-                ...prev,
-                [supplierID]: DEFAULT_PLACEHOLDER
-            }));
+            setSupplierImages(prev => ({ ...prev, [supplierID]: DEFAULT_PLACEHOLDER }));
         } finally {
             setIsGenerating(prev => ({ ...prev, [supplierID]: false }));
         }
@@ -109,33 +76,13 @@ export default function MyFollowedStores() {
                 setSuppliers(data);
                 setIsLoading(false);
 
-                if (mounted) {
-                    for (const supplier of data) {
-                        if (!mounted) break;
-                        
-                        try {
-                            const generatedPrompt = generatePrompt(
-                                supplier.supplierName,
-                                "modern storefront design with professional appearance"
-                            );
-                            
-                            const finalPrompt = generatedPrompt.prompt;
-                            const cacheResult = await getImageFromCache('my-followed-stores', finalPrompt);
-                            
-                            if (cacheResult && cacheResult.cached && cacheResult.image) {
-                                setSupplierImages(prev => ({
-                                    ...prev,
-                                    [supplier.supplierID]: `data:image/jpeg;base64,${cacheResult.image}`
-                                }));
-                            } else {
-                                await generateStoreImage(supplier.supplierName, supplier.supplierID);
-                            }
-                            
-                            await new Promise(resolve => setTimeout(resolve, 500));
-                        } catch (error) {
-                            console.error(`Error loading image for supplier ${supplier.supplierID}:`, error);
-                        }
-                    }
+                // Veriler yüklendikten sonra resimleri sırayla çek
+                for (const supplier of data) {
+                    if (!mounted) break;
+                    await generateStoreImage(supplier.supplierName, supplier.supplierID);
+                    
+                    // Yapay zeka ve API'yi boğmamak için araya yarım saniye mola koyuyoruz
+                    await new Promise(resolve => setTimeout(resolve, 500));
                 }
             } catch (err) {
                 if (!mounted) return;
@@ -162,7 +109,7 @@ export default function MyFollowedStores() {
         await generateStoreImage(
             supplier.supplierName,
             supplier.supplierID,
-            customPrompts[supplier.supplierID]
+            customPrompts[supplier.supplierID] // Kullanıcının yazdığı özel prompt'u gönder
         );
     };
 

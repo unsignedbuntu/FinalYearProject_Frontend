@@ -6,19 +6,35 @@ import Visible from "@/components/icons/Visible";
 import Unvisible from "@/components/icons/Unvisible";
 import Sign from "@/components/icons/Sign.png";
 import SigninSuccessMessage from "@/components/messages/SigninSuccessMessage";
+import { useAuth } from "@/contexts/AuthContext"; 
 
 export default function SignInPage() {
   const router = useRouter();
+  const { login } = useAuth(); // CONTEXT'İ BURAYA ÇAĞIRDIK
+  
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
-  const handleSignIn = () => {
-    setShowSuccessMessage(true);
-    setTimeout(() => {
-      router.push('/');
-    }, 3000);
+  const handleSignIn = async () => {
+    try {
+      // Manuel fetch yerine Context'in login fonksiyonunu kullanıyoruz!
+      await login(username, password);
+      
+      // Eğer hata fırlatmazsa giriş başarılı demektir
+      setShowSuccessMessage(true);
+      
+      // 1.5 saniye sonra anasayfaya yönlendir
+      setTimeout(() => {
+        router.push("/");
+      }, 1500);
+      
+    } catch (error) {
+      const err = error as Error;
+      alert(err.message || "Giriş başarısız! E-posta veya şifre hatalı.");
+      console.error("Giriş hatası:", error);
+    }
   };
 
   return (
@@ -43,7 +59,7 @@ export default function SignInPage() {
         </button>
 
         <h1 className="text-[#ffffff] font-raleway text-6xl mb-8 text-center">
-          Welcome to Atalay's<br />
+          Welcome to Atalays<br />
           Management Store
         </h1>
 
@@ -53,9 +69,9 @@ export default function SignInPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username"
+              placeholder="Email" // Kullanıcının kafası karışmasın diye Email yaptık
               className="w-full px-4 py-2 rounded-lg bg-[#B4D4FF] text-black placeholder-black/70 focus:outline-none focus:ring-2 focus:ring-[#B4D4FF]"
-              aria-label="Username"
+              aria-label="Email"
             />
           </div>
 
@@ -94,7 +110,7 @@ export default function SignInPage() {
           </button>
 
           <div className="text-center text-white">
-            Don't have an account?{" "}
+            Dont have an account?{" "}
             <button 
               onClick={() => router.push('/sign-up')}
               className="text-[#00FF85] hover:underline"
@@ -105,18 +121,16 @@ export default function SignInPage() {
         </div>
 
         <div className="absolute bottom-12 left-12 max-w-md">
-      
             <h2 className="text-[#00FF85] text-2xl mb-80 ml-36 font-bold">
             🎉 Welcome! Special 15% Discount Opportunity for New Members 🎉 🎉<br/>
-            <ul className="space-y-2 text-white/80 text-base"> {/* Daha küçük font boyutu */}
+            <ul className="space-y-2 text-white/80 text-base">
             <li>Become a Member Quickly!</li>
-            <li>We are happy that you have joined us! You can benefit from the 15% discount opportunity on all products,exclusively for our new members. Don't miss this advantage!</li>
+            <li>We are happy that you have joined us! You can benefit from the 15% discount opportunity on all products,exclusively for our new members. Dont miss this advantage!</li>
             </ul>
             </h2>
           </div>
 
           <div className="absolute bottom-12 right-12 max-w-md">
-
             <h2 className="text-[#00FF85] text-2xl mb-80 mr-36 font-bold"> 
               How to Benefit?<br/>
             <ul className="space-y-2 text-white/80 text-base">
@@ -129,7 +143,6 @@ export default function SignInPage() {
             </h2>
           </div>
       </div>
-
 
       {showSuccessMessage && (
         <SigninSuccessMessage onClose={() => setShowSuccessMessage(false)} />

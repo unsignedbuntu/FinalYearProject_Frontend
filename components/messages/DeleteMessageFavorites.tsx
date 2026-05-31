@@ -17,12 +17,16 @@ export default function DeleteMessageFavorites({ onClose }: DeleteMessageFavorit
   }, [onClose]);
 
   return (
+
     <>
       {/* Blur background */}
-      <div 
-        className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50"
-        onClick={onClose}
-      />
+     <div
+     className="fixed inset-0 bg-black/30..."
+      onClick={onClose}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      role="button"
+      tabIndex={0}
+/>
       
       {/* Message content */}
       <div
