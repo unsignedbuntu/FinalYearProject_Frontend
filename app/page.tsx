@@ -1,8 +1,6 @@
 import HeroSlider from '@/components/HeroSlider'
 import BestSeller from '@/components/BestSeller'
 import Footer from '@/components/Footer'
-import { getCategories } from '@/services/Category_Actions';
-
 export default async function Home() {
 
   //const categories = await getCategories();

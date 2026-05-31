@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_wtf.csrf import CSRFProtect
 import random
 import time
 import subprocess
@@ -8,6 +9,9 @@ import sys
 import json
 
 app = Flask(__name__)
+csrf = CSRFProtect(app)  # ✅ ekle
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+
 # Tüm erişim izinleri - Next.js uygulamanızın erişebilmesi için
 CORS(app)
 
