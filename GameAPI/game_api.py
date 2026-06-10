@@ -13,7 +13,7 @@ csrf = CSRFProtect(app)  # ✅ ekle
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
 # Tüm erişim izinleri - Next.js uygulamanızın erişebilmesi için
-CORS(app)
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000"]}})
 
 # Gerçek oyun dosya yolu - services/Game4LoyaltyP/Game.py
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -81,8 +81,16 @@ if game_over:
                 [sys.executable, temp_game_path],
                 cwd=GAME_DIR,  # Oyun klasöründe çalıştır
                 timeout=120  # 2 dakika zaman aşımı
+                    check=True  # <--- İŞTE BU KELİMEYİ EKLİYORUZ
+
             )
             
+            if result.returncode == 0:
+            print("Oyun sorunsuz tamamlandı ve kapandı.")
+            
+            else:
+            print(f"Oyun bir hata kodu ile kapandı: {result.returncode}")
+
             # Geçici dosyayı temizle
             os.remove(temp_game_path)
             
@@ -229,4 +237,4 @@ if __name__ == '__main__':
         print("UYARI: Pygame Zero (pgzrun) kurulu değil. Gerçek oyunu çalıştırmak için kurmanız gerekir.")
         print("Kurulum için: pip install pgzero")
     
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    app.run(host='0.0.0.0', port=port) 
