@@ -11,13 +11,13 @@ interface List {
 export default function ListSidebar() {
   const router = useRouter()
   const pathname = usePathname()
-
-  if (pathname === null) return null;
-  
-  const [lists, setLists] = useState<List[]>([
+  const [lists] = useState<List[]>([
     { id: 1, name: "vadv", productCount: 1 },
     { id: 2, name: "fawfwa", productCount: 0 }
   ])
+  
+  if (pathname === null) return null;
+  
 
   return (
     <div className="w-[300px] bg-white p-4">

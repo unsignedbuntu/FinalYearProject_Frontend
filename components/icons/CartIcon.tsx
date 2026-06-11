@@ -5,7 +5,7 @@ interface CartIconProps {
   height?: number;
 }
 
-export default function CartIcon({ width = 24, height = 24 }: CartIconProps) {
+export default function CartIcon({ width = 24, height = 24 }: Readonly<CartIconProps>) {
   return (
     <svg
       width={width}

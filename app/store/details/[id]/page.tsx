@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useRef, use } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getCategories, getProductsByCategoryId, getStores, getCategoriesById } from '@/services/API_Service';
-import { Product, Category, Store } from '@/app/product/[id]/types/Product';
+import { Product, Store } from '@/app/product/[id]/types/Product';
 import { basePrompts } from '@/app/product/[id]/data/basePrompts';
 import { CategoryKey } from '@/app/product/[id]/data/basePrompts';
 
@@ -200,7 +200,7 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
                 break; // Exit loop if flag is false
             }
 
-            let productCategory = categories.find((c: Category) => c.categoryID === product.categoryID);
+            const productCategory = categories.find((c: Category) => c.categoryID === product.categoryID);
             const categoryName = productCategory?.categoryName || 'default';
             const categoryPromptDef = basePrompts[categoryName as CategoryKey] || basePrompts.default;
 
@@ -394,6 +394,165 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
     );
   }
 
+  // =========================================================================
+  // Helpful functions before return function
+  // =========================================================================
+
+  const renderProductImage = (product: any) => {
+    // 1. Durum: Resim yükleniyorsa spinner göster
+    if (loadingImages[product.productID]) {
+      return (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      );
+    }
+
+    // Geçerli bir görsel var mı?
+    const hasValidImage = product.image && !product.image.includes('placeholder') && product.image !== '/placeholder.png';
+
+    // 2. Durum: Gerçek bir resim varsa onu göster
+    if (hasValidImage) {
+      return (
+        <Image
+          src={product.image}
+          alt={product.productName}
+          fill
+          className="object-contain p-2"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          unoptimized={product.image.startsWith('data:')}
+        />
+      );
+    }
+
+    // 3. Durum: Resim yoksa veya hatalıysa "Görsel Yok" yazısını göster
+    return (
+      <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs px-2 text-center">
+        <span>Görsel Yok</span>
+      </div>
+    );
+  };
+
+  const renderContent = () => {
+    // 1. Durum: Sayfa ilk açılırken (Yükleniyor iskeleti)
+    if (loading) {
+      return Array.from({ length: 8 }).map((_, index) => (
+        <div key={index} className="bg-white rounded-lg shadow overflow-hidden animate-pulse">
+          <div className="h-48 bg-gray-200"></div>
+          <div className="p-4">
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        </div>
+      ));
+    }
+
+    // 2. Durum: Ürünler başarıyla yüklendiyse kartları çiz
+    if (sortedProducts.length > 0) {
+      return sortedProducts.map((product) => {
+        const productIsFavorite = isFavorite(product.productID);
+        
+        return (
+          <div key={product.productID} className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition-shadow relative group">
+            <Link href={`/product/${product.productID}`} className="block">
+              <div className="relative h-48 bg-gray-100">
+                {/* Resmi çizen fonksiyonu çağırıyoruz */}
+                {renderProductImage(product)}
+              </div>
+              <div className="p-4">
+                <h3 className="text-sm font-medium text-gray-900 line-clamp-2 h-10 mb-1" title={product.productName}>
+                  {product.productName}
+                </h3>
+                {product.storeName && (
+                  <p className="text-xs text-gray-500 mb-1 truncate" title={product.storeName}>
+                    {product.storeName}
+                  </p>
+                )}
+                <div className="mt-1 flex justify-between items-center">
+                  <span className="text-lg font-bold text-blue-600">
+                    {product.price ? `${product.price.toFixed(2)} TL` : <span className="text-sm text-gray-500">Fiyat Yok</span>}
+                  </span>
+                </div>
+              </div>
+            </Link>
+            
+            {/* Favori ve Sepete Ekle Butonları */}
+            <div className="absolute bottom-3 right-3 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!user) { toast.error("Please log in to manage favorites."); return; }
+                  if (productIsFavorite) {
+                    removeProductFromMainFavorites(product.productID);
+                  } else {
+                    addProductToMainFavorites(product.productID);
+                  }
+                }}
+                onMouseEnter={() => setHoveredFavoriteButtons(prev => ({ ...prev, [product.productID]: true }))}
+                onMouseLeave={() => setHoveredFavoriteButtons(prev => ({ ...prev, [product.productID]: false }))}
+                className={`p-2 rounded-full transition-colors shadow-sm ${
+                  productIsFavorite 
+                    ? 'bg-red-500 text-white hover:bg-red-600' 
+                    : hoveredFavoriteButtons[product.productID] 
+                      ? 'bg-red-100 text-red-500' 
+                      : 'bg-white text-gray-500 hover:bg-red-100 hover:text-red-500'
+                }`}
+                title={productIsFavorite ? "Remove from Favorites" : "Add to Favorites"}
+              >
+                {productIsFavorite || hoveredFavoriteButtons[product.productID] ? (
+                  <FavoritesPageHover width={24} height={24} /> 
+                ) : (
+                  <FavoriteIcon width={24} height={24} />
+                )}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!user) { toast.error("Please log in to add to cart."); return; }
+                  addToCartStore({ productId: product.productID, quantity: 1 });
+                  toast.success(`${product.productName} added to cart.`);
+                }}
+                onMouseEnter={() => setHoveredCartButtons(prev => ({ ...prev, [product.productID]: true }))}
+                onMouseLeave={() => setHoveredCartButtons(prev => ({ ...prev, [product.productID]: false }))}
+                className={`p-2 rounded-full transition-colors shadow-sm ${
+                  hoveredCartButtons[product.productID]
+                    ? 'bg-blue-100 text-blue-500'
+                    : 'bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500'
+                }`}
+                disabled={(product.stockQuantity ?? 0) === 0}
+                title={(product.stockQuantity ?? 0) === 0 ? "Out of stock" : "Add to Cart"}
+              >
+                {hoveredCartButtons[product.productID] ? (
+                  <CartHoverIcon width={32} height={32} />
+                ) : (
+                  <CartIcon width={24} height={24} />
+                )}
+              </button>
+            </div>
+          </div>
+        );
+      });
+    }
+
+    // 3. Durum: Ürün Yoksa
+    return (
+      <div className="col-span-full text-center py-12">
+        <div className="flex flex-col items-center justify-center">
+          <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <p className="text-xl font-semibold text-gray-700 mb-2">Hiç ürün bulunamadı</p>
+          <p className="text-gray-500 max-w-md text-center">
+            Seçili filtrelerle eşleşen ürün bulunamadı. Filtrelerinizi değiştirmeyi veya başka bir kategoriyi kontrol etmeyi deneyin.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  // =========================================================================
+  // 2. MAIN STRUCTURE FWAK
+  // =========================================================================
   return (
     <div className="container mx-auto px-4 py-8 flex-1">
       <div className="flex flex-col md:flex-row gap-6">
@@ -508,7 +667,6 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
 
         {/* Sağ Taraf - Ürün Listesi */}
         <div className="w-full md:w-3/4">
-          {/* Üst Kısım - Kategori Başlığı ve Sıralama */}
           <div className="bg-white p-4 rounded-lg shadow mb-6">
             <div className="flex flex-col md:flex-row justify-between items-center">
               <h1 className="text-2xl font-bold">
@@ -543,136 +701,11 @@ export default function CategoryDetailsPage({ params }: { params: Promise<{ id: 
             </div>
           </div>
 
-          {/* Ürün Grid */}
+          {/* Ürün Grid - İŞTE SİHİR BURADA, BÜTÜN KARMAŞAYI TEK SATIRA İNDİRDİK! */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {loading ? (
-              // Yükleme durumunda gösterilecek içerik
-              Array.from({ length: 8 }).map((_, index) => (
-                <div key={index} className="bg-white rounded-lg shadow overflow-hidden animate-pulse">
-                  <div className="h-48 bg-gray-200"></div>
-                  <div className="p-4">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                </div>
-              ))
-            ) : sortedProducts.length > 0 ? (
-              sortedProducts.map((product) => {
-                const productIsFavorite = isFavorite(product.productID);
-                return (
-                <div key={product.productID} className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition-shadow relative group">
-                  <Link href={`/product/${product.productID}`} className="block">
-                    <div className="relative h-48 bg-gray-100">
-                      {loadingImages[product.productID] ? (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                        </div>
-                      ) : product.image && !product.image.includes('placeholder') && product.image !== '/placeholder.png' ? (
-                        <Image
-                          src={product.image}
-                          alt={product.productName}
-                          fill
-                          className="object-contain p-2"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          unoptimized={product.image.startsWith('data:')}
-                        />
-                      ) : (
-                        // Placeholder when no image or loading finished without image
-                        !loadingImages[product.productID] && (
-                             <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs px-2 text-center">
-                              <span>Görsel Yok</span> {/* No Image */}
-                             </div>
-                         )
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <h3 className="text-sm font-medium text-gray-900 line-clamp-2 h-10 mb-1" title={product.productName}>
-                        {product.productName}
-                      </h3>
-                      {/* MODIFIED: Store name moved here */}
-                      {product.storeName && (
-                        <p className="text-xs text-gray-500 mb-1 truncate" title={product.storeName}>
-                          {product.storeName}
-                        </p>
-                      )}
-                      <div className="mt-1 flex justify-between items-center">
-                        <span className="text-lg font-bold text-blue-600">
-                          {product.price ? `${product.price.toFixed(2)} TL` : <span className="text-sm text-gray-500">Fiyat Yok</span>}
-                        </span>
-                        {/* Store name removed from here */}
-                      </div>
-                    </div>
-                  </Link>
-                  {/* Action Buttons: Favorites and Cart - Added to bottom of card, appear on group hover */}
-                  <div className="absolute bottom-3 right-3 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation(); // Prevent link navigation
-                        if (!user) { toast.error("Please log in to manage favorites."); return; }
-                        if (productIsFavorite) {
-                          removeProductFromMainFavorites(product.productID);
-                        } else {
-                          addProductToMainFavorites(product.productID);
-                        }
-                      }}
-                      onMouseEnter={() => setHoveredFavoriteButtons(prev => ({ ...prev, [product.productID]: true }))}
-                      onMouseLeave={() => setHoveredFavoriteButtons(prev => ({ ...prev, [product.productID]: false }))}
-                      className={`p-2 rounded-full transition-colors shadow-sm ${
-                        productIsFavorite 
-                          ? 'bg-red-500 text-white hover:bg-red-600' 
-                          : hoveredFavoriteButtons[product.productID] 
-                            ? 'bg-red-100 text-red-500' 
-                            : 'bg-white text-gray-500 hover:bg-red-100 hover:text-red-500'
-                      }`}
-                      title={productIsFavorite ? "Remove from Favorites" : "Add to Favorites"}
-                    >
-                      {productIsFavorite || hoveredFavoriteButtons[product.productID] ? (
-                        <FavoritesPageHover width={24} height={24} /> 
-                      ) : (
-                        <FavoriteIcon width={24} height={24} />
-                      )}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation(); // Prevent link navigation
-                        if (!user) { toast.error("Please log in to add to cart."); return; }
-                        addToCartStore({ productId: product.productID, quantity: 1 });
-                        toast.success(`${product.productName} added to cart.`);
-                      }}
-                      onMouseEnter={() => setHoveredCartButtons(prev => ({ ...prev, [product.productID]: true }))}
-                      onMouseLeave={() => setHoveredCartButtons(prev => ({ ...prev, [product.productID]: false }))}
-                      className={`p-2 rounded-full transition-colors shadow-sm ${
-                        hoveredCartButtons[product.productID]
-                          ? 'bg-blue-100 text-blue-500'
-                          : 'bg-white text-gray-500 hover:bg-blue-100 hover:text-blue-500'
-                      }`}
-                      disabled={(product.stockQuantity ?? 0) === 0}
-                      title={(product.stockQuantity ?? 0) === 0 ? "Out of stock" : "Add to Cart"}
-                    >
-                      {hoveredCartButtons[product.productID] ? (
-                        <CartHoverIcon width={32} height={32} />
-                      ) : (
-                        <CartIcon width={24} height={24} />
-                      )}
-                    </button>
-                  </div>
-                </div>
-                )
-              })
-            ) : (
-              <div className="col-span-full text-center py-12">
-                <div className="flex flex-col items-center justify-center">
-                  <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                  <p className="text-xl font-semibold text-gray-700 mb-2">Hiç ürün bulunamadı</p>
-                  <p className="text-gray-500 max-w-md text-center">
-                    Seçili filtrelerle eşleşen ürün bulunamadı. Filtrelerinizi değiştirmeyi veya başka bir kategoriyi kontrol etmeyi deneyin.
-                  </p>
-                </div>
-              </div>
-            )}
+            {renderContent()}
           </div>
+
         </div>
       </div>
     </div>

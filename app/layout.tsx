@@ -1,11 +1,10 @@
 "use client";
-import type { Metadata } from "next";
-import { Geist, Geist_Mono, Satisfy } from "next/font/google";
-import "./globals.css";
 import Header from "@/components/header/Header";
 import NavigationBar from "@/components/navigation/NavigationBar";
-import { usePathname } from "next/navigation";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { Geist, Geist_Mono, Satisfy } from "next/font/google";
+import { usePathname } from "next/navigation";
+import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

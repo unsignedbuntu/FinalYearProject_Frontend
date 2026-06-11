@@ -1,9 +1,9 @@
 "use client"
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // Gerekirse yönlendirme için
 import { toast } from 'react-hot-toast';
-import { useUserStore, User } from '@/app/stores/userStore';
+import { useUserStore } from '@/app/stores/userStore';
 import { useAuth } from '@/contexts/AuthContext';
+import Cookies from 'js-cookie';
 import {
   getCurrentUserInformation,
   createOrUpdateCurrentUserInformation,
@@ -22,7 +22,6 @@ const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 100 }, (_, i) => (currentYear - i).toString());
 
 export default function PersonalInformationTab() {
-  const router = useRouter();
   const { user: userFromStore } = useUserStore();
   const { refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
@@ -86,16 +85,15 @@ export default function PersonalInformationTab() {
 
           if (userInfo.dateOfBirth) {
             try {
-                const dob = new Date(userInfo.dateOfBirth);
-                if (!isNaN(dob.getTime())) {
-                    console.log('[PersonalInformationTab] Parsed Date Object:', dob);
-                    setBirthDay(dob.getDate().toString());
-                    setBirthMonth(months[dob.getMonth()]);
-                    setBirthYear(dob.getFullYear().toString());
-                    console.log('[PersonalInformationTab] Set Day, Month, Year states:', dob.getDate().toString(), months[dob.getMonth()], dob.getFullYear().toString());
-                } else {
+                if (Number.isNaN(new Date(userInfo.dateOfBirth).getTime())) {
                     console.error('[PersonalInformationTab] Invalid Date after parsing:', userInfo.dateOfBirth);
                     setBirthDay(''); setBirthMonth(''); setBirthYear('');
+                } else {
+                    console.log('[PersonalInformationTab] Parsed Date Object:', new Date(userInfo.dateOfBirth));
+                    setBirthDay(new Date(userInfo.dateOfBirth).getDate().toString());
+                    setBirthMonth(months[new Date(userInfo.dateOfBirth).getMonth()]);
+                    setBirthYear(new Date(userInfo.dateOfBirth).getFullYear().toString());
+                    console.log('[PersonalInformationTab] Set Day, Month, Year states:', new Date(userInfo.dateOfBirth).getDate().toString(), months[new Date(userInfo.dateOfBirth).getMonth()], new Date(userInfo.dateOfBirth).getFullYear().toString());
                 }
             } catch (e) {
                 console.error("[PersonalInformationTab] Error parsing dateOfBirth from API:", userInfo.dateOfBirth, e);
@@ -111,15 +109,13 @@ export default function PersonalInformationTab() {
         setIsLoading(false);
       };
       fetchUserInfo();
-    } else {
-      if (useUserStore.getState().hasCheckedAuth && !userFromStore) {
+    } else if (useUserStore.getState().hasCheckedAuth && !userFromStore) {
         setIsLoading(false);
-      } else if (!useUserStore.getState().hasCheckedAuth) {
-        // Oturum kontrolü bekleniyor
+      } else if (useUserStore.getState().hasCheckedAuth) {
+        setIsLoading(false);
       } else {
-        setIsLoading(false);
+        // Oturum kontrolü bekleniyor
       }
-    }
   }, [userFromStore]);
 
   const validatePassword = (password: string) => {
@@ -204,13 +200,32 @@ export default function PersonalInformationTab() {
     setErrors(prev => ({...prev, ...newErrorsPwd}));
     if (hasError) return;
 
-    toast.loading('Updating password...');
-    // TODO: API call for password change
-    setTimeout(() => {
-        toast.dismiss();
-        toast.success('Password updated successfully (Placeholder)!');
+    const toastId = toast.loading('Updating password...');
+    try {
+      // Projende nasıl kullanıyorsan API_URL'i de başına eklemelisin (örn: https://localhost:7296)
+const res = await fetch('https://localhost:7296/api/Auth/change-password', {
+    method: 'POST',
+    headers: { 
+        'Content-Type': 'application/json',
+        // DİKKAT: Backend'de [Authorize] olduğu için buraya Token'ı da göndermelisin!
+        'Authorization': `Bearer ${Cookies.get('authToken')}` 
+    },
+    body: JSON.stringify({ currentPassword: formData.currentPassword, newPassword: formData.newPassword })
+});
+      const data = await res.json();
+      toast.dismiss(toastId);
+      if (res.ok && data && data.success) {
+        toast.success(data.message || 'Password updated successfully!');
         setFormData(prev => ({...prev, currentPassword: '', newPassword: ''}));
-    }, 1000);
+      } else {
+        toast.error(data?.message || 'Failed to update password.');
+        if (data?.errors) console.error('Password change errors:', data.errors);
+      }
+    } catch (e) {
+      toast.dismiss(toastId);
+      console.error('Error changing password:', e);
+      toast.error('An error occurred while updating password.');
+    }
   };
 
   if (isLoading && !userFromStore?.id && !useUserStore.getState().hasCheckedAuth) {

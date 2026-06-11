@@ -10,7 +10,7 @@ interface CustomJwtPayload {
 
 export function middleware(request: NextRequest) {
   // Try getting token from cookies using the CORRECT name
-  let token = request.cookies.get('authToken')?.value;
+  const token = request.cookies.get('authToken')?.value;
   const { pathname } = request.nextUrl;
 
   let isTokenValid = false;
