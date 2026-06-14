@@ -7,7 +7,6 @@ import {
   getUserAddressById, // Adres detayını çekmek için
   updateUserAddress,  // Adresi güncellemek için
   UserAddressRequestDto,
-  UserAddressResponseDto 
 } from '@/services/API_Service';
 import { toast } from 'react-hot-toast';
 
@@ -78,7 +77,7 @@ export default function EditAddressPage() { // Component adı güncellendi
     if (!formData.fullName.trim()) newErrors.fullName = "Full name is required";  
     if (!formData.phoneNumber.trim()) {  
       newErrors.phoneNumber = "Phone number is required";  
-    } else if (!/^[1-9][0-9]{9}$/.test(formData.phoneNumber.trim())) {  
+    } else if (!/^[1-9]\d{9}$/.test(formData.phoneNumber.trim())) {  
       newErrors.phoneNumber = "Please enter a valid 10-digit phone number without leading zero";  
     }  
     if (!selectedCity) newErrors.city = "City is required";  
@@ -88,44 +87,53 @@ export default function EditAddressPage() { // Component adı güncellendi
     return Object.keys(newErrors).length === 0;  
   };  
 
-  const handleUpdate = async () => { // Fonksiyon adı handleSave -> handleUpdate
-    if (!validateForm() || !addressId) return;  
+  // Ayrı fonksiyon yap
+const mapBackendErrors = (errors: string[]) => {
+  const backendErrors: { [key: string]: string } = {};
+  
+  for (const error of errors) {
+    if (typeof error !== 'string') continue;
+    
+    const lower = error.toLowerCase();
+    if (lower.includes('title')) backendErrors.addressTitle = error;
+    else if (lower.includes('full name')) backendErrors.fullName = error;
+    else if (lower.includes('phone')) backendErrors.phoneNumber = error;
+    else if (lower.includes('city')) backendErrors.city = error;
+    else if (lower.includes('full address')) backendErrors.address = error;
+  }
+  
+  return backendErrors;
+};
 
-    setIsSubmitting(true);  
-    const payload: UserAddressRequestDto = {  
-      ...formData,  
-      city: selectedCity,  
-      isDefault: formData.isDefaultForm,  
-      district: formData.district?.trim() || undefined, // API DTO'suna uygun olması için null yerine undefined
-    };  
+const handleUpdate = async () => {
+  if (!validateForm() || !addressId) return;
 
-    const toastId = toast.loading('Updating address...');  
-    const response = await updateUserAddress(addressId, payload); // API çağrısı güncellendi
-    toast.dismiss(toastId);  
-    setIsSubmitting(false);  
+  setIsSubmitting(true);
+  const payload: UserAddressRequestDto = {
+    ...formData,
+    city: selectedCity,
+    isDefault: formData.isDefaultForm,
+    district: formData.district?.trim() || undefined,
+  };
 
-    if (response.success && response.data) {  
-      toast.success(response.message || 'Address updated successfully!');  
-      setShowSuccessMessage(true);  
-    } else {  
-      toast.error(response.message || 'Failed to update address.');  
-      if (response.errors) {  
-        const backendErrors: { [key: string]: string } = {};  
-        for (const error of response.errors) {  
-          if (typeof error === 'string') {  
-            if (error.toLowerCase().includes('title')) backendErrors.addressTitle = error;  
-            else if (error.toLowerCase().includes('full name')) backendErrors.fullName = error;  
-            else if (error.toLowerCase().includes('phone')) backendErrors.phoneNumber = error;  
-            else if (error.toLowerCase().includes('city')) backendErrors.city = error;  
-            else if (error.toLowerCase().includes('full address')) backendErrors.address = error;  
-          }  
-        }  
-        if (Object.keys(backendErrors).length > 0) {  
-          setErrors(prevErrors => ({ ...prevErrors, ...backendErrors }));  
-        }  
-      }  
-    }  
-  };  
+  const toastId = toast.loading('Updating address...');
+  const response = await updateUserAddress(Number(addressId), payload); // ✅ Number() eklendi
+  toast.dismiss(toastId);
+  setIsSubmitting(false);
+
+  if (response.success && response.data) {
+    toast.success(response.message || 'Address updated successfully!');
+    setShowSuccessMessage(true);
+  } else {
+    toast.error(response.message || 'Failed to update address.');
+    if (response.errors) {
+      const backendErrors = mapBackendErrors(response.errors);
+      if (Object.keys(backendErrors).length > 0) {
+        setErrors(prev => ({ ...prev, ...backendErrors }));
+      }
+    }
+  }
+}; 
 
   const handleCloseSuccessMessage = () => {  
     setShowSuccessMessage(false);  
@@ -148,7 +156,13 @@ export default function EditAddressPage() { // Component adı güncellendi
     // handleCloseSuccessMessage çağrıldığında yönlendirme yapılacak.
     return <AddressSuccessMessage onClose={handleCloseSuccessMessage} />; 
   }
-  
+
+  const getButtonText = () => {
+  if (isSubmitting) return 'Updating...';
+  if (isLoading) return 'Loading...';
+  return 'Update Address';
+
+};
   return (
     <div className="min-h-screen pr-[160px] pt-[100px] relative">
       <Sidebar />
@@ -161,8 +175,10 @@ export default function EditAddressPage() { // Component adı güncellendi
 
           {/* Address Title input */}
           <div className="mb-6">
-            <label
-             className="font-inter text-[16px] mb-2 block">Address Title
+              <label
+                htmlFor="addressTitle"
+             className="font-inter text-[16px] mb-2 block">
+                Address Title
              </label>
             <input
               value={formData.addressTitle}
@@ -178,7 +194,9 @@ export default function EditAddressPage() { // Component adı güncellendi
           {/* Full Name input */}
           <div className="mb-6">
             <label
-             className="font-inter text-[16px] mb-2 block">Full Name
+              htmlFor="fullName"
+             className="font-inter text-[16px] mb-2 block">
+              Full Name
              </label>
             <input
               value={formData.fullName}
@@ -193,7 +211,7 @@ export default function EditAddressPage() { // Component adı güncellendi
 
           {/* Phone number input */}
           <div className="mb-6">
-            <label className="font-inter text-[16px] mb-2 block">Phone number</label>
+            <label htmlFor="phoneNumber" className="font-inter text-[16px] mb-2 block">Phone number</label>
             <input
               value={formData.phoneNumber}
               onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
@@ -210,7 +228,7 @@ export default function EditAddressPage() { // Component adı güncellendi
 
           {/* City selection */}
           <div className="mb-6 relative">
-            <label className="font-inter text-[16px] mb-2 block">City</label>
+            <label htmlFor="city" className="font-inter text-[16px] mb-2 block">City</label>
             <button
               onClick={() => setShowCities(!showCities)}
               className={`w-full h-[40px] bg-[#C5C5C5] bg-opacity-40 rounded-[10px] px-4
@@ -245,7 +263,7 @@ export default function EditAddressPage() { // Component adı güncellendi
 
           {/* District input (Optional) */}
           <div className="mb-6">
-            <label className="font-inter text-[16px] mb-2 block">District (Optional)</label>
+            <label htmlFor="district" className="font-inter text-[16px] mb-2 block">District (Optional)</label>
             <input
               value={formData.district || ''}
               onChange={(e) => setFormData({ ...formData, district: e.target.value })}
@@ -257,7 +275,7 @@ export default function EditAddressPage() { // Component adı güncellendi
 
           {/* Address input */}
           <div className="mb-6">
-            <label className="font-inter text-[16px] mb-2 block">Address</label>
+            <label htmlFor="fullAddress" className="font-inter text-[16px] mb-2 block">Address</label>
             <textarea
               value={formData.fullAddress}
               onChange={(e) => setFormData({ ...formData, fullAddress: e.target.value })}
@@ -295,7 +313,8 @@ export default function EditAddressPage() { // Component adı güncellendi
                      hover:bg-[#2F00FF] hover:text-white
                      disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Updating...' : (isLoading ? 'Loading...' : 'Update Address')} {/* Buton metni güncellendi */}
+            {getButtonText()}
+           
           </button>
         </div>
       </div>
