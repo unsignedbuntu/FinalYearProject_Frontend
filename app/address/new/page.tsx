@@ -70,8 +70,11 @@ export default function NewAddressPage() {
             </div>  
 
             {/* Name input */}  
-            <div className="mb-6">  
-              <label className="font-inter text-[16px] mb-2 block">Name</label>  
+            <div className="mb-6">    
+              <label 
+               htmlFor="name" className="font-inter text-[16px] mb-2 block">
+                Name
+                </label>  
               <input  
                 value={formData.name}  
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}  
@@ -84,7 +87,10 @@ export default function NewAddressPage() {
 
             {/* Surname input */}  
             <div className="mb-6">  
-              <label className="font-inter text-[16px] mb-2 block">Surname</label>  
+              <label 
+               htmlFor="surname" className="font-inter text-[16px] mb-2 block">
+                Surname
+              </label>  
               <input  
                 value={formData.surname}  
                 onChange={(e) => setFormData({ ...formData, surname: e.target.value })}  
@@ -97,7 +103,10 @@ export default function NewAddressPage() {
 
             {/* Phone number input */}  
             <div className="mb-6">  
-              <label className="font-inter text-[16px] mb-2 block">Phone number</label>  
+              <label 
+                htmlFor="phone" className="font-inter text-[16px] mb-2 block">
+                Phone number
+              </label>  
               <input  
                 value={formData.phone}  
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}  
@@ -113,7 +122,10 @@ export default function NewAddressPage() {
 
             {/* City selection */}  
             <div className="mb-6 relative">  
-              <label className="font-inter text-[16px] mb-2 block">City</label>  
+              <label 
+                htmlFor="city" className="font-inter text-[16px] mb-2 block">
+                City
+              </label>  
               <button  
                 onClick={() => setShowCities(!showCities)}  
                 className="w-full h-[40px] bg-[#C5C5C5] bg-opacity-40 rounded-[10px] px-4  
@@ -144,8 +156,14 @@ export default function NewAddressPage() {
 
             {/* Address input */}  
             <div className="mb-6">  
-              <label className="font-inter text-[16px] mb-2 block">Address</label>  
+              <label 
+                htmlFor="address" 
+                className="font-inter text-[16px] mb-2 block"
+              >
+                Address
+              </label>  
               <textarea  
+                id="address"  
                 value={formData.address}  
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}  
                 placeholder="Please enter the street, neighborhood, and other details"  
@@ -161,8 +179,14 @@ export default function NewAddressPage() {
 
             {/* Address Title */}  
             <div className="mb-8">  
-              <label className="font-inter text-[16px] mb-2 block">Address Title</label>  
+              <label 
+                htmlFor="addressTitle" 
+                className="font-inter text-[16px] mb-2 block"
+              >
+                Address Title
+              </label>  
               <input  
+                id="addressTitle"
                 value={formData.addressTitle}  
                 onChange={(e) => setFormData({ ...formData, addressTitle: e.target.value })}  
                 type="text"  

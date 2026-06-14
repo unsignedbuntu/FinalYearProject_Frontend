@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { exec } from 'node:child_process';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { createLoyaltyProgram } from '@/services/API_Service';
 
 // Dosya yolları
@@ -31,17 +31,9 @@ export async function POST() {
     
     // Oyun kodunu oku ve modifiye et
     const gameCode = await fs.readFile(gamePath, 'utf-8');
-    
-    // Skoru dosyaya kaydetmek için kod ekle
-    const saveScoreCode = `
-# Skoru dosyaya yazacak fonksiyon - dosyanın üst kısmına eklenecek
-def save_score_to_file():
-    with open('last_score.txt', 'w') as f:
-        f.write(str(score))
-`;
 
     // "def draw():" satırını bulalım ve öncesine save_score_to_file fonksiyonunu ekleyelim
-    const modifiedCode = gameCode.replace(/pgzrun\.go\(\)/g, `
+    const modifiedCode = gameCode.replaceAll(/pgzrun.go\(\)/g, `
 # Eklenen fonksiyon
 def save_score_to_file():
     with open('last_score.txt', 'w') as f:
@@ -55,9 +47,9 @@ pgzrun.go()`);
       // İlk satırın indentation'ını tespit edelim
       const lines = drawContent.split('\n');
       let indent = '';
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].trim()) {
-          const match = lines[i].match(/^(\s+)/);
+      for (const element of lines) {
+        if (element.trim()) {
+          const match = element.match(/^(\s+)/);
           if (match) {
             indent = match[1];
             break;
@@ -71,13 +63,6 @@ pgzrun.go()`);
     
     // Geçici dosyaya yaz
     await fs.writeFile(tempGamePath, finalCode, 'utf-8');
-    
-    // Varsa önceki skor dosyasını temizle
-    try {
-      await fs.unlink(scoreFilePath);
-    } catch (error) {
-      // Dosya zaten yok, sorun değil
-    }
     
     // Oyunu çalıştır (Promise kullanarak)
     const runGame = () => {
@@ -101,7 +86,7 @@ pgzrun.go()`);
         
         process.on('close', (code) => {
           console.log(`API: Oyun tamamlandı, çıkış kodu: ${code}`);
-          if (code !== 0) {
+          if (code === 0) {
             reject(new Error(`Oyun hatası ile sonlandı, kod: ${code}`));
           } else {
             resolve(output);
@@ -127,22 +112,22 @@ pgzrun.go()`);
       let score = 0;
       try {
         const scoreText = await fs.readFile(scoreFilePath, 'utf-8');
-        score = parseInt(scoreText.trim(), 10) || 0;
+        score = Number.parseInt(scoreText.trim(), 10) || 0;
         console.log(`API: Oyun skoru: ${score}`);
       } catch (error) {
         console.error("API: Skor dosyası okunamadı:", error);
       }
       
       // Skora göre indirim oranı hesapla
-      let discountRate = 5.00; // Varsayılan
+      let discountRate = 5; // Varsayılan
       if (score > 200) {
-        discountRate = 25.00;
+        discountRate = 25;
       } else if (score > 150) {
-        discountRate = 20.00;
+        discountRate = 20;
       } else if (score > 100) {
-        discountRate = 15.00;
+        discountRate = 15;
       } else if (score > 50) {
-        discountRate = 10.00;
+        discountRate = 10;
       }
       
       // Skora göre puan çarpanı hesapla

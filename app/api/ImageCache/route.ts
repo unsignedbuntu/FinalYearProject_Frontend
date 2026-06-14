@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
-import https from 'https';
+import https from 'node:https';
 
 const API_URL = process.env.NEXT_PUBLIC_URL;
 
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
                     Prompt: prompt,
                     Base64Image: base64Image, 
                     EntityType: "Product",    
-                    EntityId: parseInt(pageID) 
+                    EntityId: Number.parseInt(pageID) 
                 }, {
                     headers: { 'Content-Type': 'application/json' },
                     httpsAgent: new https.Agent({ rejectUnauthorized: false })

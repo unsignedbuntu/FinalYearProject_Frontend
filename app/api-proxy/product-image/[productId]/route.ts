@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { api } from '@/services/API_Service'; // Your configured Axios instance
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
 
 export async function GET(
   request: NextRequest,
   context: { params: { productId: string } }
 ) {
-  const { productId } = await context.params;
+  const { productId } =  context.params;
 
-  if (!productId || isNaN(parseInt(productId))) {
+  if (!productId || Number.isNaN(Number.parseInt(productId))) {
     return new NextResponse('Invalid product ID', { status: 400 });
   }
 
@@ -22,18 +22,21 @@ export async function GET(
 
     if (response.status === 200 && response.data) {
       const contentType = response.headers['content-type'] || 'image/jpeg'; // Default to jpeg if not specified
-      
-      // Convert ArrayBuffer to a ReadableStream for NextResponse
+
       const buffer = Buffer.from(response.data);
-      const readableStream = new Readable();
-      readableStream._read = () => {}; // _read is required but can be a no-op
-      readableStream.push(buffer);
-      readableStream.push(null); // Signal end of stream
+
+   // Yeni — tek seferde:
+const readableStream = new Readable({
+  read() {
+    this.push(buffer);
+    this.push(null); // stream sonu
+  }
+});
 
       return new NextResponse(readableStream as any, { // Cast to any to satisfy NextResponse type, stream is compatible
         status: 200,
         headers: {
-          'Content-Type': contentType,
+          'Content-Type': String(contentType),
           'Cache-Control': 'public, max-age=600, s-maxage=600', // Cache for 10 minutes
         },
       });
