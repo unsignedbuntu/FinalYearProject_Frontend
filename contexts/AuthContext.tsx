@@ -119,9 +119,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
         const monthNumber = monthMap[signUpFormData.birthMonth];
         if (monthNumber) {
-            const day = parseInt(signUpFormData.birthDay, 10);
-            const year = parseInt(signUpFormData.birthYear, 10);
-            if (!isNaN(day) && !isNaN(year)) {
+            const day = Number.parseInt(signUpFormData.birthDay, 10);
+            const year = Number.parseInt(signUpFormData.birthYear, 10);
+            if (!Number.isNaN(day) && !Number.isNaN(year)) {
                 dateOfBirthString = `${year}-${String(monthNumber).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             }
         }

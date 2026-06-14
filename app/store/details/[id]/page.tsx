@@ -56,7 +56,7 @@ interface ExtendedProduct extends Product {
 
 export default function CategoryDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const categoryId = parseInt(resolvedParams.id);
+  const categoryId = Number.parseInt(resolvedParams.id);
   
   const [category, setCategory] = useState<Category | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);

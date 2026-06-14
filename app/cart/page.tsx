@@ -33,7 +33,7 @@ export default function CartPage() {
       id: 1,
       name: "Kaspersky PLUS 2025- 1 User 1 YEAR -INCLUDING UNLIMITED VPN- Official Distributor Guaranteed- IMMEDIATE DELIVERY",
       supplier: "Aykon informatics",
-      price: 165.00,
+      price: 165,
       image: "/kaspersky.png",
       quantity: 1
     },
@@ -41,7 +41,7 @@ export default function CartPage() {
       id: 2,
       name: "Anatolia 1000 Piece Puzzle / Planets - Code 1033",
       supplier: "Remzi Bookstore",
-      price: 165.00,
+      price: 165,
       image: "/puzzle.png",
       quantity: 1
     }
@@ -80,7 +80,6 @@ export default function CartPage() {
   const currentCoupons = filteredCoupons.slice(indexOfFirstCoupon, indexOfLastCoupon);
   const totalPages = Math.ceil(filteredCoupons.length / couponsPerPage);
 
-  const totalPrice = products.reduce((sum, product) => sum + (product.price * product.quantity), 0)
   const shippingCost = 0 // Şimdilik sabit
 
   const handleRemoveProduct = (productId: number) => {
@@ -88,14 +87,6 @@ export default function CartPage() {
     setProducts(products.filter(p => p.id !== productId))
     setLastRemovedProduct(removedProduct || null)
     setShowUndoMessage(true)
-  }
-
-  const handleUndoRemove = () => {
-    if (lastRemovedProduct) {
-      setProducts([...products, lastRemovedProduct])
-      setShowUndoMessage(false)
-      setLastRemovedProduct(null)
-    }
   }
 
   const handleQuantityChange = (productId: number, change: number) => {
@@ -132,20 +123,20 @@ export default function CartPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="font-raleway text-[64px] font-normal text-left">
-            My cart({products.length} product{products.length != 1 ? 's' : ''})
+            My cart({products.length} product{products.length === 1 ? '' : 's'})
           </h1>
           
-          <div className="flex items-center gap-2 cursor-pointer" 
+          <button className="flex items-center gap-2 cursor-pointer" 
                style={{position: 'absolute', left: '983px', top: '179px'}}
                onClick={() => {
                  const currentProducts = [...products];
                  setLastRemovedProduct(currentProducts[0]); // Save all products for undo
                  setProducts([]);
                  setShowUndoMessage(true);
-               }}>
+ }}>
             <span className="text-[#FFF600] font-raleway text-[24px]">Delete products</span>
             <Bin width={24} height={24} />
-          </div>
+          </button>
         </div>
 
         {/* Coupon Section */}
@@ -157,13 +148,13 @@ export default function CartPage() {
             <ArrowRight width={32} height={32} />
           </div>
           
-          <div className="flex items-center gap-2 cursor-pointer"
-               onClick={() => setShowCouponOverlay(true)}>
+          <button className="flex items-center gap-2 cursor-pointer"
+                  onClick={() => setShowCouponOverlay(true)}>
             <span className="font-raleway text-[32px] font-normal text-[#FF9D00]"
                   style={{position: 'absolute', left: '500px', top: '20px'}}>
               Add coupon code +
             </span>
-          </div>
+          </button>
         </div>
 
         {/* Products List */}
@@ -324,7 +315,7 @@ export default function CartPage() {
       {/* Coupon Overlay */}
       {showCouponOverlay && (
         <div className="fixed inset-0 flex items-start justify-end" style={{ zIndex: 9999 }}>
-          <div 
+          <button 
             className="fixed inset-0 bg-black/30 backdrop-blur-sm"
             onClick={() => setShowCouponOverlay(false)}
           />
@@ -359,8 +350,8 @@ export default function CartPage() {
 
               {/* Coupon List */}
               <div className="space-y-4 overflow-y-auto max-h-[600px] px-4">
-                {currentCoupons.map((coupon, index) => (
-                  <div key={index} className="relative">
+                {currentCoupons.map((coupon) => (
+                  <div key={coupon.code} className="relative">
                     <div className="absolute inset-0">
                       <Ticket width={342} height={104} />
                     </div>

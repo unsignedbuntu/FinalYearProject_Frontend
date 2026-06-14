@@ -57,7 +57,7 @@ export default function MyReviewsPage() {
       id: `product-${i}`,
       name: `Product Name ${i + 1} Long Title`,
       image: '/shoe.png',
-      rating: parseFloat(generateRandomRating().toFixed(1)),
+      rating: Number.parseFloat(generateRandomRating().toFixed(1)),
       reviewCount: generateRandomReviewCount(),
       isReviewed: Math.random() > 0.5,
       size: '44',
