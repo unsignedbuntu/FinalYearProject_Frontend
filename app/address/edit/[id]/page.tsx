@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation'; // useParams eklendi
 import Sidebar from '@/components/sidebar/Sidebar';
 import AddressSuccessMessage from '@/components/messages/AddressSuccessMessage'; // Başarı mesajı için
@@ -25,7 +25,7 @@ const cities = [
 export default function EditAddressPage() { // Component adı güncellendi
   const router = useRouter();
   const params = useParams(); // URL parametrelerini almak için
-  const addressId = params.id ? parseInt(params.id as string, 10) : null;
+  const addressId = params.id ? Number.parseInt(params.id as string, 10) : null;
 
   const [isLoading, setIsLoading] = useState(true); // Sayfa ilk yüklenirken veri çekme durumu
   const [isSubmitting, setIsSubmitting] = useState(false);  
@@ -161,7 +161,9 @@ export default function EditAddressPage() { // Component adı güncellendi
 
           {/* Address Title input */}
           <div className="mb-6">
-            <label className="font-inter text-[16px] mb-2 block">Address Title</label>
+            <label
+             className="font-inter text-[16px] mb-2 block">Address Title
+             </label>
             <input
               value={formData.addressTitle}
               onChange={(e) => setFormData({ ...formData, addressTitle: e.target.value })}
@@ -175,7 +177,9 @@ export default function EditAddressPage() { // Component adı güncellendi
 
           {/* Full Name input */}
           <div className="mb-6">
-            <label className="font-inter text-[16px] mb-2 block">Full Name</label>
+            <label
+             className="font-inter text-[16px] mb-2 block">Full Name
+             </label>
             <input
               value={formData.fullName}
               onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
