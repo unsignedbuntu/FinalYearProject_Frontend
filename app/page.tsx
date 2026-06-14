@@ -3,8 +3,6 @@ import BestSeller from '@/components/BestSeller'
 import Footer from '@/components/Footer'
 export default async function Home() {
 
-  //const categories = await getCategories();
- 
 
   return (
     <>
@@ -13,12 +11,7 @@ export default async function Home() {
           <HeroSlider />
           <BestSeller />
             <div className="flex flex-col gap-4">
-              {/* {categories.map((category: any, index: number) => (
-            <div key={category.categoryID || category.categoryName || index}>
-              {category.categoryName}
-            </div>
-              ))} */}
-               
+
           </div>
         </div>
       </main>
